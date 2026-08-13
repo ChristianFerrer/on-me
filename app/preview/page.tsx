@@ -6,7 +6,6 @@ import { PinPad } from "@/components/barista/PinPad";
 import { Verdict } from "@/components/barista/Verdict";
 import { Button } from "@/components/ui/Button";
 import { Logo } from "@/components/ui/Logo";
-import { Sheet } from "@/components/ui/Screen";
 import { StampCard } from "@/components/ui/StampCard";
 import { evaluateGate } from "@/lib/attribution";
 import { es } from "@/lib/i18n/dictionaries";
@@ -14,7 +13,7 @@ import type { ScanResponse } from "@/lib/scan";
 
 /**
  * Hoja de estilo viva, solo para revisar el sistema visual sin base de datos.
- * No se enlaza desde ningún sitio y no forma parte del producto.
+ * No se enlaza desde ningún sitio y devuelve 404 en producción.
  */
 
 const t = es;
@@ -28,81 +27,63 @@ const VERDICTS: { title: string; result: ScanResponse }[] = [
     title: "tarjeta completa",
     result: { kind: "stamp", name: "Marta", stamps: 10, goal: 10, cardCompleted: true },
   },
-  {
-    title: "café gratis",
-    result: { kind: "redeem_reward", name: "Marta", pending: true },
-  },
+  { title: "café gratis", result: { kind: "redeem_reward", name: "Marta", pending: true } },
   {
     title: "cliente nuevo",
-    result: {
-      kind: "redeem_invitation",
-      name: "Youssef",
-      padrino: "Marta",
-      pending: true,
-    },
+    result: { kind: "redeem_invitation", name: "Youssef", padrino: "Marta", pending: true },
   },
-  {
-    title: "duplicado",
-    result: { kind: "duplicate", minutesAgo: 2 },
-  },
-  {
-    title: "no válido",
-    result: { kind: "invalid", reason: "other_shop" },
-  },
+  { title: "duplicado", result: { kind: "duplicate", minutesAgo: 2 } },
+  { title: "no válido", result: { kind: "invalid", reason: "other_shop" } },
 ];
 
-/** `transform` hace que los hijos `fixed` se anclen a esta caja y no al viewport. */
+/** `transform` hace que los hijos `fixed` se anclen a esta caja, no al viewport. */
 function Phone({ children, label }: { children: React.ReactNode; label: string }) {
   return (
-    <figure className="flex flex-col gap-2">
+    <figure className="flex flex-col gap-2.5">
       <div
-        className="riso-lg relative h-[500px] w-[240px] overflow-hidden rounded-[2rem] border-2 border-ink"
+        className="relative h-[470px] w-[228px] overflow-hidden rounded-[2.25rem] ring-1 ring-black/10"
         style={{ transform: "translateZ(0)" }}
       >
         {children}
       </div>
-      <figcaption className="overline text-ink-faint">{label}</figcaption>
+      <figcaption className="eyebrow text-ink/40">{label}</figcaption>
     </figure>
   );
 }
 
 export default function PreviewPage() {
-  // Herramienta de desarrollo: en producción esta ruta no existe.
   if (process.env.NODE_ENV === "production") notFound();
 
   return (
-    <main className="mx-auto flex max-w-5xl flex-col gap-12 px-6 py-12">
-      <header className="flex flex-col gap-4">
-        <Logo size="lg" tagline={t.brand.tagline} />
-        <h1 className="display-tight text-[3.5rem]">riso mediterráneo</h1>
+    <main className="mx-auto flex max-w-5xl flex-col gap-16 px-8 py-16">
+      <header className="flex flex-col gap-6">
+        <Logo size="lg" />
+        <h1 className="display-tight text-[3.25rem]">sistema minimalista</h1>
+        <div className="aurora h-40 w-full rounded-[var(--radius-card)]" />
       </header>
 
-      <section className="flex flex-col gap-4">
-        <p className="overline text-ink-faint">tintas</p>
+      <section className="flex flex-col gap-5">
+        <p className="eyebrow text-ink/40">acentos</p>
         <ul className="flex flex-wrap gap-3">
           {[
-            ["azafrán", "bg-saffron"],
-            ["tomate", "bg-tomato"],
-            ["jade", "bg-jade"],
-            ["cobalto", "bg-cobalt"],
-            ["fucsia", "bg-fuchsia"],
-            ["humo", "bg-smoke"],
-            ["tinta", "bg-ink"],
-            ["papel", "bg-paper-deep"],
+            ["lima", "bg-lime"],
+            ["ámbar", "bg-amber"],
+            ["azul", "bg-azure"],
+            ["coral", "bg-coral"],
+            ["grafito", "bg-ink"],
+            ["tiza", "bg-chalk ring-1 ring-black/10"],
           ].map(([name, ink]) => (
-            <li key={name} className="flex flex-col gap-1.5">
-              <span
-                className={`riso-sm block size-20 rounded-2xl border-2 border-ink ${ink}`}
-              />
-              <span className="overline text-ink-faint">{name}</span>
+            <li key={name} className="flex flex-col gap-2">
+              <span className={`block size-20 rounded-2xl ${ink}`} />
+              <span className="eyebrow text-ink/40">{name}</span>
             </li>
           ))}
         </ul>
       </section>
 
-      <section className="flex flex-col gap-4">
-        <p className="overline text-ink-faint">resultado en barra</p>
-        <div className="flex flex-wrap gap-6">
+      <section className="flex flex-col gap-5">
+        <p className="eyebrow text-ink/40">resultado en barra</p>
+        <div className="flex flex-wrap gap-7">
           {VERDICTS.map((entry) => (
             <Phone key={entry.title} label={entry.title}>
               <Verdict
@@ -125,51 +106,49 @@ export default function PreviewPage() {
         </div>
       </section>
 
-      <section className="flex flex-col gap-4">
-        <p className="overline text-ink-faint">tarjeta</p>
-        <div className="grid gap-5 sm:grid-cols-2">
-          <Sheet className="bg-paper-deep p-6" tint="var(--color-cobalt)">
-            <p className="overline text-ink-faint">The Madness</p>
-            <h2 className="display-tight numeral mt-2 text-[3.4rem]">
-              7<span className="text-ink-faint">/10</span>
-            </h2>
-            <p className="mt-1 text-[1.05rem] font-semibold text-ink-soft">
+      <section className="flex flex-col gap-5">
+        <p className="eyebrow text-ink/40">tarjeta</p>
+        <div className="aurora grid gap-5 rounded-[var(--radius-card)] p-6 sm:grid-cols-2">
+          <div className="slab p-7">
+            <p className="eyebrow text-chalk/40">The Madness</p>
+            <p className="display-tight numeral mt-5 text-[3.25rem]">
+              7<span className="text-chalk/30">/10</span>
+            </p>
+            <p className="mt-1 text-[0.9375rem] font-medium text-chalk/55">
               te quedan 3
             </p>
-            <StampCard stamps={7} goal={10} className="mt-5" />
-          </Sheet>
+            <StampCard stamps={7} goal={10} tone="dark" className="mt-7" />
+          </div>
 
-          <Sheet className="bg-saffron p-6" tint="var(--color-tomato)">
-            <span
-              aria-hidden
-              className="halftone halftone-lg absolute -right-10 -top-10 size-40 rounded-full text-ink"
-            />
-            <p className="overline text-ink/60">The Madness</p>
-            <h2 className="display-tight mt-2 text-[2.8rem]">tu café es gratis</h2>
-            <p className="mt-3 text-[1rem] font-medium leading-snug">
+          <div className="slab p-7">
+            <p className="eyebrow text-chalk/40">The Madness</p>
+            <h2 className="display-tight mt-5 text-[2.5rem] text-lime">
+              tu café es gratis
+            </h2>
+            <p className="mt-4 text-[0.9375rem] leading-relaxed text-chalk/60">
               {t.card.rewardBody}
             </p>
-          </Sheet>
+          </div>
         </div>
       </section>
 
-      <section className="flex flex-col gap-4">
-        <p className="overline text-ink-faint">puertas del piloto</p>
-        <div className="grid gap-4 sm:grid-cols-3">
-          <GateCard gate={evaluateGate("p1", 24, 41, 0.4, 20)} label={t.admin.gate1} t={t.admin} />
+      <section className="flex flex-col gap-5">
+        <p className="eyebrow text-ink/40">puertas del piloto</p>
+        <div className="grid gap-3 sm:grid-cols-3">
+          <GateCard gate={evaluateGate("p1", 24, 43, 0.4, 20)} label={t.admin.gate1} t={t.admin} />
           <GateCard gate={evaluateGate("p2", 4, 24, 0.25, 20)} label={t.admin.gate2} t={t.admin} />
-          <GateCard gate={evaluateGate("p3", 2, 7, 0.3, 10)} label={t.admin.gate3} t={t.admin} />
+          <GateCard gate={evaluateGate("p3", 2, 4, 0.3, 10)} label={t.admin.gate3} t={t.admin} />
         </div>
       </section>
 
-      <section className="flex flex-col gap-4">
-        <p className="overline text-ink-faint">controles</p>
-        <div className="grid max-w-sm gap-3">
-          <Button tone="tomato" size="xl">
+      <section className="flex flex-col gap-5">
+        <p className="eyebrow text-ink/40">controles</p>
+        <div className="aurora grid max-w-sm gap-3 rounded-[var(--radius-card)] p-6">
+          <Button tone="ink">
             {t.join.submit}
+            <span className="size-2 rounded-full bg-lime" aria-hidden />
           </Button>
-          <Button tone="jade">{t.barista.stampAction}</Button>
-          <Button tone="cobalt">{t.guest.claim}</Button>
+          <Button tone="lime">{t.barista.stampAction}</Button>
           <Button tone="ghost" size="md">
             {t.invite.copyLink}
           </Button>

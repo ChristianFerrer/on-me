@@ -1,44 +1,41 @@
 import Link from "next/link";
 import { cn } from "@/lib/cn";
 
-type Tone = "ink" | "saffron" | "cobalt" | "jade" | "tomato" | "ghost";
-type Size = "md" | "lg" | "xl";
+type Tone = "ink" | "lime" | "chalk" | "ghost" | "ghost-light";
+type Size = "sm" | "md" | "lg";
 
 const TONES: Record<Tone, string> = {
-  ink: "bg-ink text-paper border-ink",
-  saffron: "bg-saffron text-ink border-ink",
-  cobalt: "bg-cobalt text-paper border-ink",
-  jade: "bg-jade text-ink border-ink",
-  tomato: "bg-tomato text-paper border-ink",
-  ghost: "bg-transparent text-ink border-ink",
+  ink: "bg-ink text-chalk hover:bg-ink-2",
+  lime: "bg-lime text-ink hover:brightness-[1.04]",
+  chalk: "bg-chalk text-ink hover:bg-white",
+  ghost: "bg-transparent text-ink border-[rgba(12,18,16,0.16)] hover:bg-[rgba(12,18,16,0.05)]",
+  "ghost-light":
+    "bg-transparent text-chalk border-[rgba(255,255,255,0.18)] hover:bg-[rgba(255,255,255,0.07)]",
 };
 
 const SIZES: Record<Size, string> = {
-  md: "px-5 py-3 text-[0.95rem]",
-  lg: "px-6 py-4 text-[1.05rem]",
-  xl: "px-7 py-5 text-[1.15rem]",
+  sm: "px-4 py-2.5 text-[0.875rem]",
+  md: "px-5 py-3.5 text-[0.9375rem]",
+  lg: "px-6 py-4.5 text-[1.0625rem]",
 };
-
-const BASE =
-  "riso btn-press inline-flex w-full items-center justify-center gap-2.5 " +
-  "rounded-2xl border-2 font-semibold tracking-[-0.01em] " +
-  "disabled:pointer-events-none disabled:opacity-45";
 
 type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
   tone?: Tone;
   size?: Size;
+  block?: boolean;
 };
 
 export function Button({
   tone = "ink",
   size = "lg",
+  block = true,
   className,
   ...props
 }: ButtonProps) {
   return (
     <button
       {...props}
-      className={cn(BASE, TONES[tone], SIZES[size], className)}
+      className={cn("btn", block && "w-full", TONES[tone], SIZES[size], className)}
     />
   );
 }
@@ -46,15 +43,20 @@ export function Button({
 type ButtonLinkProps = React.ComponentProps<typeof Link> & {
   tone?: Tone;
   size?: Size;
+  block?: boolean;
 };
 
 export function ButtonLink({
   tone = "ink",
   size = "lg",
+  block = true,
   className,
   ...props
 }: ButtonLinkProps) {
   return (
-    <Link {...props} className={cn(BASE, TONES[tone], SIZES[size], className)} />
+    <Link
+      {...props}
+      className={cn("btn", block && "w-full", TONES[tone], SIZES[size], className)}
+    />
   );
 }

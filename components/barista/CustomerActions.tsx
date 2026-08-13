@@ -30,8 +30,8 @@ export function CustomerActions({
   return (
     <>
       <Button
-        tone="jade"
-        size="xl"
+        tone="lime"
+        size="lg"
         disabled={phase.step === "sending"}
         onClick={() => void submit({ customerId })}
       >

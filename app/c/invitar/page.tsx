@@ -1,8 +1,7 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { InvitePanel } from "@/components/client/InvitePanel";
-import { LangSwitch } from "@/components/ui/LangSwitch";
-import { Screen, Sheet } from "@/components/ui/Screen";
+import { Screen, Slab } from "@/components/ui/Screen";
+import { TopBar } from "@/components/ui/TopBar";
 import { loadCard } from "@/lib/card";
 import { env } from "@/lib/env";
 import { fill } from "@/lib/i18n";
@@ -22,47 +21,38 @@ export default async function InvitePage() {
     : null;
 
   return (
-    <Screen className="gap-6 pb-8">
-      <header className="flex items-center justify-between gap-3">
-        <Link href="/c" prefetch={false} className="overline text-ink-faint">
-          ← {t.common.back}
-        </Link>
-        <LangSwitch locale={locale} label={t.common.switchTo} />
-      </header>
+    <Screen className="gap-7 pb-8">
+      <TopBar locale={locale} back="/c" backLabel={t.common.back} />
 
-      <div className="stagger flex flex-col gap-6">
-        <div className="relative">
-          <span
-            aria-hidden
-            className="halftone halftone-lg anim-drift absolute -right-8 -top-8 -z-10 size-36 rounded-full text-fuchsia"
-          />
-          <p className="overline text-ink-faint">{t.invite.eyebrow}</p>
-          <h1 className="display-tight mt-2 text-[clamp(2.5rem,13vw,3.4rem)]">
+      <div className="stagger flex flex-col gap-7">
+        <div className="pt-4">
+          <p className="eyebrow text-ink/45">{t.invite.eyebrow}</p>
+          <h1 className="display-tight mt-3 text-[clamp(2.375rem,11vw,3rem)]">
             {t.invite.title}
           </h1>
-          <p className="mt-3 text-[1.05rem] font-medium leading-snug text-ink-soft">
+          <p className="mt-4 text-[1rem] font-medium leading-relaxed text-ink/65">
             {fill(t.invite.subtitle, { shop: card.shop.name })}
           </p>
         </div>
 
-        <Sheet className="bg-ink p-5 text-paper" tint="var(--color-saffron)">
-          <ul className="flex flex-col gap-3">
+        <Slab className="p-7">
+          <ol className="flex flex-col gap-4">
             {[
               t.invite.rules.one,
               fill(t.invite.rules.two, { days: card.shop.invite_ttl_days }),
               fill(t.invite.rules.three, { bonus: card.shop.bonus_stamps }),
             ].map((rule, index) => (
-              <li key={rule} className="flex items-start gap-3">
-                <span className="numeral mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full bg-saffron text-[0.8rem] font-semibold text-ink">
+              <li key={rule} className="flex items-start gap-4">
+                <span className="numeral mt-px w-4 shrink-0 text-[0.875rem] font-semibold text-lime">
                   {index + 1}
                 </span>
-                <span className="text-[0.95rem] leading-snug text-paper/85">
+                <span className="text-[0.9375rem] leading-snug text-chalk/70">
                   {rule}
                 </span>
               </li>
             ))}
-          </ul>
-        </Sheet>
+          </ol>
+        </Slab>
 
         <InvitePanel
           t={t.invite}

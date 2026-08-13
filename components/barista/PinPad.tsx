@@ -37,38 +37,43 @@ export function PinPad({
   }
 
   return (
-    <div className="verdict verdict-smoke grain grain-light flex-col justify-end">
-      <div className="flex flex-1 flex-col items-center justify-center gap-6 px-7">
-        <p className="overline text-paper/80">{t.confirmPin}</p>
+    <div className="fixed inset-0 z-[70] flex flex-col bg-void text-chalk">
+      <div className="flex flex-1 flex-col items-center justify-center gap-7 px-8">
+        <p className="eyebrow text-chalk/45">{t.confirmPin}</p>
 
         <div className="flex gap-3.5">
           {[0, 1, 2, 3].map((i) => (
             <span
               key={i}
               className={cn(
-                "size-5 rounded-full border-2 border-paper",
-                i < pin.length && "bg-paper",
+                "size-3.5 rounded-full transition-colors",
+                i < pin.length ? "bg-lime" : "bg-white/15",
               )}
             />
           ))}
         </div>
 
-        <p className={cn("text-[1.05rem] font-semibold", wrong ? "text-tomato" : "opacity-70")}>
+        <p
+          className={cn(
+            "text-[0.9375rem] font-medium",
+            wrong ? "text-coral" : "text-chalk/40",
+          )}
+        >
           {wrong ? t.pinWrong : t.pinHint}
         </p>
       </div>
 
-      <div className="grid grid-cols-3 gap-2.5 px-4 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
+      <div className="grid grid-cols-3 gap-2.5 px-5 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
         {["1", "2", "3", "4", "5", "6", "7", "8", "9"].map((digit) => (
           <Key key={digit} onClick={() => push(digit)}>
             {digit}
           </Key>
         ))}
-        <Key onClick={onCancel} muted>
+        <Key onClick={onCancel} muted label={t.cancel}>
           ✕
         </Key>
         <Key onClick={() => push("0")}>0</Key>
-        <Key onClick={() => setPin((p) => p.slice(0, -1))} muted>
+        <Key onClick={() => setPin((p) => p.slice(0, -1))} muted label="←">
           ⌫
         </Key>
       </div>
@@ -80,18 +85,21 @@ function Key({
   children,
   onClick,
   muted,
+  label,
 }: {
   children: React.ReactNode;
   onClick: () => void;
   muted?: boolean;
+  label?: string;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
+      aria-label={label}
       className={cn(
-        "numeral btn-press rounded-2xl border-2 border-ink py-5 text-[1.6rem] font-semibold",
-        muted ? "bg-transparent text-paper" : "bg-paper text-ink riso-sm",
+        "btn numeral rounded-2xl py-5 text-[1.5rem] font-semibold",
+        muted ? "text-chalk/45" : "bg-ink-2 text-chalk",
       )}
     >
       {children}

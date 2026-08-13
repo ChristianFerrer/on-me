@@ -1,39 +1,50 @@
 import Link from "next/link";
 import { cn } from "@/lib/cn";
-import type { Locale } from "@/lib/i18n";
+import { LOCALES, type Locale } from "@/lib/i18n";
 
 /**
- * Conmutador de idioma. Es un enlace normal a `?lang=xx`: el middleware
- * guarda la cookie y limpia la URL, así que funciona sin JavaScript y no
- * ensucia el enlace que el cliente tenga guardado.
+ * Conmutador de idioma: dos pastillas, la activa rellena.
+ *
+ * Son enlaces normales a `?lang=xx`; el proxy guarda la cookie y limpia la
+ * URL, así que funciona sin JavaScript y no ensucia el enlace que el cliente
+ * tenga guardado.
  */
 export function LangSwitch({
   locale,
-  label,
-  className,
   tone = "ink",
+  className,
 }: {
   locale: Locale;
-  label: string;
+  tone?: "ink" | "chalk";
   className?: string;
-  tone?: "ink" | "paper";
 }) {
-  const next: Locale = locale === "es" ? "en" : "es";
-
   return (
-    <Link
-      href={`?lang=${next}`}
-      prefetch={false}
-      hrefLang={next}
-      className={cn(
-        "overline btn-press rounded-full border-2 px-3.5 py-2",
-        tone === "ink"
-          ? "riso-sm border-ink bg-paper text-ink"
-          : "border-paper/40 text-paper/80 hover:border-paper hover:text-paper",
-        className,
-      )}
-    >
-      {label}
-    </Link>
+    <div className={cn("flex items-center gap-1", className)}>
+      {LOCALES.map((code) => {
+        const active = code === locale;
+
+        return (
+          <Link
+            key={code}
+            href={`?lang=${code}`}
+            prefetch={false}
+            hrefLang={code}
+            aria-current={active ? "true" : undefined}
+            className={cn(
+              "eyebrow flex size-9 items-center justify-center rounded-full transition-colors",
+              active
+                ? tone === "ink"
+                  ? "bg-ink text-chalk"
+                  : "bg-chalk text-ink"
+                : tone === "ink"
+                  ? "text-ink/50 hover:bg-[rgba(12,18,16,0.07)]"
+                  : "text-chalk/45 hover:bg-[rgba(255,255,255,0.08)]",
+            )}
+          >
+            {code}
+          </Link>
+        );
+      })}
+    </div>
   );
 }

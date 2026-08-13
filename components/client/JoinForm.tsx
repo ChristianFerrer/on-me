@@ -7,7 +7,6 @@ import { cn } from "@/lib/cn";
 import { fill, type Dict, type Locale } from "@/lib/i18n";
 
 type JoinDict = Dict["join"];
-
 type ErrorKey = keyof JoinDict["errors"];
 
 /**
@@ -71,77 +70,113 @@ export function JoinForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-5">
-      <div>
-        <label htmlFor="name" className="overline text-ink-faint">
-          {t.nameLabel}
-        </label>
-        <input
-          id="name"
-          name="name"
-          value={name}
-          onChange={(event) => setName(event.target.value)}
-          placeholder={t.namePlaceholder}
-          autoComplete="given-name"
-          enterKeyHint="next"
-          aria-invalid={error === "name"}
-          className="field mt-2"
-        />
-      </div>
+    <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-3">
+      <input
+        id="name"
+        name="name"
+        value={name}
+        onChange={(event) => setName(event.target.value)}
+        placeholder={t.namePlaceholder}
+        aria-label={t.nameLabel}
+        autoComplete="given-name"
+        enterKeyHint="next"
+        aria-invalid={error === "name"}
+        className="field"
+      />
 
-      <div>
-        <label htmlFor="phone" className="overline text-ink-faint">
-          {t.phoneLabel}
-        </label>
-        <input
-          id="phone"
-          name="phone"
-          value={phone}
-          onChange={(event) => setPhone(event.target.value)}
-          placeholder={t.phonePlaceholder}
-          type="tel"
-          inputMode="tel"
-          autoComplete="tel"
-          enterKeyHint="done"
-          aria-invalid={error === "phone"}
-          aria-describedby="phone-hint"
-          className="numeral field mt-2"
-        />
-        <p id="phone-hint" className="mt-2 text-[0.8rem] leading-snug text-ink-faint">
-          {t.phoneHint}
-        </p>
-      </div>
+      <input
+        id="phone"
+        name="phone"
+        value={phone}
+        onChange={(event) => setPhone(event.target.value)}
+        placeholder={t.phonePlaceholder}
+        aria-label={t.phoneLabel}
+        type="tel"
+        inputMode="tel"
+        autoComplete="tel"
+        enterKeyHint="done"
+        aria-invalid={error === "phone"}
+        aria-describedby="phone-hint"
+        className="numeral field"
+      />
 
-      <label
-        className={cn(
-          "flex cursor-pointer items-start gap-3 rounded-2xl border-2 p-4",
-          error === "consent" ? "border-tomato bg-tomato/10" : "border-ink/20",
-        )}
-      >
-        <input
-          type="checkbox"
-          checked={consent}
-          onChange={(event) => setConsent(event.target.checked)}
-          className="mt-0.5 size-6 shrink-0 accent-[var(--color-cobalt)]"
-        />
-        <span className="text-[0.9rem] leading-snug text-ink-soft">
-          {fill(t.consent, { shop: shopName })}{" "}
-          <a href={privacyHref} className="font-semibold text-cobalt underline">
-            {t.consentLink}
-          </a>
-        </span>
-      </label>
+      <p id="phone-hint" className="px-1 text-[0.8125rem] leading-snug text-ink/50">
+        {t.phoneHint}
+      </p>
+
+      <Consent
+        checked={consent}
+        onChange={setConsent}
+        invalid={error === "consent"}
+        label={fill(t.consent, { shop: shopName })}
+        linkLabel={t.consentLink}
+        href={privacyHref}
+      />
 
       {error ? (
-        <p role="alert" className="text-[0.95rem] font-semibold text-tomato">
+        <p role="alert" className="px-1 text-[0.9375rem] font-semibold text-coral">
           {t.errors[error]}
         </p>
       ) : null}
 
-      <Button type="submit" tone="tomato" size="xl" disabled={busy}>
+      <Button type="submit" tone="ink" size="lg" disabled={busy} className="mt-1">
         {busy ? t.submitting : t.submit}
+        <span className="size-2 rounded-full bg-lime" aria-hidden />
       </Button>
     </form>
+  );
+}
+
+/** Casilla de consentimiento, sin el control nativo del sistema. */
+export function Consent({
+  checked,
+  onChange,
+  invalid,
+  label,
+  linkLabel,
+  href,
+}: {
+  checked: boolean;
+  onChange: (value: boolean) => void;
+  invalid: boolean;
+  label: string;
+  linkLabel: string;
+  href: string;
+}) {
+  return (
+    <label
+      className={cn(
+        "flex cursor-pointer items-start gap-3 rounded-2xl px-1 py-2",
+        invalid && "text-coral",
+      )}
+    >
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(event) => onChange(event.target.checked)}
+        className="peer sr-only"
+      />
+      <span
+        aria-hidden
+        className={cn(
+          "mt-px flex size-5 shrink-0 items-center justify-center rounded-md border transition-colors",
+          checked ? "border-ink bg-ink" : "border-ink/30 bg-white/40",
+          invalid && !checked && "border-coral",
+        )}
+      >
+        {checked ? (
+          <svg viewBox="0 0 12 12" className="size-3 fill-none stroke-lime stroke-[2.2]">
+            <path d="M2 6.2 4.6 8.8 10 3.4" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        ) : null}
+      </span>
+      <span className="text-[0.8125rem] leading-snug text-ink/70">
+        {label}{" "}
+        <a href={href} className="font-semibold text-ink underline underline-offset-2">
+          {linkLabel}
+        </a>
+      </span>
+    </label>
   );
 }
 

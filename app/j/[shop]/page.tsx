@@ -1,9 +1,8 @@
 import { notFound } from "next/navigation";
 import { JoinForm } from "@/components/client/JoinForm";
-import { LangSwitch } from "@/components/ui/LangSwitch";
-import { Logo } from "@/components/ui/Logo";
-import { Screen, Sheet } from "@/components/ui/Screen";
+import { Screen } from "@/components/ui/Screen";
 import { StampCard } from "@/components/ui/StampCard";
+import { TopBar } from "@/components/ui/TopBar";
 import { db } from "@/lib/db/client";
 import { getI18n } from "@/lib/i18n/server";
 
@@ -30,29 +29,20 @@ export default async function JoinPage({
 
   return (
     <Screen className="gap-7 pb-10">
-      <header className="flex items-center justify-between">
-        <Logo />
-        <LangSwitch locale={locale} label={t.common.switchTo} />
-      </header>
+      <TopBar locale={locale} />
 
-      <div className="stagger flex flex-col gap-6">
-        <div className="relative">
-          <span
-            aria-hidden
-            className="halftone halftone-lg anim-drift absolute -right-8 -top-10 -z-10 size-40 rounded-full text-saffron"
-          />
-          <p className="overline text-ink-faint">{shop.name}</p>
-          <h1 className="display-tight mt-2 text-[clamp(2.6rem,13vw,3.6rem)]">
+      <div className="stagger flex flex-col gap-7">
+        <div className="pt-4 text-center">
+          <p className="eyebrow text-ink/45">{shop.name}</p>
+          <h1 className="display-tight mt-3 text-[clamp(2.5rem,12vw,3.25rem)]">
             {t.join.title}
           </h1>
-          <p className="mt-3 max-w-[24ch] text-[1.1rem] font-medium leading-snug text-ink-soft">
+          <p className="mx-auto mt-4 max-w-[26ch] text-[1rem] font-medium leading-relaxed text-ink/65">
             {t.join.subtitle}
           </p>
         </div>
 
-        <Sheet className="bg-paper-deep p-5" tint="var(--color-jade)">
-          <StampCard stamps={0} goal={shop.stamps_goal} />
-        </Sheet>
+        <StampCard stamps={0} goal={shop.stamps_goal} className="px-6" />
 
         <JoinForm
           shop={shop.slug}
@@ -63,8 +53,8 @@ export default async function JoinPage({
         />
       </div>
 
-      <footer className="mt-auto border-t-2 border-ink/15 pt-4">
-        <p className="text-[0.85rem] leading-snug text-ink-faint">
+      <footer className="mt-auto pt-6 text-center">
+        <p className="text-[0.8125rem] leading-relaxed text-ink/45">
           {shop.address}
           {shop.hours ? ` · ${shop.hours}` : ""}
         </p>

@@ -4,8 +4,9 @@ import { GateCard } from "@/components/admin/GateCard";
 import { LoginForm } from "@/components/admin/LoginForm";
 import { LangSwitch } from "@/components/ui/LangSwitch";
 import { Logo } from "@/components/ui/Logo";
-import { Screen, Sheet } from "@/components/ui/Screen";
+import { Screen } from "@/components/ui/Screen";
 import { getAdminContext } from "@/lib/auth/admin";
+import { cn } from "@/lib/cn";
 import { loadFunnel } from "@/lib/funnel";
 import { getI18n } from "@/lib/i18n/server";
 
@@ -15,8 +16,8 @@ export default async function AdminPage() {
 
   if (!ctx) {
     return (
-      <Screen tone="ink" className="justify-center gap-7">
-        <Logo size="lg" />
+      <Screen tone="ink" className="justify-center gap-8">
+        <Logo size="lg" tone="chalk" />
         <LoginForm t={t.admin} />
       </Screen>
     );
@@ -25,32 +26,36 @@ export default async function AdminPage() {
   const data = await loadFunnel(ctx.shop.id);
 
   return (
-    <Screen tone="ink" className="gap-6 pb-10">
-      <header className="flex items-center justify-between gap-3">
+    <Screen tone="ink" className="gap-8 pb-10">
+      <header className="flex items-center justify-between gap-3 pt-2">
         <div>
-          <p className="overline text-paper/50">{ctx.shop.name}</p>
-          <h1 className="display text-[2rem] text-paper">{t.admin.title}</h1>
+          <p className="eyebrow text-chalk/35">{ctx.shop.name}</p>
+          <h1 className="display mt-1.5 text-[1.75rem]">{t.admin.title}</h1>
         </div>
-        <LangSwitch locale={locale} label={t.common.switchTo} tone="paper" />
+        <LangSwitch locale={locale} tone="chalk" />
       </header>
 
       <section className="flex flex-col gap-3">
-        <p className="overline text-paper/50">{t.admin.gates}</p>
+        <p className="eyebrow text-chalk/35">{t.admin.gates}</p>
         <GateCard gate={data.gates.p1} label={t.admin.gate1} t={t.admin} />
         <GateCard gate={data.gates.p2} label={t.admin.gate2} t={t.admin} />
         <GateCard gate={data.gates.p3} label={t.admin.gate3} t={t.admin} />
       </section>
 
-      <Sheet className="border-paper/20 bg-transparent p-5 shadow-none">
+      <section className="rounded-[var(--radius-card)] bg-ink p-6">
         <FunnelBars data={data} t={t.admin} />
-      </Sheet>
+      </section>
 
       <section>
-        <p className="overline text-paper/50">{t.admin.ops}</p>
+        <p className="eyebrow text-chalk/35">{t.admin.ops}</p>
         <dl className="mt-3 grid grid-cols-2 gap-3">
           <Signal
             label={t.admin.scanTime}
-            value={data.ops.avgScanMs === null ? "—" : `${(data.ops.avgScanMs / 1000).toFixed(1)} s`}
+            value={
+              data.ops.avgScanMs === null
+                ? "—"
+                : `${(data.ops.avgScanMs / 1000).toFixed(1)} s`
+            }
             // El presupuesto son 3 segundos. Por encima, el barista sabotea.
             alarm={data.ops.avgScanMs !== null && data.ops.avgScanMs > 3000}
           />
@@ -63,14 +68,17 @@ export default async function AdminPage() {
             }
             alarm={data.ops.manualRate !== null && data.ops.manualRate > 0.15}
           />
-          <Signal label={t.admin.expiredInvites} value={String(data.ops.expiredInvites)} />
+          <Signal
+            label={t.admin.expiredInvites}
+            value={String(data.ops.expiredInvites)}
+          />
           <Signal label="scans · 7d" value={String(data.ops.scansLast7Days)} />
         </dl>
       </section>
 
       <Link
         href="/admin/atribuciones"
-        className="riso btn-press mt-auto inline-flex w-full items-center justify-center rounded-2xl border-2 border-ink bg-saffron px-6 py-4 font-semibold text-ink"
+        className="btn mt-auto w-full bg-lime px-6 py-4 text-[1rem] text-ink"
       >
         {t.admin.attributions} →
       </Link>
@@ -89,12 +97,20 @@ function Signal({
 }) {
   return (
     <div
-      className={`rounded-2xl border-2 p-4 ${
-        alarm ? "border-tomato bg-tomato/15" : "border-paper/20"
-      }`}
+      className={cn(
+        "rounded-2xl p-5",
+        alarm ? "bg-coral/15 ring-1 ring-coral/40" : "bg-ink",
+      )}
     >
-      <dt className="text-[0.8rem] leading-snug text-paper/60">{label}</dt>
-      <dd className="numeral mt-1.5 text-[1.5rem] font-semibold">{value}</dd>
+      <dt className="text-[0.8125rem] leading-snug text-chalk/45">{label}</dt>
+      <dd
+        className={cn(
+          "numeral mt-2 text-[1.375rem] font-semibold",
+          alarm && "text-coral",
+        )}
+      >
+        {value}
+      </dd>
     </div>
   );
 }

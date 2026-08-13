@@ -1,60 +1,70 @@
 import { cn } from "@/lib/cn";
 
 /**
- * Lienzo de una pantalla de cliente. No hay barra de navegación en ningún
- * sitio de OnMe: sin cuentas no hay a dónde navegar, así que cada pantalla
- * ocupa el alto completo y el color puede trabajar sin estorbos.
+ * Lienzo de una pantalla. No hay barra de navegación en ningún sitio de
+ * OnMe —sin cuentas no hay a dónde navegar—, así que cada pantalla ocupa
+ * el alto completo y el degradado puede trabajar sin estorbos.
  */
 export function Screen({
   children,
   className,
-  tone = "paper",
+  tone = "aurora",
 }: {
   children: React.ReactNode;
   className?: string;
-  tone?: "paper" | "ink";
+  /** aurora: degradado pleno · quiet: degradado apagado · ink: grafito */
+  tone?: "aurora" | "quiet" | "ink";
 }) {
+  const skin = {
+    aurora: "aurora text-ink",
+    quiet: "aurora-quiet text-ink",
+    ink: "bg-void text-chalk",
+  }[tone];
+
   return (
-    <main
-      className={cn(
-        "relative mx-auto flex min-h-dvh w-full max-w-[30rem] flex-col",
-        "px-5 pt-[max(1.25rem,env(safe-area-inset-top))]",
-        "pb-[max(1.5rem,env(safe-area-inset-bottom))]",
-        tone === "ink" ? "admin" : "bg-paper text-ink",
-        className,
-      )}
-    >
-      {children}
-    </main>
+    <div className={cn("min-h-dvh w-full", skin)}>
+      <main
+        className={cn(
+          "mx-auto flex min-h-dvh w-full max-w-[30rem] flex-col",
+          "px-5 pt-[max(1rem,env(safe-area-inset-top))]",
+          "pb-[max(1.5rem,env(safe-area-inset-bottom))]",
+          className,
+        )}
+      >
+        {children}
+      </main>
+    </div>
   );
 }
 
-/** Bloque de papel con registro desplazado. La unidad de composición. */
-export function Sheet({
+/** Superficie de grafito: la unidad de composición sobre el degradado. */
+export function Slab({
   children,
   className,
-  tint,
 }: {
   children: React.ReactNode;
   className?: string;
-  /** Tinta de la sombra desplazada, para diferenciar bloques de un vistazo. */
-  tint?: string;
+}) {
+  return <section className={cn("slab", className)}>{children}</section>;
+}
+
+/** Superficie de vidrio: se apoya en el degradado en vez de taparlo. */
+export function Glass({
+  children,
+  className,
+  tone = "light",
+}: {
+  children: React.ReactNode;
+  className?: string;
+  tone?: "light" | "dark";
 }) {
   return (
-    <section
-      className={cn(
-        "relative overflow-hidden rounded-[var(--radius-card)] border-2 border-ink",
-        tint ? "riso-tint" : "riso",
-        className,
-      )}
-      style={tint ? ({ "--riso-tint": tint } as React.CSSProperties) : undefined}
-    >
+    <section className={cn(tone === "light" ? "glass" : "glass-dark", className)}>
       {children}
     </section>
   );
 }
 
-/** Antetítulo en mono, el conector tipográfico de todo el sistema. */
 export function Eyebrow({
   children,
   className,
@@ -62,7 +72,5 @@ export function Eyebrow({
   children: React.ReactNode;
   className?: string;
 }) {
-  return (
-    <p className={cn("overline text-ink-faint", className)}>{children}</p>
-  );
+  return <p className={cn("eyebrow text-ink/45", className)}>{children}</p>;
 }

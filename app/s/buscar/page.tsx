@@ -12,12 +12,16 @@ export default async function BuscarPage() {
   const { t } = await getI18n();
 
   return (
-    <Screen className="gap-6">
-      <header className="flex items-center justify-between gap-3">
-        <Link href="/s" prefetch={false} className="overline text-ink-faint">
+    <Screen tone="ink" className="gap-8">
+      <header className="flex items-center justify-between gap-3 pt-2">
+        <Link
+          href="/s"
+          prefetch={false}
+          className="text-[0.9375rem] font-medium text-chalk/60 transition-colors hover:text-chalk"
+        >
           ← {t.common.back}
         </Link>
-        <span className="overline text-ink-faint">{ctx.device.name}</span>
+        <span className="eyebrow text-chalk/35">{ctx.device.name}</span>
       </header>
 
       <ManualSearch t={t.barista} />

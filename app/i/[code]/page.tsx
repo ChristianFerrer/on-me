@@ -1,14 +1,12 @@
 import { ClaimForm } from "@/components/client/ClaimForm";
 import { MarkOpened } from "@/components/client/MarkOpened";
-import { LangSwitch } from "@/components/ui/LangSwitch";
-import { Logo } from "@/components/ui/Logo";
-import { Screen, Sheet } from "@/components/ui/Screen";
+import { Screen, Slab } from "@/components/ui/Screen";
+import { TopBar } from "@/components/ui/TopBar";
 import { normalizeInviteCode } from "@/lib/crypto";
 import { db } from "@/lib/db/client";
 import { fill, formatDate, type Locale } from "@/lib/i18n";
 import { getI18n } from "@/lib/i18n/server";
 import { firstName } from "@/lib/scan-service";
-import type { Dict } from "@/lib/i18n";
 
 const CLAIMABLE = ["created", "sent", "opened"];
 
@@ -33,7 +31,7 @@ export default async function GuestPage({
     .maybeSingle();
 
   if (!invitation) {
-    return <Notice locale={locale} t={t} title={t.guest.invalid} body={t.errors.notFoundBody} />;
+    return <Notice locale={locale} title={t.guest.invalid} body={t.errors.notFoundBody} />;
   }
 
   const expired =
@@ -41,12 +39,12 @@ export default async function GuestPage({
 
   if (expired) {
     return (
-      <Notice locale={locale} t={t} title={t.guest.expired} body={t.guest.expiredBody} />
+      <Notice locale={locale} title={t.guest.expired} body={t.guest.expiredBody} />
     );
   }
 
   if (!CLAIMABLE.includes(invitation.state)) {
-    return <Notice locale={locale} t={t} title={t.guest.used} body={t.guest.expiredBody} />;
+    return <Notice locale={locale} title={t.guest.used} body={t.guest.expiredBody} />;
   }
 
   const [shopResult, padrinoResult] = await Promise.all([
@@ -64,43 +62,35 @@ export default async function GuestPage({
 
   const shop = shopResult.data;
   if (!shop) {
-    return <Notice locale={locale} t={t} title={t.guest.invalid} body={t.errors.notFoundBody} />;
+    return <Notice locale={locale} title={t.guest.invalid} body={t.errors.notFoundBody} />;
   }
 
   // Solo el nombre de pila: nunca se enseña a nadie el apellido de otro.
   const padrino = padrinoResult.data ? firstName(padrinoResult.data.name) : "—";
 
   return (
-    <Screen className="gap-6 pb-8">
+    <Screen className="gap-7 pb-8">
       <MarkOpened code={code} />
+      <TopBar locale={locale} />
 
-      <header className="flex items-center justify-between gap-3">
-        <Logo size="sm" />
-        <LangSwitch locale={locale} label={t.common.switchTo} />
-      </header>
-
-      <div className="stagger flex flex-col gap-6">
-        <Sheet className="bg-cobalt p-6 text-paper" tint="var(--color-saffron)">
-          <span
-            aria-hidden
-            className="halftone halftone-lg anim-drift absolute -right-12 -top-12 size-44 rounded-full text-paper"
-          />
-          <p className="overline text-paper/70">{t.guest.eyebrow}</p>
-          <h1 className="display-tight mt-2 text-[clamp(2.4rem,12vw,3.2rem)]">
+      <div className="stagger flex flex-col gap-7">
+        <div className="pt-4">
+          <p className="eyebrow text-ink/45">{t.guest.eyebrow}</p>
+          <h1 className="display-tight mt-3 text-[clamp(2.25rem,10.5vw,2.875rem)]">
             {fill(t.guest.title, { padrino })}
           </h1>
-          <p className="mt-3 text-[1.05rem] font-semibold text-paper/90">
+          <p className="mt-4 text-[1.0625rem] font-semibold text-ink/75">
             {fill(t.guest.at, { shop: shop.name })}
           </p>
-          <p className="mt-4 text-[0.95rem] leading-snug text-paper/75">
+          <p className="mt-3 text-[0.9375rem] leading-relaxed text-ink/60">
             {t.guest.body}
           </p>
-          <p className="overline mt-5 text-paper/60">
+          <p className="eyebrow mt-5 text-ink/40">
             {fill(t.guest.expires, {
               date: formatDate(invitation.expires_at, locale),
             })}
           </p>
-        </Sheet>
+        </div>
 
         <ClaimForm
           code={code}
@@ -112,8 +102,8 @@ export default async function GuestPage({
         />
       </div>
 
-      <footer className="mt-auto border-t-2 border-ink/15 pt-4">
-        <p className="text-[0.85rem] leading-snug text-ink-faint">
+      <footer className="mt-auto pt-6 text-center">
+        <p className="text-[0.8125rem] leading-relaxed text-ink/45">
           {shop.address}
           {shop.hours ? ` · ${shop.hours}` : ""}
         </p>
@@ -124,26 +114,22 @@ export default async function GuestPage({
 
 function Notice({
   locale,
-  t,
   title,
   body,
 }: {
   locale: Locale;
-  t: Dict;
   title: string;
   body: string;
 }) {
   return (
-    <Screen className="justify-center gap-6">
-      <header className="flex items-center justify-between gap-3">
-        <Logo size="sm" />
-        <LangSwitch locale={locale} label={t.common.switchTo} />
-      </header>
-      <Sheet className="bg-smoke p-6 text-paper" tint="var(--color-ink)">
-        <h1 className="display text-[2rem] leading-tight">{title}</h1>
-        <p className="mt-3 text-[0.95rem] leading-snug text-paper/85">{body}</p>
-      </Sheet>
-      <div className="flex-1" />
+    <Screen tone="quiet" className="gap-6">
+      <TopBar locale={locale} />
+      <div className="flex flex-1 flex-col justify-center">
+        <Slab className="p-7">
+          <h1 className="display text-[1.875rem]">{title}</h1>
+          <p className="mt-3 text-[0.9375rem] leading-relaxed text-chalk/60">{body}</p>
+        </Slab>
+      </div>
     </Screen>
   );
 }

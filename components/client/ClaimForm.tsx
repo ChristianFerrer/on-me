@@ -3,9 +3,9 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Button, ButtonLink } from "@/components/ui/Button";
-import { Sheet } from "@/components/ui/Screen";
-import { cn } from "@/lib/cn";
+import { Slab } from "@/components/ui/Screen";
 import { fill, type Dict, type Locale } from "@/lib/i18n";
+import { Consent } from "./JoinForm";
 
 type JoinDict = Dict["join"];
 type GuestDict = Dict["guest"];
@@ -58,9 +58,9 @@ export function ClaimForm({
       });
 
       const data: unknown = await response.json().catch(() => null);
-      const code_ = (data as { error?: string } | null)?.error;
+      const outcome = (data as { error?: string } | null)?.error;
 
-      if (code_ === "existing_customer") {
+      if (outcome === "existing_customer") {
         // La cookie ya apunta a su tarjeta de siempre.
         setAlreadyCustomer(true);
         setBusy(false);
@@ -68,13 +68,11 @@ export function ClaimForm({
       }
 
       if (!response.ok) {
-        setError(code_ === "phone" ? "phone" : "generic");
+        setError(outcome === "phone" ? "phone" : "generic");
         setBusy(false);
         return;
       }
 
-      // replace + refresh: la cookie ya está puesta por la respuesta,
-      // y refresh garantiza que la tarjeta se pida al servidor de nuevo.
       router.replace("/c");
       router.refresh();
     } catch {
@@ -85,91 +83,72 @@ export function ClaimForm({
 
   if (alreadyCustomer) {
     return (
-      <Sheet className="bg-saffron p-6" tint="var(--color-tomato)">
-        <h2 className="display text-[1.9rem] leading-tight">
-          {guest.alreadyCustomer}
-        </h2>
-        <p className="mt-3 text-[0.98rem] leading-snug">
+      <Slab className="p-7">
+        <h2 className="display text-[1.75rem]">{guest.alreadyCustomer}</h2>
+        <p className="mt-3 text-[0.9375rem] leading-relaxed text-chalk/60">
           {guest.alreadyCustomerBody}
         </p>
-        <ButtonLink href="/c" tone="ink" size="lg" className="mt-5">
+        <ButtonLink href="/c" tone="lime" size="lg" className="mt-6">
           {guest.goToCard}
         </ButtonLink>
-      </Sheet>
+      </Slab>
     );
   }
 
   return (
-    <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-5">
-      <div>
-        <label htmlFor="claim-name" className="overline text-ink-faint">
-          {t.nameLabel}
-        </label>
-        <input
-          id="claim-name"
-          value={name}
-          onChange={(event) => setName(event.target.value)}
-          placeholder={t.namePlaceholder}
-          autoComplete="given-name"
-          enterKeyHint="next"
-          aria-invalid={error === "name"}
-          className="field mt-2"
-        />
-      </div>
+    <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-3">
+      <input
+        id="claim-name"
+        value={name}
+        onChange={(event) => setName(event.target.value)}
+        placeholder={t.namePlaceholder}
+        aria-label={t.nameLabel}
+        autoComplete="given-name"
+        enterKeyHint="next"
+        aria-invalid={error === "name"}
+        className="field"
+      />
 
-      <div>
-        <label htmlFor="claim-phone" className="overline text-ink-faint">
-          {t.phoneLabel}
-        </label>
-        <input
-          id="claim-phone"
-          value={phone}
-          onChange={(event) => setPhone(event.target.value)}
-          placeholder={t.phonePlaceholder}
-          type="tel"
-          inputMode="tel"
-          autoComplete="tel"
-          enterKeyHint="done"
-          aria-invalid={error === "phone"}
-          aria-describedby="claim-phone-hint"
-          className="numeral field mt-2"
-        />
-        <p
-          id="claim-phone-hint"
-          className="mt-2 text-[0.8rem] leading-snug text-ink-faint"
-        >
-          {t.phoneHint}
-        </p>
-      </div>
+      <input
+        id="claim-phone"
+        value={phone}
+        onChange={(event) => setPhone(event.target.value)}
+        placeholder={t.phonePlaceholder}
+        aria-label={t.phoneLabel}
+        type="tel"
+        inputMode="tel"
+        autoComplete="tel"
+        enterKeyHint="done"
+        aria-invalid={error === "phone"}
+        aria-describedby="claim-phone-hint"
+        className="numeral field"
+      />
 
-      <label
-        className={cn(
-          "flex cursor-pointer items-start gap-3 rounded-2xl border-2 p-4",
-          error === "consent" ? "border-tomato bg-tomato/10" : "border-ink/20",
-        )}
+      <p
+        id="claim-phone-hint"
+        className="px-1 text-[0.8125rem] leading-snug text-ink/50"
       >
-        <input
-          type="checkbox"
-          checked={consent}
-          onChange={(event) => setConsent(event.target.checked)}
-          className="mt-0.5 size-6 shrink-0 accent-[var(--color-cobalt)]"
-        />
-        <span className="text-[0.9rem] leading-snug text-ink-soft">
-          {fill(t.consent, { shop: shopName })}{" "}
-          <a href={privacyHref} className="font-semibold text-cobalt underline">
-            {t.consentLink}
-          </a>
-        </span>
-      </label>
+        {t.phoneHint}
+      </p>
+
+      <Consent
+        checked={consent}
+        onChange={setConsent}
+        invalid={error === "consent"}
+        label={fill(t.consent, { shop: shopName })}
+        linkLabel={t.consentLink}
+        href={privacyHref}
+      />
 
       {error ? (
-        <p role="alert" className="text-[0.95rem] font-semibold text-tomato">
+        <p role="alert" className="px-1 text-[0.9375rem] font-semibold text-coral">
           {t.errors[error]}
         </p>
       ) : null}
 
-      <Button type="submit" tone="cobalt" size="xl" disabled={busy}>
+      <Button type="submit" tone="ink" size="lg" disabled={busy} className="mt-1">
         {busy ? guest.claiming : guest.claim}
+        <span className="size-2 rounded-full bg-lime" aria-hidden />
       </Button>
     </form>
   );

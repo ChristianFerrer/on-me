@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { CustomerActions } from "@/components/barista/CustomerActions";
 import { QrCode } from "@/components/ui/QrCode";
-import { Screen, Sheet } from "@/components/ui/Screen";
+import { Screen } from "@/components/ui/Screen";
 import { StampCard } from "@/components/ui/StampCard";
 import { getDeviceContext, pinRequired } from "@/lib/auth/device";
 import { db } from "@/lib/db/client";
@@ -44,31 +44,46 @@ export default async function CustomerPage({
   const rewardPending = customer.passes[0]?.reward_pending ?? false;
 
   return (
-    <Screen className="gap-6">
-      <header className="flex items-center justify-between gap-3">
-        <Link href="/s/buscar" prefetch={false} className="overline text-ink-faint">
+    <Screen tone="ink" className="gap-6">
+      <header className="flex items-center justify-between gap-3 pt-2">
+        <Link
+          href="/s/buscar"
+          prefetch={false}
+          className="text-[0.9375rem] font-medium text-chalk/60 transition-colors hover:text-chalk"
+        >
           ← {t.common.back}
         </Link>
-        <span className="overline rounded-full border-2 border-ink px-3 py-1.5">
+        <span className="eyebrow rounded-full bg-white/8 px-3 py-1.5 text-chalk/50">
           {t.barista.manualBadge}
         </span>
       </header>
 
       <div>
-        <h1 className="display text-[2.4rem]">{firstName(customer.name)}</h1>
-        <p className="numeral mt-1 text-ink-soft">··{customer.phone_last4}</p>
+        <h1 className="display text-[2.25rem]">{firstName(customer.name)}</h1>
+        <p className="numeral mt-1 text-[0.9375rem] text-chalk/45">
+          ··{customer.phone_last4}
+        </p>
       </div>
 
-      <Sheet
-        className={rewardPending ? "bg-saffron p-5" : "bg-paper-deep p-5"}
-        tint={rewardPending ? "var(--color-tomato)" : "var(--color-cobalt)"}
-      >
-        <StampCard stamps={stamps} goal={ctx.shop.stamps_goal} />
-        <p className="numeral mt-4 text-sm font-semibold">
-          {stamps}/{ctx.shop.stamps_goal}
-          {rewardPending ? ` · ${t.card.rewardTitle}` : ""}
-        </p>
-      </Sheet>
+      <section className="rounded-[var(--radius-card)] bg-ink-2 p-6">
+        <div className="flex items-baseline justify-between gap-3">
+          <span className="numeral text-[1.5rem] font-semibold">
+            {stamps}
+            <span className="text-chalk/30">/{ctx.shop.stamps_goal}</span>
+          </span>
+          {rewardPending ? (
+            <span className="eyebrow rounded-full bg-amber px-3 py-1.5 text-ink">
+              {t.card.rewardTitle}
+            </span>
+          ) : null}
+        </div>
+        <StampCard
+          stamps={stamps}
+          goal={ctx.shop.stamps_goal}
+          tone="dark"
+          className="mt-5"
+        />
+      </section>
 
       <CustomerActions
         t={t.barista}
@@ -83,17 +98,17 @@ export default async function CustomerPage({
         tarjeta del cliente, en cambio, lleva solo el token, porque lo lee
         nuestro escáner y cuantos menos módulos tenga, más rápido decodifica.
       */}
-      <Sheet className="mt-auto bg-paper p-5" tint="var(--color-jade)">
-        <p className="overline text-ink-faint">{t.barista.resend}</p>
-        <p className="mt-1.5 text-[0.95rem] leading-snug text-ink-soft">
+      <section className="mt-auto rounded-[var(--radius-card)] bg-white p-6">
+        <p className="eyebrow text-ink/40">{t.barista.resend}</p>
+        <p className="mt-1.5 text-[0.875rem] leading-snug text-ink/55">
           {t.barista.resendBody}
         </p>
         <QrCode
           value={`${env.baseUrl}/c/${customer.token}`}
           label={t.barista.resend}
-          className="mx-auto mt-4 w-40"
+          className="mx-auto mt-5 w-36"
         />
-      </Sheet>
+      </section>
     </Screen>
   );
 }

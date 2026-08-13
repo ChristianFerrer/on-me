@@ -40,42 +40,36 @@ export function LoginForm({ t }: { t: AdminDict }) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-      <div>
-        <label htmlFor="email" className="overline text-paper/50">
-          {t.email}
-        </label>
-        <input
-          id="email"
-          type="email"
-          value={email}
-          onChange={(event) => setEmail(event.target.value)}
-          autoComplete="username"
-          className="field mt-2"
-        />
-      </div>
+    <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+      <input
+        id="email"
+        type="email"
+        value={email}
+        onChange={(event) => setEmail(event.target.value)}
+        placeholder={t.email}
+        aria-label={t.email}
+        autoComplete="username"
+        className="field"
+      />
 
-      <div>
-        <label htmlFor="password" className="overline text-paper/50">
-          {t.password}
-        </label>
-        <input
-          id="password"
-          type="password"
-          value={password}
-          onChange={(event) => setPassword(event.target.value)}
-          autoComplete="current-password"
-          className="field mt-2"
-        />
-      </div>
+      <input
+        id="password"
+        type="password"
+        value={password}
+        onChange={(event) => setPassword(event.target.value)}
+        placeholder={t.password}
+        aria-label={t.password}
+        autoComplete="current-password"
+        className="field"
+      />
 
       {error ? (
-        <p role="alert" className="text-[0.95rem] font-semibold text-tomato">
+        <p role="alert" className="px-1 text-[0.9375rem] font-medium text-coral">
           {t.signInError}
         </p>
       ) : null}
 
-      <Button type="submit" tone="saffron" size="lg" disabled={busy}>
+      <Button type="submit" tone="lime" size="lg" disabled={busy} className="mt-1">
         {t.signIn}
       </Button>
     </form>

@@ -21,7 +21,7 @@ export async function QrCode({
     type: "svg",
     errorCorrectionLevel: "M",
     margin: 0,
-    color: { dark: "#17110d", light: "#0000" },
+    color: { dark: "#0e1211", light: "#0000" },
   });
 
   return (

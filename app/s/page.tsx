@@ -1,6 +1,6 @@
 import { Scanner } from "@/components/barista/Scanner";
 import { Logo } from "@/components/ui/Logo";
-import { Screen, Sheet } from "@/components/ui/Screen";
+import { Screen, Slab } from "@/components/ui/Screen";
 import { getDeviceContext, pinRequired } from "@/lib/auth/device";
 import { getI18n } from "@/lib/i18n/server";
 
@@ -26,18 +26,18 @@ export default async function BaristaPage() {
  */
 function NotEnrolled() {
   return (
-    <Screen className="justify-center gap-6">
-      <Logo size="lg" />
-      <Sheet className="bg-tomato p-6 text-paper">
-        <p className="overline text-paper/70">barra · counter</p>
-        <h1 className="display mt-2 text-[1.9rem] leading-tight">
+    <Screen tone="ink" className="justify-center gap-8">
+      <Logo size="lg" tone="chalk" />
+      <Slab className="bg-ink-2 p-7">
+        <p className="eyebrow text-coral">barra · counter</p>
+        <h1 className="display mt-3 text-[1.75rem]">
           este dispositivo no está autorizado
         </h1>
-        <p className="mt-3 text-[0.95rem] leading-snug text-paper/85">
+        <p className="mt-3 text-[0.9375rem] leading-relaxed text-chalk/55">
           this device is not authorised. abre el enlace de alta del local para
           activarlo.
         </p>
-      </Sheet>
+      </Slab>
     </Screen>
   );
 }

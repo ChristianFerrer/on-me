@@ -23,8 +23,6 @@ export function OfflineBadge({ label }: { label: string }) {
   if (!offline) return null;
 
   return (
-    <p className="overline rounded-full border-2 border-ink bg-smoke px-3.5 py-2 text-center text-paper">
-      {label}
-    </p>
+    <p className="eyebrow rounded-full bg-ink px-3.5 py-2 text-chalk">{label}</p>
   );
 }

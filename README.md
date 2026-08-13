@@ -119,19 +119,32 @@ guarda un año— y un prefijo de idioma duplicaría la identidad de cada tarjet
 
 ### Diseño
 
-Sistema «Riso Mediterráneo»: tintas planas saturadas, registro desplazado, trama de semitono y
-grano de papel. Fraunces + Archivo + IBM Plex Mono.
+Sistema minimalista de tres materiales y nada más:
 
-El color es funcional. El barista aprende cuatro tintas y lee el resultado de reojo, a dos metros,
-con cola detrás:
+- **aurora** — un degradado continuo lima → verde → turquesa → azul que sostiene las pantallas
+  de cliente.
+- **grafito** — superficies casi negras con esquinas muy redondeadas.
+- **aire** — espacio en blanco haciendo el trabajo que en otros sistemas hace el adorno.
 
-| Tinta   | Significa                       |
-| ------- | ------------------------------- |
-| jade    | sello sumado                    |
-| azafrán | café gratis por tarjeta completa |
-| cobalto | canje de invitación             |
-| tomate  | no válido                       |
-| humo    | duplicado, no suma              |
+Una sola familia tipográfica, **Plus Jakarta Sans**, con la jerarquía apoyada en tamaño y peso.
+Sin texturas, sin sombras duras, sin bordes gruesos.
+
+La única excepción es la pantalla de resultado del barista, que se tiñe entera: ahí el color no
+decora, informa. Se lee de reojo, a dos metros, con cola detrás.
+
+| Color   | Significa                        |
+| ------- | -------------------------------- |
+| lima    | sello sumado                     |
+| ámbar   | café gratis por tarjeta completa |
+| azul    | canje de invitación              |
+| coral   | no válido                        |
+| grafito | duplicado, no suma               |
+
+Las clases propias viven en `@layer base` y `@layer components`. Fuera de capa ganarían a las
+utilidades de Tailwind por orden de cascada, y un `border-…` sobre `.btn` no haría nada.
+
+`/preview` es una hoja de estilo viva para revisar todo el sistema sin base de datos; devuelve
+404 en producción.
 
 ---
 

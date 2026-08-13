@@ -61,7 +61,7 @@ export function Scanner({
   const blocked = !online || status === "no_camera";
 
   return (
-    <div className="fixed inset-0 overflow-hidden bg-ink text-paper">
+    <div className="fixed inset-0 overflow-hidden bg-void text-chalk">
       <video
         ref={videoRef}
         playsInline
@@ -74,36 +74,36 @@ export function Scanner({
       />
 
       <div className="absolute inset-0 flex flex-col">
-        <header className="flex items-start justify-between gap-3 px-5 pt-[max(1rem,env(safe-area-inset-top))]">
-          <div className="rounded-2xl bg-ink/70 px-3.5 py-2 backdrop-blur-sm">
-            <p className="text-[0.95rem] font-semibold leading-tight">{shopName}</p>
-            <p className="overline text-paper/60">{deviceName}</p>
+        <header className="flex items-start justify-between gap-3 px-4 pt-[max(1rem,env(safe-area-inset-top))]">
+          <div className="glass-dark px-4 py-2.5">
+            <p className="text-[0.9375rem] font-semibold leading-tight">{shopName}</p>
+            <p className="eyebrow mt-0.5 text-chalk/45">{deviceName}</p>
           </div>
           <Link
             href="/s/buscar"
             prefetch={false}
-            className="overline riso-sm rounded-full border-2 border-ink bg-paper px-4 py-2.5 text-ink"
+            className="btn glass-dark rounded-full px-5 py-3 text-[0.875rem] text-chalk"
           >
             {t.search}
           </Link>
         </header>
 
-        <div className="flex flex-1 items-center justify-center px-8">
+        <div className="flex flex-1 items-center justify-center px-10">
           <Target active={phase.step === "idle" && !blocked} />
         </div>
 
-        <footer className="px-6 pb-[max(1.75rem,env(safe-area-inset-bottom))] text-center">
+        <footer className="px-5 pb-[max(1.75rem,env(safe-area-inset-bottom))]">
           {blocked ? (
-            <div className="riso rounded-2xl border-2 border-ink bg-tomato px-5 py-4">
-              <p className="text-[1.05rem] font-bold">
+            <div className="glass-dark px-5 py-4 text-center">
+              <p className="text-[1rem] font-semibold text-coral">
                 {!online ? t.offline : t.noCamera}
               </p>
-              <p className="mt-1 text-[0.9rem] opacity-90">
+              <p className="mt-1 text-[0.875rem] text-chalk/60">
                 {!online ? t.offlineBody : t.noCameraBody}
               </p>
             </div>
           ) : (
-            <p className="text-[1.05rem] font-semibold text-paper/85 drop-shadow-[0_1px_6px_rgba(0,0,0,0.7)]">
+            <p className="text-center text-[0.9375rem] font-medium text-chalk/70">
               {status === "booting" ? t.opening : t.scanning}
             </p>
           )}
@@ -132,28 +132,25 @@ export function Scanner({
   );
 }
 
-/** Mirilla. Sin ella la gente no sabe dónde poner el móvil del cliente. */
+/** Mirilla: cuatro esquinas finas. Sin ella nadie sabe dónde poner el móvil. */
 function Target({ active }: { active: boolean }) {
   return (
     <div
       className={cn(
-        "relative aspect-square w-full max-w-[17rem] transition-opacity duration-300",
-        active ? "opacity-100" : "opacity-30",
+        "relative aspect-square w-full max-w-[16rem] transition-opacity duration-300",
+        active ? "opacity-100" : "opacity-25",
       )}
     >
       {[
-        "left-0 top-0 border-l-4 border-t-4 rounded-tl-2xl",
-        "right-0 top-0 border-r-4 border-t-4 rounded-tr-2xl",
-        "left-0 bottom-0 border-b-4 border-l-4 rounded-bl-2xl",
-        "right-0 bottom-0 border-b-4 border-r-4 rounded-br-2xl",
+        "left-0 top-0 border-l-2 border-t-2 rounded-tl-3xl",
+        "right-0 top-0 border-r-2 border-t-2 rounded-tr-3xl",
+        "left-0 bottom-0 border-b-2 border-l-2 rounded-bl-3xl",
+        "right-0 bottom-0 border-b-2 border-r-2 rounded-br-3xl",
       ].map((corner) => (
-        <span
-          key={corner}
-          className={cn("absolute size-12 border-saffron", corner)}
-        />
+        <span key={corner} className={cn("absolute size-10 border-lime", corner)} />
       ))}
       {active ? (
-        <span className="anim-scanline absolute inset-x-3 h-0.5 rounded-full bg-saffron shadow-[0_0_14px_var(--color-saffron)]" />
+        <span className="anim-scanline absolute inset-x-4 h-px bg-lime" />
       ) : null}
     </div>
   );

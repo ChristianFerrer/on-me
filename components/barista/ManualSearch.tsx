@@ -43,9 +43,9 @@ export function ManualSearch({ t }: { t: BaristaDict }) {
   const loading = last4.length === 4 && hits === null;
 
   return (
-    <div className="flex flex-1 flex-col gap-6">
+    <div className="flex flex-1 flex-col gap-7">
       <div>
-        <label htmlFor="last4" className="overline text-ink-faint">
+        <label htmlFor="last4" className="eyebrow text-chalk/45">
           {t.searchTitle}
         </label>
         <input
@@ -59,41 +59,44 @@ export function ManualSearch({ t }: { t: BaristaDict }) {
           autoFocus
           placeholder={t.searchPlaceholder}
           aria-describedby="last4-hint"
-          className="numeral field mt-2 text-center text-[2.5rem] tracking-[0.35em]"
+          className="numeral field mt-3 text-center text-[2.25rem] font-semibold tracking-[0.4em]"
         />
-        <p id="last4-hint" className="mt-2 text-sm text-ink-faint">
+        <p id="last4-hint" className="mt-2.5 text-[0.875rem] text-chalk/40">
           {t.searchHint}
         </p>
       </div>
 
-      {loading ? <p className="overline text-ink-faint">···</p> : null}
+      {loading ? <p className="eyebrow text-chalk/35">···</p> : null}
 
-      {hits && hits.length === 0 && !loading ? (
-        <p className="text-[1.05rem] font-semibold text-ink-soft">
-          {t.searchEmpty}
-        </p>
+      {hits && hits.length === 0 ? (
+        <p className="text-[1rem] font-medium text-chalk/55">{t.searchEmpty}</p>
       ) : null}
 
-      <ul className="stagger flex flex-col gap-3">
+      <ul className="stagger flex flex-col gap-2.5">
         {(hits ?? []).map((hit) => (
           <li key={hit.id}>
             <Link
               href={`/s/cliente/${hit.id}`}
               prefetch={false}
               className={cn(
-                "riso btn-press flex items-center justify-between gap-4 rounded-2xl border-2 border-ink px-5 py-4",
-                hit.rewardPending ? "bg-saffron" : "bg-paper",
+                "btn w-full justify-between rounded-2xl px-5 py-4 text-left",
+                hit.rewardPending ? "bg-amber text-ink" : "bg-ink-2 text-chalk",
               )}
             >
-              <span>
-                <span className="block text-[1.2rem] font-bold leading-tight">
+              <span className="min-w-0">
+                <span className="block truncate text-[1.0625rem] font-semibold">
                   {hit.name}
                 </span>
-                <span className="numeral text-sm text-ink-soft">
+                <span
+                  className={cn(
+                    "numeral text-[0.8125rem] font-normal",
+                    hit.rewardPending ? "text-ink/55" : "text-chalk/45",
+                  )}
+                >
                   ··{hit.last4}
                 </span>
               </span>
-              <span className="numeral shrink-0 text-[1.15rem] font-semibold">
+              <span className="numeral shrink-0 text-[1.0625rem] font-semibold">
                 {hit.stamps}/{hit.goal}
               </span>
             </Link>

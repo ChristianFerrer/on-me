@@ -9,9 +9,9 @@ import { getI18n } from "@/lib/i18n/server";
 import { firstName } from "@/lib/scan-service";
 
 const STATE_SKIN = {
-  billable: "bg-jade text-ink",
-  window: "bg-saffron text-ink",
-  discarded: "bg-smoke text-paper",
+  billable: "bg-lime text-ink",
+  window: "bg-white/8 text-chalk/60",
+  discarded: "bg-white/8 text-chalk/35",
 } as const;
 
 /**
@@ -54,39 +54,40 @@ export default async function AttributionsPage() {
   } as const;
 
   return (
-    <Screen tone="ink" className="gap-6 pb-10">
-      <header className="flex items-center justify-between gap-3">
-        <Link href="/admin" prefetch={false} className="overline text-paper/50">
+    <Screen tone="ink" className="gap-7 pb-10">
+      <header className="flex items-center justify-between gap-3 pt-2">
+        <Link
+          href="/admin"
+          prefetch={false}
+          className="text-[0.9375rem] font-medium text-chalk/60 transition-colors hover:text-chalk"
+        >
           ← {t.common.back}
         </Link>
-        <span className="numeral text-[0.8rem] text-paper/50">
+        <span className="numeral text-[0.8125rem] text-chalk/35">
           {attributions.length}
         </span>
       </header>
 
-      <h1 className="display text-[2rem] text-paper">{t.admin.attributions}</h1>
+      <h1 className="display text-[1.75rem]">{t.admin.attributions}</h1>
 
       {attributions.length === 0 ? (
-        <p className="text-[0.95rem] text-paper/60">{t.admin.attrEmpty}</p>
+        <p className="text-[0.9375rem] text-chalk/45">{t.admin.attrEmpty}</p>
       ) : (
-        <ul className="flex flex-col gap-3">
+        <ul className="flex flex-col gap-2.5">
           {attributions.map((row) => (
-            <li
-              key={row.id}
-              className="rounded-2xl border-2 border-paper/20 p-4"
-            >
+            <li key={row.id} className="rounded-2xl bg-ink p-5">
               <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="text-[1.05rem] font-semibold leading-tight">
+                <div className="min-w-0">
+                  <p className="truncate text-[1.0625rem] font-semibold">
                     {names.get(row.ahijado_id) ?? "—"}
                   </p>
-                  <p className="overline mt-1 text-paper/50">
-                    {t.admin.attrPadrino}: {names.get(row.padrino_id) ?? "—"}
+                  <p className="eyebrow mt-1.5 text-chalk/35">
+                    {t.admin.attrPadrino} · {names.get(row.padrino_id) ?? "—"}
                   </p>
                 </div>
                 <span
                   className={cn(
-                    "overline shrink-0 rounded-full border-2 border-ink px-2.5 py-1",
+                    "eyebrow shrink-0 rounded-full px-2.5 py-1",
                     STATE_SKIN[row.state],
                   )}
                 >
@@ -94,17 +95,15 @@ export default async function AttributionsPage() {
                 </span>
               </div>
 
-              <dl className="numeral mt-3 grid grid-cols-2 gap-2 text-[0.78rem] text-paper/60">
+              <dl className="numeral mt-4 grid grid-cols-2 gap-3 text-[0.75rem] text-chalk/45">
                 <div>
-                  <dt className="opacity-70">{t.admin.attrRedeemed}</dt>
-                  <dd>{formatDateTime(row.redeemed_at, locale)}</dd>
+                  <dt className="text-chalk/30">{t.admin.attrRedeemed}</dt>
+                  <dd className="mt-0.5">{formatDateTime(row.redeemed_at, locale)}</dd>
                 </div>
                 <div>
-                  <dt className="opacity-70">{t.admin.attrReturned}</dt>
-                  <dd>
-                    {row.returned_at
-                      ? formatDateTime(row.returned_at, locale)
-                      : "—"}
+                  <dt className="text-chalk/30">{t.admin.attrReturned}</dt>
+                  <dd className="mt-0.5">
+                    {row.returned_at ? formatDateTime(row.returned_at, locale) : "—"}
                   </dd>
                 </div>
               </dl>

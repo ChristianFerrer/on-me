@@ -1,29 +1,16 @@
 import type { Metadata, Viewport } from "next";
-import { Archivo, Fraunces, IBM_Plex_Mono } from "next/font/google";
+import { Plus_Jakarta_Sans } from "next/font/google";
 import { ServiceWorker } from "@/components/client/ServiceWorker";
 import { resolveLocale } from "@/lib/i18n/server";
 import "./globals.css";
 
-/** Display: serif variable con ejes SOFT y WONK. La voz de la marca. */
-const fraunces = Fraunces({
+/**
+ * Una sola familia para todo el producto. La jerarquía sale del tamaño y del
+ * peso, no de mezclar tipografías: es lo que mantiene el conjunto callado.
+ */
+const jakarta = Plus_Jakarta_Sans({
   subsets: ["latin"],
-  axes: ["SOFT", "WONK", "opsz"],
-  variable: "--font-fraunces",
-  display: "swap",
-});
-
-/** Interfaz: grotesca de trabajo, impecable en español e inglés. */
-const archivo = Archivo({
-  subsets: ["latin"],
-  variable: "--font-archivo",
-  display: "swap",
-});
-
-/** Cifras y códigos: mono tabular, porque un código se dicta en voz alta. */
-const plexMono = IBM_Plex_Mono({
-  subsets: ["latin"],
-  weight: ["400", "500", "600"],
-  variable: "--font-plex-mono",
+  variable: "--font-jakarta",
   display: "swap",
 });
 
@@ -36,7 +23,7 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     title: "OnMe",
-    statusBarStyle: "default",
+    statusBarStyle: "black-translucent",
   },
   formatDetection: { telephone: false },
   icons: {
@@ -51,7 +38,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#fbf3e4",
+  themeColor: "#0e1211",
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
@@ -66,11 +53,8 @@ export default async function RootLayout({
   const locale = await resolveLocale();
 
   return (
-    <html
-      lang={locale}
-      className={`${fraunces.variable} ${archivo.variable} ${plexMono.variable}`}
-    >
-      <body className="grain relative min-h-dvh antialiased">
+    <html lang={locale} className={jakarta.variable}>
+      <body className="min-h-dvh antialiased">
         {children}
         <ServiceWorker />
       </body>

@@ -1,60 +1,46 @@
 import { cn } from "@/lib/cn";
 
 /**
- * La marca: un anillo de taza visto desde arriba, impreso en dos tintas
- * con el registro desplazado. Sirve igual de logotipo y de icono de PWA.
+ * La marca reducida a lo mínimo: un punto y el nombre.
+ * El punto es la taza vista desde arriba, y es lo único que lleva color.
  */
 export function Mark({ className }: { className?: string }) {
   return (
-    <svg viewBox="0 0 48 48" aria-hidden className={cn("shrink-0", className)}>
-      <circle cx="25.5" cy="25.5" r="17" className="fill-tomato" />
-      <circle
-        cx="22.5"
-        cy="22.5"
-        r="17"
-        className="fill-saffron stroke-ink"
-        strokeWidth="3"
-      />
-      <circle
-        cx="22.5"
-        cy="22.5"
-        r="8.5"
-        className="fill-none stroke-ink"
-        strokeWidth="3"
-      />
-    </svg>
+    <span
+      aria-hidden
+      className={cn("block shrink-0 rounded-full bg-lime", className)}
+    />
   );
 }
 
 export function Logo({
   className,
-  tagline,
   size = "md",
+  tone = "ink",
 }: {
   className?: string;
-  tagline?: string;
   size?: "sm" | "md" | "lg";
+  tone?: "ink" | "chalk";
 }) {
   const type = {
-    sm: "text-[1.35rem]",
-    md: "text-[1.75rem]",
-    lg: "text-[2.5rem]",
+    sm: "text-[1.0625rem]",
+    md: "text-[1.25rem]",
+    lg: "text-[2rem]",
   }[size];
-  const mark = { sm: "size-6", md: "size-8", lg: "size-11" }[size];
+  const dot = { sm: "size-2", md: "size-2.5", lg: "size-3.5" }[size];
 
   return (
-    <div className={cn("flex items-center gap-2.5", className)}>
-      <Mark className={mark} />
-      <span className="flex items-baseline gap-2">
-        <span className={cn("display text-ink", type)}>
-          On<span className="text-tomato">Me</span>
-        </span>
-        {tagline ? (
-          <span className="overline text-ink-faint hidden sm:inline">
-            {tagline}
-          </span>
-        ) : null}
+    <span className={cn("flex items-center gap-2.5", className)}>
+      <Mark className={dot} />
+      <span
+        className={cn(
+          "font-bold tracking-[-0.03em]",
+          type,
+          tone === "ink" ? "text-ink" : "text-chalk",
+        )}
+      >
+        OnMe
       </span>
-    </div>
+    </span>
   );
 }

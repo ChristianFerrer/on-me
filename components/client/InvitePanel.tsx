@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/Button";
-import { Sheet } from "@/components/ui/Screen";
+import { Glass, Slab } from "@/components/ui/Screen";
 import { fill, type Dict } from "@/lib/i18n";
 
 type InviteDict = Dict["invite"];
@@ -63,25 +63,28 @@ export function InvitePanel({
       setCopied(true);
       window.setTimeout(() => setCopied(false), 2000);
     } catch {
-      /* Sin permiso de portapapeles queda el enlace visible para copiarlo a mano. */
+      /* Sin permiso de portapapeles queda el enlace visible para copiarlo. */
     }
   }
 
   if (!invite) {
     if (quotaFull) {
       return (
-        <Sheet className="bg-paper-deep p-5" tint="var(--color-smoke)">
-          <p className="text-[1.05rem] font-semibold leading-snug">
+        <Glass className="p-6">
+          <p className="text-[1.0625rem] font-semibold leading-snug">
             {fill(t.quotaTitle, { n: activeCount })}
           </p>
-          <p className="mt-1.5 text-[0.9rem] text-ink-soft">{t.quotaBody}</p>
-        </Sheet>
+          <p className="mt-2 text-[0.9375rem] leading-relaxed text-ink/55">
+            {t.quotaBody}
+          </p>
+        </Glass>
       );
     }
 
     return (
-      <Button tone="tomato" size="xl" disabled={busy} onClick={() => void create()}>
+      <Button tone="ink" size="lg" disabled={busy} onClick={() => void create()}>
         {busy ? t.generating : t.generate}
+        <span className="size-2 rounded-full bg-lime" aria-hidden />
       </Button>
     );
   }
@@ -90,29 +93,28 @@ export function InvitePanel({
   const waHref = `https://wa.me/?text=${encodeURIComponent(message)}`;
 
   return (
-    <div className="flex flex-col gap-4">
-      <Sheet className="bg-paper p-6 text-center" tint="var(--color-fuchsia)">
-        <p className="overline text-ink-faint">{t.yourCode}</p>
-        <p className="numeral mt-2 text-[2.6rem] font-semibold tracking-[0.2em]">
-          {invite.code}
-        </p>
-      </Sheet>
+    <div className="flex flex-col gap-3">
+      <Slab className="px-6 py-8 text-center">
+        <p className="eyebrow text-chalk/40">{t.yourCode}</p>
+        <p className="code mt-3 text-[2.25rem] text-lime">{invite.code}</p>
+      </Slab>
 
       <a
         href={waHref}
         target="_blank"
         rel="noreferrer"
         onClick={markSent}
-        className="riso btn-press inline-flex w-full items-center justify-center rounded-2xl border-2 border-ink bg-jade px-7 py-5 text-[1.15rem] font-semibold text-ink"
+        className="btn w-full bg-ink px-6 py-4.5 text-[1.0625rem] text-chalk"
       >
         {sent ? t.sent : t.sendWhatsapp}
+        <span className="size-2 rounded-full bg-lime" aria-hidden />
       </a>
 
       <Button tone="ghost" size="md" onClick={() => void copy()}>
         {copied ? t.copied : t.copyLink}
       </Button>
 
-      <p className="break-all text-center text-[0.78rem] text-ink-faint">
+      <p className="break-all px-2 text-center text-[0.75rem] text-ink/40">
         {invite.url}
       </p>
     </div>

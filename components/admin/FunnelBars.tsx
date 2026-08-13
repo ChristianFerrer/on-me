@@ -7,35 +7,39 @@ type AdminDict = Dict["admin"];
  * El embudo, de arriba abajo. Las barras se escalan contra el primer peldaño,
  * así que la caída entre etapas se ve sin leer un solo número — que es de lo
  * que va el piloto.
+ *
+ * Un solo color: aquí lo que informa es la longitud, no el tono.
  */
 export function FunnelBars({ data, t }: { data: FunnelData; t: AdminDict }) {
   const steps = [
-    { label: t.signups, value: data.signups, ink: "bg-saffron" },
-    { label: t.cards, value: data.cards, ink: "bg-tomato" },
-    { label: t.sent, value: data.sent, ink: "bg-fuchsia" },
-    { label: t.opened, value: data.opened, ink: "bg-cobalt" },
-    { label: t.redeemed, value: data.redeemed, ink: "bg-jade" },
-    { label: t.returns, value: data.returns, ink: "bg-paper" },
+    { label: t.signups, value: data.signups },
+    { label: t.cards, value: data.cards },
+    { label: t.sent, value: data.sent },
+    { label: t.opened, value: data.opened },
+    { label: t.redeemed, value: data.redeemed },
+    { label: t.returns, value: data.returns },
   ];
 
   const top = Math.max(...steps.map((step) => step.value), 1);
 
   return (
-    <ul className="flex flex-col gap-3">
-      {steps.map((step) => (
+    <ul className="flex flex-col gap-4">
+      {steps.map((step, index) => (
         <li key={step.label}>
           <div className="flex items-baseline justify-between gap-3">
-            <span className="text-[0.9rem] font-semibold text-paper/80">
+            <span className="text-[0.875rem] font-medium text-chalk/65">
               {step.label}
             </span>
-            <span className="numeral text-[1.05rem] font-semibold">
+            <span className="numeral text-[0.9375rem] font-semibold">
               {step.value}
             </span>
           </div>
-          <div className="mt-1.5 h-3.5 w-full overflow-hidden rounded-full border-2 border-paper/20">
+          <div className="mt-2 h-1 w-full overflow-hidden rounded-full bg-white/8">
             <div
-              className={`h-full rounded-full ${step.ink}`}
-              style={{ width: `${Math.max((step.value / top) * 100, step.value > 0 ? 4 : 0)}%` }}
+              className={index === steps.length - 1 ? "h-full bg-lime" : "h-full bg-chalk/70"}
+              style={{
+                width: `${Math.max((step.value / top) * 100, step.value > 0 ? 2 : 0)}%`,
+              }}
             />
           </div>
         </li>

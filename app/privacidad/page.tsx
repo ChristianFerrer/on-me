@@ -1,6 +1,5 @@
-import { LangSwitch } from "@/components/ui/LangSwitch";
-import { Logo } from "@/components/ui/Logo";
-import { Screen, Sheet } from "@/components/ui/Screen";
+import { Screen, Slab } from "@/components/ui/Screen";
+import { TopBar } from "@/components/ui/TopBar";
 import { getI18n } from "@/lib/i18n/server";
 
 /**
@@ -13,18 +12,17 @@ export default async function PrivacyPage() {
   const { locale, t } = await getI18n();
 
   return (
-    <Screen className="gap-7">
-      <header className="flex items-center justify-between">
-        <Logo />
-        <LangSwitch locale={locale} label={t.common.switchTo} />
-      </header>
+    <Screen tone="quiet" className="gap-7">
+      <TopBar locale={locale} />
 
-      <Sheet className="bg-cobalt p-6 text-paper" tint="var(--color-saffron)">
-        <h1 className="display text-[2.2rem] leading-tight">{t.legal.privacyTitle}</h1>
-        <p className="mt-4 text-[1rem] leading-relaxed text-paper/90">
+      <Slab className="p-7">
+        <h1 className="display text-[2rem]">{t.legal.privacyTitle}</h1>
+        <p className="mt-5 text-[0.9375rem] leading-relaxed text-chalk/65">
           {t.legal.privacyBody}
         </p>
-      </Sheet>
+      </Slab>
+
+      <div className="flex-1" />
     </Screen>
   );
 }
