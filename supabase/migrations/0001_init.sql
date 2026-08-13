@@ -13,9 +13,12 @@
 create extension if not exists "pgcrypto";
 
 -- ---------------------------------------------------------------- utilidad
+-- `search_path` fijo a propósito: una función sin él puede acabar
+-- resolviendo nombres contra un esquema que controle quien la invoque.
 create or replace function set_updated_at()
 returns trigger
 language plpgsql
+set search_path = ''
 as $$
 begin
   new.updated_at = now();
