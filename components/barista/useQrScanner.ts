@@ -33,12 +33,22 @@ export function useQrScanner(options: {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const [status, setStatus] = useState<ScannerStatus>("booting");
 
-  // El callback cambia en cada render; la referencia evita reiniciar la cámara.
+  /*
+   * Ambos valores cambian en cada render, pero reiniciar la cámara costaría
+   * casi un segundo. Se guardan en referencias, actualizadas en un efecto y
+   * no durante el render, para que el bucle de decodificación lea siempre el
+   * valor vigente sin volver a montar el vídeo.
+   */
   const onDecodeRef = useRef(onDecode);
-  onDecodeRef.current = onDecode;
-
   const enabledRef = useRef(enabled);
-  enabledRef.current = enabled;
+
+  useEffect(() => {
+    onDecodeRef.current = onDecode;
+  }, [onDecode]);
+
+  useEffect(() => {
+    enabledRef.current = enabled;
+  }, [enabled]);
 
   useEffect(() => {
     let stopped = false;

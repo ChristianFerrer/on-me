@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Button, ButtonLink } from "@/components/ui/Button";
 import { Sheet } from "@/components/ui/Screen";
@@ -31,6 +32,7 @@ export function ClaimForm({
   shopName: string;
   privacyHref: string;
 }) {
+  const router = useRouter();
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [consent, setConsent] = useState(false);
@@ -71,7 +73,10 @@ export function ClaimForm({
         return;
       }
 
-      window.location.assign("/c");
+      // replace + refresh: la cookie ya está puesta por la respuesta,
+      // y refresh garantiza que la tarjeta se pida al servidor de nuevo.
+      router.replace("/c");
+      router.refresh();
     } catch {
       setError("generic");
       setBusy(false);

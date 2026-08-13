@@ -92,37 +92,48 @@ export function Verdict({
   );
 }
 
+/**
+ * Titular del veredicto. Se mide en `cqw` contra la propia pantalla de
+ * resultado, así que un nombre largo encoge en vez de salirse por el lado.
+ */
+const HEADLINE =
+  "display-tight hyphens-auto break-words text-[clamp(2.4rem,13cqw,4.6rem)]";
+
 function Body({ result, t }: { result: ScanResponse; t: BaristaDict }) {
   switch (result.kind) {
     case "stamp":
       return (
         <>
-          <p className="overline opacity-75">{fill(t.results.stampFor, { name: result.name })}</p>
-          <h1 className="display-tight mt-3 text-[clamp(3rem,17vw,5.5rem)]">
+          <p className="overline opacity-75">
+            {fill(t.results.stampFor, { name: result.name })}
+          </p>
+          <h1 className={cn(HEADLINE, "mt-3")}>
             {result.cardCompleted
               ? t.results.rewardTitle
               : fill(t.results.stampTitle, { n: result.stamps, goal: result.goal })}
           </h1>
           <Dots filled={result.stamps} goal={result.goal} />
-          {result.stamps === result.goal - 1 && !result.cardCompleted ? (
-            <p className="mt-5 text-[1.3rem] font-semibold">{t.results.lastOne}</p>
-          ) : null}
           {result.cardCompleted ? (
-            <p className="mt-5 text-[1.3rem] font-semibold">
+            <p className="mt-5 text-[1.25rem] font-semibold">
               {fill(t.results.rewardBody, { name: result.name })}
             </p>
+          ) : result.stamps === result.goal - 1 ? (
+            <p className="mt-5 text-[1.25rem] font-semibold">{t.results.lastOne}</p>
           ) : null}
         </>
       );
 
+    // El titular es siempre la acción, nunca la frase larga: lo que el
+    // barista tiene que reconocer a dos metros es "café gratis", y el nombre
+    // solo le hace falta cuando ya se ha acercado.
     case "redeem_reward":
       return (
         <>
-          <p className="overline opacity-75">{t.results.rewardTitle}</p>
-          <h1 className="display-tight mt-3 text-[clamp(3rem,16vw,5rem)]">
+          <h1 className={HEADLINE}>{t.results.rewardTitle}</h1>
+          <p className="mt-4 text-[1.25rem] font-semibold opacity-90">
             {fill(t.results.rewardBody, { name: result.name })}
-          </h1>
-          <p className="mt-6 text-[1.35rem] font-semibold">
+          </p>
+          <p className="mt-6 text-[1.3rem] font-semibold">
             {result.pending ? t.results.rewardConfirm : "✓"}
           </p>
         </>
@@ -131,14 +142,14 @@ function Body({ result, t }: { result: ScanResponse; t: BaristaDict }) {
     case "redeem_invitation":
       return (
         <>
-          <p className="overline opacity-75">{t.results.inviteTitle}</p>
-          <h1 className="display-tight mt-3 text-[clamp(2.8rem,14vw,4.5rem)]">
-            {result.name}
-          </h1>
+          <h1 className={HEADLINE}>{t.results.inviteTitle}</h1>
           <p className="mt-4 text-[1.25rem] font-semibold opacity-90">
-            {fill(t.results.inviteBody, { name: result.name, padrino: result.padrino })}
+            {fill(t.results.inviteBody, {
+              name: result.name,
+              padrino: result.padrino,
+            })}
           </p>
-          <p className="mt-6 text-[1.35rem] font-semibold">
+          <p className="mt-6 text-[1.3rem] font-semibold">
             {result.pending ? t.results.inviteConfirm : "✓"}
           </p>
         </>
@@ -147,10 +158,8 @@ function Body({ result, t }: { result: ScanResponse; t: BaristaDict }) {
     case "duplicate":
       return (
         <>
-          <h1 className="display-tight text-[clamp(3rem,16vw,5rem)]">
-            {t.results.duplicateTitle}
-          </h1>
-          <p className="numeral mt-4 text-[1.4rem]">
+          <h1 className={HEADLINE}>{t.results.duplicateTitle}</h1>
+          <p className="numeral mt-4 text-[1.35rem]">
             {fill(t.results.duplicateBody, { n: Math.max(result.minutesAgo, 1) })}
           </p>
         </>
@@ -159,10 +168,8 @@ function Body({ result, t }: { result: ScanResponse; t: BaristaDict }) {
     case "invalid":
       return (
         <>
-          <h1 className="display-tight text-[clamp(3rem,16vw,5rem)]">
-            {t.results.invalidTitle}
-          </h1>
-          <p className="mt-4 text-[1.3rem] font-semibold">
+          <h1 className={HEADLINE}>{t.results.invalidTitle}</h1>
+          <p className="mt-4 text-[1.25rem] font-semibold">
             {result.reason === "other_shop"
               ? t.results.invalidOtherShop
               : t.results.invalidUnknown}

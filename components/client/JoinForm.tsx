@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/cn";
@@ -27,6 +28,7 @@ export function JoinForm({
   t: JoinDict;
   privacyHref: string;
 }) {
+  const router = useRouter();
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [consent, setConsent] = useState(false);
@@ -59,7 +61,9 @@ export function JoinForm({
       }
 
       // La cookie ya viene puesta por el servidor; el token no pasa por aquí.
-      window.location.assign("/c");
+      // `refresh` garantiza que la tarjeta se pida de nuevo con esa cookie.
+      router.replace("/c");
+      router.refresh();
     } catch {
       setError("generic");
       setBusy(false);

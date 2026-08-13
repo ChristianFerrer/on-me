@@ -17,26 +17,30 @@ type BaristaDict = Dict["barista"];
  */
 export function ManualSearch({ t }: { t: BaristaDict }) {
   const [last4, setLast4] = useState("");
-  const [hits, setHits] = useState<SearchHit[] | null>(null);
-  const [loading, setLoading] = useState(false);
+  /**
+   * El resultado se guarda junto a la búsqueda que lo produjo, así se
+   * descarta solo al teclear: no hace falta limpiarlo desde el efecto ni
+   * mantener un indicador de carga aparte.
+   */
+  const [result, setResult] = useState<{ query: string; hits: SearchHit[] } | null>(
+    null,
+  );
 
   useEffect(() => {
-    if (last4.length !== 4) {
-      setHits(null);
-      return;
-    }
+    if (last4.length !== 4) return;
 
     const controller = new AbortController();
-    setLoading(true);
 
     fetch(`/api/search?last4=${last4}`, { signal: controller.signal })
       .then((response) => (response.ok ? response.json() : { hits: [] }))
-      .then((data: { hits: SearchHit[] }) => setHits(data.hits))
-      .catch(() => undefined)
-      .finally(() => setLoading(false));
+      .then((data: { hits: SearchHit[] }) => setResult({ query: last4, hits: data.hits }))
+      .catch(() => undefined);
 
     return () => controller.abort();
   }, [last4]);
+
+  const hits = result?.query === last4 ? result.hits : null;
+  const loading = last4.length === 4 && hits === null;
 
   return (
     <div className="flex flex-1 flex-col gap-6">

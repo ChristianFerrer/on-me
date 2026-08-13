@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Archivo, Fraunces, IBM_Plex_Mono } from "next/font/google";
+import { ServiceWorker } from "@/components/client/ServiceWorker";
 import { resolveLocale } from "@/lib/i18n/server";
 import "./globals.css";
 
@@ -38,6 +39,14 @@ export const metadata: Metadata = {
     statusBarStyle: "default",
   },
   formatDetection: { telephone: false },
+  icons: {
+    icon: [
+      { url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icons/icon-512.png", sizes: "512x512", type: "image/png" },
+    ],
+    apple: "/icons/apple-touch-icon.png",
+  },
+  // Todas las URLs de OnMe son privadas: tarjetas, invitaciones y panel.
   robots: { index: false, follow: false },
 };
 
@@ -61,7 +70,10 @@ export default async function RootLayout({
       lang={locale}
       className={`${fraunces.variable} ${archivo.variable} ${plexMono.variable}`}
     >
-      <body className="grain relative min-h-dvh antialiased">{children}</body>
+      <body className="grain relative min-h-dvh antialiased">
+        {children}
+        <ServiceWorker />
+      </body>
     </html>
   );
 }

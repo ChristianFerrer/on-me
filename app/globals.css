@@ -358,6 +358,9 @@ body {
   display: flex;
   flex-direction: column;
   color: var(--verdict-ink);
+  /* Los titulares se dimensionan contra esta caja y no contra el viewport,
+     que es lo que hace que un nombre largo no se salga por el lateral. */
+  container-type: inline-size;
 }
 .verdict-jade {
   background: var(--color-jade);

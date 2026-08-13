@@ -12,6 +12,12 @@ import { getI18n } from "@/lib/i18n/server";
 export default async function HomePage() {
   const { locale, t } = await getI18n();
 
+  // El titular se parte por la primera coma para teñir la segunda mitad.
+  // Si algún idioma no la trae, se pinta entero y no se pierde nada.
+  const comma = t.join.title.indexOf(",");
+  const head = comma === -1 ? t.join.title : t.join.title.slice(0, comma);
+  const tail = comma === -1 ? null : t.join.title.slice(comma + 1).trim();
+
   return (
     <Screen className="gap-7 overflow-hidden">
       <header className="flex items-center justify-between">
@@ -25,10 +31,15 @@ export default async function HomePage() {
             aria-hidden
             className="halftone halftone-lg anim-drift absolute -right-10 -top-8 -z-10 size-44 rounded-full text-tomato"
           />
-          <h1 className="display-tight text-[clamp(2.9rem,15vw,4.2rem)]">
-            {t.join.title.split(",")[0]},
-            <br />
-            <span className="text-tomato">{t.join.title.split(",")[1]?.trim()}</span>
+          <h1 className="display-tight text-balance text-[clamp(2.9rem,15vw,4.2rem)]">
+            {head}
+            {tail ? (
+              <>
+                ,
+                <br />
+                <span className="text-tomato">{tail}</span>
+              </>
+            ) : null}
           </h1>
           <p className="mt-4 max-w-[22ch] text-[1.15rem] leading-snug font-medium text-ink-soft">
             {t.join.subtitle}
@@ -48,8 +59,10 @@ export default async function HomePage() {
           <p className="display mt-2 text-[1.7rem] leading-tight">
             {t.invite.title}
           </p>
+          {/* En la portada no hay cafetería en contexto, así que la copia va
+              sin nombre de local en vez de rellenarlo con el de la marca. */}
           <p className="mt-2 text-[0.95rem] leading-snug text-paper/70">
-            {t.invite.subtitle.replace("{shop}", t.brand.name)}
+            {t.card.inviteBody}
           </p>
         </Sheet>
       </div>

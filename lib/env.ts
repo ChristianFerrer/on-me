@@ -20,8 +20,15 @@ function required(name: string): string {
 }
 
 export const env = {
+  /**
+   * Se acepta con y sin prefijo público. No necesita ser pública —el
+   * navegador nunca habla con Supabase— pero `NEXT_PUBLIC_SUPABASE_URL` es
+   * lo que pone por defecto el panel de Supabase y no merece la pena pelearse.
+   */
   get supabaseUrl(): string {
-    return required("NEXT_PUBLIC_SUPABASE_URL");
+    return (
+      process.env.SUPABASE_URL ?? required("NEXT_PUBLIC_SUPABASE_URL")
+    );
   },
   get serviceRoleKey(): string {
     return required("SUPABASE_SERVICE_ROLE_KEY");
