@@ -15,6 +15,24 @@ export type ScanAction =
   | { action: "redeem_reward" }
   | { action: "duplicate"; minutesAgo: number };
 
+/**
+ * Lo que la barra recibe y pinta a pantalla completa.
+ * Vive en el módulo puro para que el componente de cliente pueda importarlo
+ * con `import type` sin arrastrar nada de servidor.
+ */
+export type ScanResponse =
+  | {
+      kind: "stamp";
+      name: string;
+      stamps: number;
+      goal: number;
+      cardCompleted: boolean;
+    }
+  | { kind: "redeem_reward"; name: string; pending: boolean }
+  | { kind: "redeem_invitation"; name: string; padrino: string; pending: boolean }
+  | { kind: "duplicate"; minutesAgo: number }
+  | { kind: "invalid"; reason: InvalidReason };
+
 export type ScanContext = {
   now: Date;
   /** Último escaneo registrado de este cliente, o null si nunca vino. */

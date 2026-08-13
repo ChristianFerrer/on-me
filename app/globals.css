@@ -239,12 +239,22 @@ body {
   }
 }
 
-@keyframes sweep {
-  from {
-    transform: translateY(-100%);
+/* Línea de barrido de la mirilla. Anima `top` y no `transform`: la barra
+   mide 2 px, así que un translateY porcentual no recorrería nada. */
+@keyframes scanline {
+  0% {
+    top: 6%;
+    opacity: 0;
   }
-  to {
-    transform: translateY(100%);
+  18% {
+    opacity: 1;
+  }
+  82% {
+    opacity: 1;
+  }
+  100% {
+    top: 94%;
+    opacity: 0;
   }
 }
 
@@ -260,8 +270,8 @@ body {
 .anim-drift {
   animation: drift 14s ease-in-out infinite;
 }
-.anim-sweep {
-  animation: sweep 2.2s linear infinite;
+.anim-scanline {
+  animation: scanline 2.1s ease-in-out infinite;
 }
 
 .stagger > * {
