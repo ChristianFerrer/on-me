@@ -1,0 +1,394 @@
+@import "tailwindcss";
+
+/* ============================================================================
+   OnMe · invito yo — sistema de diseño "Riso Mediterráneo"
+   ----------------------------------------------------------------------------
+   Referencia: cartelería risográfica barcelonesa. Tintas planas saturadas,
+   registro desplazado, trama de semitono y grano de papel.
+
+   El color no decora: informa. El barista aprende cuatro tintas y lee el
+   resultado de un escaneo de reojo, a dos metros, en menos de dos segundos.
+
+       jade    -> sello sumado
+       azafrán -> café gratis por tarjeta completa
+       cobalto -> canje de invitación (cliente nuevo)
+       tomate  -> inválido
+       humo    -> duplicado (no suma)
+   ============================================================================ */
+
+@theme {
+  /* --- tintas --------------------------------------------------------- */
+  --color-ink: #17110d;
+  --color-ink-soft: #453629;
+  --color-ink-faint: #8a7660;
+
+  --color-paper: #fbf3e4;
+  --color-paper-deep: #f2e3c8;
+  --color-paper-edge: #e2cfae;
+
+  --color-saffron: #ffb627;
+  --color-saffron-deep: #e08a00;
+  --color-tomato: #ff4b25;
+  --color-tomato-deep: #d42d0c;
+  --color-jade: #00c08b;
+  --color-jade-deep: #009068;
+  --color-cobalt: #2a46f0;
+  --color-cobalt-deep: #1a2fb8;
+  --color-fuchsia: #ff3f8e;
+  --color-smoke: #9a8f80;
+
+  /* --- tipografía ------------------------------------------------------ */
+  --font-display: var(--font-fraunces), "Iowan Old Style", Georgia, serif;
+  --font-sans: var(--font-archivo), "Helvetica Neue", Arial, sans-serif;
+  --font-mono: var(--font-plex-mono), ui-monospace, "SF Mono", monospace;
+
+  /* --- ritmo ----------------------------------------------------------- */
+  --radius-card: 1.5rem;
+  --radius-pill: 999px;
+
+  --ease-punch: cubic-bezier(0.2, 1.4, 0.4, 1);
+  --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* ============================================================================
+   Base
+   ============================================================================ */
+
+:root {
+  color-scheme: light;
+  --grain-opacity: 0.055;
+}
+
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+html {
+  /* Evita el zoom por doble toque en barra: cada milisegundo cuenta. */
+  touch-action: manipulation;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  background-color: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  font-synthesis-weight: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  overscroll-behavior-y: none;
+}
+
+/* Nadie debe poder seleccionar texto por accidente mientras le sellan. */
+.select-none-hard {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+::selection {
+  background: var(--color-saffron);
+  color: var(--color-ink);
+}
+
+/* ============================================================================
+   Textura: grano de papel + semitono
+   ---------------------------------------------------------------------------
+   El grano es un único SVG en data-uri, sin peticiones de red — la tarjeta
+   tiene que verse igual en un sótano de Gràcia sin cobertura.
+   ============================================================================ */
+
+.grain::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 30;
+  opacity: var(--grain-opacity);
+  mix-blend-mode: multiply;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+.grain-light::after {
+  mix-blend-mode: overlay;
+  opacity: 0.12;
+}
+
+/* Trama de puntos, la firma gráfica del riso. */
+.halftone {
+  background-image: radial-gradient(
+    currentColor 1.15px,
+    transparent 1.25px
+  );
+  background-size: 9px 9px;
+  opacity: 0.16;
+}
+
+.halftone-lg {
+  background-size: 18px 18px;
+}
+
+/* ============================================================================
+   Registro desplazado: sombra dura, sin desenfoque, en otra tinta.
+   Es lo que hace que esto parezca impreso y no una tarjeta de Bootstrap.
+   ============================================================================ */
+
+.riso {
+  box-shadow: 5px 5px 0 0 var(--color-ink);
+}
+.riso-sm {
+  box-shadow: 3px 3px 0 0 var(--color-ink);
+}
+.riso-lg {
+  box-shadow: 9px 9px 0 0 var(--color-ink);
+}
+.riso-tint {
+  box-shadow: 5px 5px 0 0 var(--riso-tint, var(--color-tomato));
+}
+
+/* Botón físico: se hunde al pulsar, como un sello real. */
+.btn-press {
+  transition:
+    transform 90ms var(--ease-punch),
+    box-shadow 90ms var(--ease-punch);
+}
+.btn-press:active:not(:disabled) {
+  transform: translate(4px, 4px);
+  box-shadow: 1px 1px 0 0 var(--color-ink);
+}
+
+/* ============================================================================
+   Tipografía
+   ============================================================================ */
+
+.display {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-variation-settings: "SOFT" 40, "WONK" 1, "opsz" 100;
+  letter-spacing: -0.03em;
+  line-height: 0.92;
+}
+
+.display-tight {
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-variation-settings: "SOFT" 20, "WONK" 1, "opsz" 144;
+  letter-spacing: -0.045em;
+  line-height: 0.86;
+}
+
+.overline {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.numeral {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "zero" 1;
+}
+
+/* ============================================================================
+   Movimiento
+   ============================================================================ */
+
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes punch-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.4) rotate(-14deg);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1.12) rotate(3deg);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) rotate(0deg);
+  }
+}
+
+@keyframes flood {
+  from {
+    clip-path: circle(0% at 50% 50%);
+  }
+  to {
+    clip-path: circle(150% at 50% 50%);
+  }
+}
+
+@keyframes drift {
+  0%,
+  100% {
+    transform: translate(0, 0) rotate(0deg);
+  }
+  50% {
+    transform: translate(2%, -3%) rotate(4deg);
+  }
+}
+
+@keyframes sweep {
+  from {
+    transform: translateY(-100%);
+  }
+  to {
+    transform: translateY(100%);
+  }
+}
+
+.anim-rise {
+  animation: rise-in 0.55s var(--ease-out-soft) both;
+}
+.anim-punch {
+  animation: punch-in 0.5s var(--ease-punch) both;
+}
+.anim-flood {
+  animation: flood 0.42s var(--ease-out-soft) both;
+}
+.anim-drift {
+  animation: drift 14s ease-in-out infinite;
+}
+.anim-sweep {
+  animation: sweep 2.2s linear infinite;
+}
+
+.stagger > * {
+  animation: rise-in 0.5s var(--ease-out-soft) both;
+}
+.stagger > *:nth-child(1) {
+  animation-delay: 0.04s;
+}
+.stagger > *:nth-child(2) {
+  animation-delay: 0.1s;
+}
+.stagger > *:nth-child(3) {
+  animation-delay: 0.16s;
+}
+.stagger > *:nth-child(4) {
+  animation-delay: 0.22s;
+}
+.stagger > *:nth-child(5) {
+  animation-delay: 0.28s;
+}
+.stagger > *:nth-child(6) {
+  animation-delay: 0.34s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ============================================================================
+   Formulario
+   ---------------------------------------------------------------------------
+   16px mínimo en los inputs: por debajo de eso iOS hace zoom al enfocar y el
+   alta de 40 segundos se va al traste.
+   ============================================================================ */
+
+.field {
+  width: 100%;
+  font-size: 1.0625rem;
+  font-weight: 500;
+  padding: 1rem 1.125rem;
+  background: var(--color-paper);
+  border: 2px solid var(--color-ink);
+  border-radius: 0.875rem;
+  outline: none;
+  transition:
+    box-shadow 120ms var(--ease-out-soft),
+    background-color 120ms;
+}
+.field::placeholder {
+  color: var(--color-ink-faint);
+  font-weight: 400;
+}
+.field:focus {
+  background: #fff;
+  box-shadow: 4px 4px 0 0 var(--color-cobalt);
+}
+.field[aria-invalid="true"] {
+  box-shadow: 4px 4px 0 0 var(--color-tomato);
+}
+
+/* Foco visible y coherente en todo lo pulsable. */
+:where(a, button, input, select, textarea, [tabindex]):focus-visible {
+  outline: 3px solid var(--color-cobalt);
+  outline-offset: 3px;
+}
+
+/* ============================================================================
+   Pantalla de resultado del barista
+   ---------------------------------------------------------------------------
+   Ocupa el viewport entero, una sola tinta, sin nada más que leer.
+   ============================================================================ */
+
+.verdict {
+  --verdict-ink: var(--color-paper);
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  color: var(--verdict-ink);
+}
+.verdict-jade {
+  background: var(--color-jade);
+}
+.verdict-saffron {
+  background: var(--color-saffron);
+  --verdict-ink: var(--color-ink);
+}
+.verdict-cobalt {
+  background: var(--color-cobalt);
+}
+.verdict-tomato {
+  background: var(--color-tomato);
+}
+.verdict-smoke {
+  background: var(--color-smoke);
+}
+
+/* Barra de autocierre: el barista ve cuánto le queda en pantalla. */
+@keyframes drain {
+  from {
+    transform: scaleX(1);
+  }
+  to {
+    transform: scaleX(0);
+  }
+}
+.drain {
+  transform-origin: left center;
+  animation: drain var(--drain, 2s) linear both;
+}
+
+/* ============================================================================
+   Panel de admin: editorial oscuro, para leerlo sentado y no en barra.
+   ============================================================================ */
+
+.admin {
+  background: var(--color-ink);
+  color: var(--color-paper);
+}
+.admin ::selection {
+  background: var(--color-jade);
+  color: var(--color-ink);
+}
