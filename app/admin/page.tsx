@@ -3,7 +3,7 @@ import { FunnelBars } from "@/components/admin/FunnelBars";
 import { GateCard } from "@/components/admin/GateCard";
 import { LoginForm } from "@/components/admin/LoginForm";
 import { WaveChart } from "@/components/admin/WaveChart";
-import { ChartIcon, HomeIcon, ShieldIcon } from "@/components/ui/Icons";
+import { ChartIcon, HomeIcon, ShieldIcon, TabletIcon } from "@/components/ui/Icons";
 import { LangSwitch } from "@/components/ui/LangSwitch";
 import { Logo } from "@/components/ui/Logo";
 import { Screen } from "@/components/ui/Screen";
@@ -118,8 +118,15 @@ export default async function AdminPage() {
 
       <div className="mt-auto flex flex-col gap-3 sm:flex-row">
         <Link
-          href="/admin/atribuciones"
+          href="/admin/dispositivos"
           className="btn flex-1 items-center gap-2 bg-lime px-6 py-4 text-[1rem] text-ink"
+        >
+          <TabletIcon className="size-5" />
+          {t.admin.devices}
+        </Link>
+        <Link
+          href="/admin/atribuciones"
+          className="btn flex-1 items-center gap-2 bg-ink-2 px-6 py-4 text-[1rem] text-chalk ring-1 ring-inset ring-chalk/15"
         >
           <ChartIcon className="size-5" />
           {t.admin.attributions}
