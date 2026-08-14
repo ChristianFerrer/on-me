@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ArrowLeftIcon } from "@/components/ui/Icons";
 import { LangSwitch } from "@/components/ui/LangSwitch";
 import { Logo } from "@/components/ui/Logo";
 import { cn } from "@/lib/cn";
@@ -36,7 +37,7 @@ export function TopBar({
           prefetch={false}
           className="flex items-center gap-2 text-[0.9375rem] font-medium text-chalk/70 transition-colors hover:text-chalk"
         >
-          <span aria-hidden>←</span>
+          <ArrowLeftIcon className="size-4" aria-hidden />
           {backLabel}
         </Link>
       ) : (

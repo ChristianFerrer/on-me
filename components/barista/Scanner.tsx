@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { HomeIcon, SearchIcon } from "@/components/ui/Icons";
 import { cn } from "@/lib/cn";
 import type { Dict } from "@/lib/i18n";
 import { PinPad } from "./PinPad";
@@ -79,13 +80,24 @@ export function Scanner({
             <p className="text-[0.9375rem] font-semibold leading-tight">{shopName}</p>
             <p className="eyebrow mt-0.5 text-chalk/45">{deviceName}</p>
           </div>
-          <Link
-            href="/s/buscar"
-            prefetch={false}
-            className="btn glass-dark rounded-full px-5 py-3 text-[0.875rem] text-chalk"
-          >
-            {t.search}
-          </Link>
+          <div className="flex items-center gap-2">
+            <Link
+              href="/inicio"
+              prefetch={false}
+              aria-label={t.home}
+              className="btn glass-dark size-11 rounded-full text-chalk"
+            >
+              <HomeIcon className="size-5" />
+            </Link>
+            <Link
+              href="/s/buscar"
+              prefetch={false}
+              className="btn glass-dark items-center gap-2 rounded-full px-5 py-3 text-[0.875rem] text-chalk"
+            >
+              <SearchIcon className="size-4" />
+              {t.search}
+            </Link>
+          </div>
         </header>
 
         <div className="flex flex-1 items-center justify-center px-10">

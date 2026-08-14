@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { CustomerActions } from "@/components/barista/CustomerActions";
+import { ArrowLeftIcon } from "@/components/ui/Icons";
 import { QrCode } from "@/components/ui/QrCode";
 import { Screen } from "@/components/ui/Screen";
 import { StampCard } from "@/components/ui/StampCard";
@@ -49,9 +50,10 @@ export default async function CustomerPage({
         <Link
           href="/s/buscar"
           prefetch={false}
-          className="text-[0.9375rem] font-medium text-chalk/60 transition-colors hover:text-chalk"
+          className="flex items-center gap-1.5 text-[0.9375rem] font-medium text-chalk/60 transition-colors hover:text-chalk"
         >
-          ← {t.common.back}
+          <ArrowLeftIcon className="size-4" />
+          {t.common.back}
         </Link>
         <span className="eyebrow rounded-full bg-white/8 px-3 py-1.5 text-chalk/50">
           {t.barista.manualBadge}

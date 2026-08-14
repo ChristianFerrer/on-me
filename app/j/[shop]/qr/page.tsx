@@ -1,4 +1,6 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
+import { HomeIcon } from "@/components/ui/Icons";
 import { QrCode } from "@/components/ui/QrCode";
 import { assertNoQueryError, db } from "@/lib/db/client";
 import { env } from "@/lib/env";
@@ -33,6 +35,15 @@ export default async function JoinQrPage({
 
   return (
     <div className="aurora-night min-h-dvh w-full text-chalk" lang={locale}>
+      <Link
+        href="/inicio"
+        prefetch={false}
+        aria-label={t.home.eyebrow}
+        className="fixed left-5 top-[max(1.25rem,env(safe-area-inset-top))] text-chalk/30 transition-colors hover:text-chalk/70"
+      >
+        <HomeIcon className="size-6" />
+      </Link>
+
       <main className="mx-auto flex min-h-dvh w-full max-w-[42rem] flex-col items-center justify-center gap-[4vh] px-8 py-10 text-center">
         <div>
           <p className="eyebrow text-chalk/45">{shop.name}</p>

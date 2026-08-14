@@ -1,6 +1,8 @@
 import { GATE_CONFIG, evaluateGate, type Gate } from "@/lib/attribution";
 import { db } from "@/lib/db/client";
 
+export type DailyPoint = { date: string; value: number };
+
 export type FunnelData = {
   signups: number;
   cards: number;
@@ -18,13 +20,22 @@ export type FunnelData = {
     /** Escaneos de los últimos 7 días, para detectar abuso del dispositivo. */
     scansLast7Days: number;
   };
+  /** Series diarias para las gráficas de línea del panel. */
+  series: {
+    signups: DailyPoint[];
+    scans: DailyPoint[];
+  };
 };
 
 /** Escaneos recientes que se promedian. Basta para una media estable. */
 const SCAN_SAMPLE = 500;
 
+/** Ventana de las gráficas de línea: dos semanas, para ver la tendencia sin ahogarla en ruido. */
+const SERIES_DAYS = 14;
+
 export async function loadFunnel(shopId: string): Promise<FunnelData> {
   const weekAgo = new Date(Date.now() - 7 * 24 * 3_600_000).toISOString();
+  const seriesSince = new Date(Date.now() - SERIES_DAYS * 24 * 3_600_000).toISOString();
 
   const [
     signups,
@@ -36,6 +47,8 @@ export async function loadFunnel(shopId: string): Promise<FunnelData> {
     expired,
     scanSample,
     recentScans,
+    signupSeries,
+    scanSeries,
   ] = await Promise.all([
     countOf(counter("customers").eq("shop_id", shopId)),
     // Suma en memoria: en el piloto son cientos de filas, no millones.
@@ -64,6 +77,19 @@ export async function loadFunnel(shopId: string): Promise<FunnelData> {
       .limit(SCAN_SAMPLE)
       .returns<{ duration_ms: number | null; manual: boolean }[]>(),
     countOf(counter("scans").eq("shop_id", shopId).gte("created_at", weekAgo)),
+    db()
+      .from("customers")
+      .select("created_at")
+      .eq("shop_id", shopId)
+      .gte("created_at", seriesSince)
+      .returns<{ created_at: string }[]>(),
+    db()
+      .from("scans")
+      .select("created_at")
+      .eq("shop_id", shopId)
+      .eq("kind", "stamp")
+      .gte("created_at", seriesSince)
+      .returns<{ created_at: string }[]>(),
   ]);
 
   const cards = (cardsRows.data ?? []).reduce(
@@ -97,7 +123,31 @@ export async function loadFunnel(shopId: string): Promise<FunnelData> {
       p3: evaluateGate("p3", returns, redeemed, GATE_CONFIG.p3.threshold, GATE_CONFIG.p3.minSample),
     },
     ops: { avgScanMs, manualRate, expiredInvites: expired, scansLast7Days: recentScans },
+    series: {
+      signups: bucketDays(signupSeries.data ?? []),
+      scans: bucketDays(scanSeries.data ?? []),
+    },
   };
+}
+
+/**
+ * Cuenta filas por día sobre los últimos `SERIES_DAYS`, con los días sin
+ * ninguna fila presentes a cero: la gráfica tiene que enseñar el hueco, no
+ * saltárselo.
+ */
+function bucketDays(rows: { created_at: string }[]): DailyPoint[] {
+  const buckets = new Map<string, number>();
+  for (let i = SERIES_DAYS - 1; i >= 0; i--) {
+    const day = new Date(Date.now() - i * 24 * 3_600_000).toISOString().slice(0, 10);
+    buckets.set(day, 0);
+  }
+
+  for (const row of rows) {
+    const key = row.created_at.slice(0, 10);
+    if (buckets.has(key)) buckets.set(key, (buckets.get(key) ?? 0) + 1);
+  }
+
+  return [...buckets.entries()].map(([date, value]) => ({ date, value }));
 }
 
 /**

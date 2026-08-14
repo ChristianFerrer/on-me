@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { ArrowLeftIcon } from "@/components/ui/Icons";
 import { Screen } from "@/components/ui/Screen";
 import { getAdminContext } from "@/lib/auth/admin";
 import { cn } from "@/lib/cn";
@@ -59,9 +60,10 @@ export default async function AttributionsPage() {
         <Link
           href="/admin"
           prefetch={false}
-          className="text-[0.9375rem] font-medium text-chalk/60 transition-colors hover:text-chalk"
+          className="flex items-center gap-1.5 text-[0.9375rem] font-medium text-chalk/60 transition-colors hover:text-chalk"
         >
-          ← {t.common.back}
+          <ArrowLeftIcon className="size-4" />
+          {t.common.back}
         </Link>
         <span className="numeral text-[0.8125rem] text-chalk/35">
           {attributions.length}

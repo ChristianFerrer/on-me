@@ -3,20 +3,28 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import type { SearchHit } from "@/app/api/search/route";
+import { PhoneIcon } from "@/components/ui/Icons";
 import { cn } from "@/lib/cn";
 import type { Dict } from "@/lib/i18n";
 
 type BaristaDict = Dict["barista"];
 
+/** Tras esta pausa sin teclear se lanza la búsqueda: ni de letra en letra ni al salir del campo. */
+const DEBOUNCE_MS = 400;
+/** Menos dígitos que esto no es un móvil real todavía; no vale la pena preguntarle a Supabase. */
+const MIN_DIGITS = 6;
+
 /**
  * Plan B de la barra: el cliente se dejó el móvil, la pantalla está rota o
- * no hay luz para la cámara. Se busca por los cuatro últimos dígitos.
+ * no hay luz para la cámara. Se busca por el móvil completo —el mismo que
+ * se normaliza y se hashea en el alta— para encontrar exactamente a esa
+ * persona, no a cualquiera que comparta los últimos cuatro dígitos.
  *
  * Si esta vía supera el 15% de los sellos, el escáner no funciona y eso es
  * lo primero que hay que arreglar — el panel lo vigila.
  */
 export function ManualSearch({ t }: { t: BaristaDict }) {
-  const [last4, setLast4] = useState("");
+  const [phone, setPhone] = useState("");
   /**
    * El resultado se guarda junto a la búsqueda que lo produjo, así se
    * descarta solo al teclear: no hace falta limpiarlo desde el efecto ni
@@ -26,42 +34,52 @@ export function ManualSearch({ t }: { t: BaristaDict }) {
     null,
   );
 
+  const digits = phone.replace(/\D/g, "").length;
+
   useEffect(() => {
-    if (last4.length !== 4) return;
+    if (digits < MIN_DIGITS) return;
 
     const controller = new AbortController();
+    const timer = setTimeout(() => {
+      fetch(`/api/search?phone=${encodeURIComponent(phone)}`, {
+        signal: controller.signal,
+      })
+        .then((response) => (response.ok ? response.json() : { hits: [] }))
+        .then((data: { hits: SearchHit[] }) => setResult({ query: phone, hits: data.hits }))
+        .catch(() => undefined);
+    }, DEBOUNCE_MS);
 
-    fetch(`/api/search?last4=${last4}`, { signal: controller.signal })
-      .then((response) => (response.ok ? response.json() : { hits: [] }))
-      .then((data: { hits: SearchHit[] }) => setResult({ query: last4, hits: data.hits }))
-      .catch(() => undefined);
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
+  }, [phone, digits]);
 
-    return () => controller.abort();
-  }, [last4]);
-
-  const hits = result?.query === last4 ? result.hits : null;
-  const loading = last4.length === 4 && hits === null;
+  const hits = result?.query === phone ? result.hits : null;
+  const loading = digits >= MIN_DIGITS && hits === null;
 
   return (
     <div className="flex flex-1 flex-col gap-7">
       <div>
-        <label htmlFor="last4" className="eyebrow text-chalk/45">
+        <label htmlFor="phone" className="eyebrow text-chalk/45">
           {t.searchTitle}
         </label>
-        <input
-          id="last4"
-          value={last4}
-          onChange={(event) =>
-            setLast4(event.target.value.replace(/\D/g, "").slice(0, 4))
-          }
-          inputMode="numeric"
-          autoComplete="off"
-          autoFocus
-          placeholder={t.searchPlaceholder}
-          aria-describedby="last4-hint"
-          className="numeral field mt-3 text-center text-[2.25rem] font-semibold tracking-[0.4em]"
-        />
-        <p id="last4-hint" className="mt-2.5 text-[0.875rem] text-chalk/40">
+        <div className="relative mt-3">
+          <PhoneIcon className="pointer-events-none absolute left-4 top-1/2 size-5 -translate-y-1/2 text-chalk/35" />
+          <input
+            id="phone"
+            value={phone}
+            onChange={(event) => setPhone(event.target.value)}
+            type="tel"
+            inputMode="tel"
+            autoComplete="off"
+            autoFocus
+            placeholder={t.searchPlaceholder}
+            aria-describedby="phone-hint"
+            className="numeral field pl-12 text-[1.375rem] font-semibold"
+          />
+        </div>
+        <p id="phone-hint" className="mt-2.5 text-[0.875rem] text-chalk/40">
           {t.searchHint}
         </p>
       </div>
