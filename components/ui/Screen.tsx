@@ -1,9 +1,13 @@
 import { cn } from "@/lib/cn";
 
 /**
- * Lienzo de una pantalla. No hay barra de navegación en ningún sitio de
- * OnMe —sin cuentas no hay a dónde navegar—, así que cada pantalla ocupa
- * el alto completo y el degradado puede trabajar sin estorbos.
+ * Lienzo de una pantalla. Cliente y barra siguen sin tener a dónde navegar
+ * —cada una es un destino, no una sección de una app más grande—, así que
+ * ocupan el alto completo y el degradado trabaja sin estorbos.
+ *
+ * El ancho crece por *breakpoint*, no se queda fijo en el tamaño de móvil:
+ * en tablet u ordenador la tarjeta respira en vez de flotar diminuta en
+ * medio de la pantalla.
  */
 export function Screen({
   children,
@@ -25,7 +29,7 @@ export function Screen({
     <div className={cn("min-h-dvh w-full", skin)}>
       <main
         className={cn(
-          "mx-auto flex min-h-dvh w-full max-w-[30rem] flex-col",
+          "mx-auto flex min-h-dvh w-full max-w-[30rem] flex-col sm:max-w-[34rem] lg:max-w-[38rem]",
           "px-5 pt-[max(1rem,env(safe-area-inset-top))]",
           "pb-[max(1.5rem,env(safe-area-inset-bottom))]",
           className,

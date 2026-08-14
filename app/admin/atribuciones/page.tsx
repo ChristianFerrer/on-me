@@ -1,15 +1,14 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { AdminNav } from "@/components/admin/AdminNav";
-import { ReferralMap } from "@/components/admin/ReferralMap";
-import { ArrowLeftIcon } from "@/components/ui/Icons";
+import { BottomNav } from "@/components/admin/BottomNav";
+import { HomeIcon, OrbitIcon } from "@/components/ui/Icons";
+import { LangSwitch } from "@/components/ui/LangSwitch";
 import { Screen } from "@/components/ui/Screen";
 import { getAdminContext } from "@/lib/auth/admin";
 import { cn } from "@/lib/cn";
 import { db } from "@/lib/db/client";
 import { formatDateTime } from "@/lib/i18n";
 import { getI18n } from "@/lib/i18n/server";
-import { loadReferralTree } from "@/lib/referralTree";
 import { firstName } from "@/lib/scan-service";
 
 const STATE_SKIN = {
@@ -23,6 +22,9 @@ const STATE_SKIN = {
  *
  * Es append-only. Si algo está mal, se marca `disputed`, no se borra — la
  * defensa de una factura es poder enseñar la fila y el escaneo que la generó.
+ *
+ * El mapa de saltos vive aparte, en /admin/atribuciones/mapa: es una
+ * exploración a pantalla completa, no una tarjeta más de esta lista.
  */
 export default async function AttributionsPage() {
   const ctx = await getAdminContext();
@@ -30,15 +32,12 @@ export default async function AttributionsPage() {
 
   const { locale, t } = await getI18n();
 
-  const [{ data: rows }, referralTree] = await Promise.all([
-    db()
-      .from("attributions")
-      .select("id, padrino_id, ahijado_id, redeemed_at, returned_at, state, disputed")
-      .eq("shop_id", ctx.shop.id)
-      .order("redeemed_at", { ascending: false })
-      .limit(200),
-    loadReferralTree(ctx.shop.id),
-  ]);
+  const { data: rows } = await db()
+    .from("attributions")
+    .select("id, padrino_id, ahijado_id, redeemed_at, returned_at, state, disputed")
+    .eq("shop_id", ctx.shop.id)
+    .order("redeemed_at", { ascending: false })
+    .limit(200);
 
   const attributions = rows ?? [];
 
@@ -61,26 +60,33 @@ export default async function AttributionsPage() {
   } as const;
 
   return (
-    <Screen tone="ink" className="gap-7 pb-10">
+    <Screen tone="ink" className="gap-7 pb-28 lg:max-w-3xl">
       <header className="flex items-center justify-between gap-3 pt-2">
-        <Link
-          href="/admin"
-          prefetch={false}
-          className="flex items-center gap-1.5 text-[0.9375rem] font-medium text-chalk/60 transition-colors hover:text-chalk"
-        >
-          <ArrowLeftIcon className="size-4" />
-          {t.common.back}
-        </Link>
-        <span className="numeral text-[0.8125rem] text-chalk/35">
-          {attributions.length}
-        </span>
+        <div className="flex items-center gap-3">
+          <Link
+            href="/inicio"
+            prefetch={false}
+            className="text-chalk/45 transition-colors hover:text-chalk"
+            aria-label={t.home.eyebrow}
+          >
+            <HomeIcon className="size-6" />
+          </Link>
+          <div>
+            <p className="eyebrow text-chalk/35">{ctx.shop.name}</p>
+            <h1 className="display mt-1 text-[1.75rem]">{t.admin.attributions}</h1>
+          </div>
+        </div>
+        <LangSwitch locale={locale} tone="chalk" />
       </header>
 
-      <h1 className="display text-[1.75rem]">{t.admin.attributions}</h1>
-
-      <AdminNav t={t.admin} active="atribuciones" />
-
-      <ReferralMap roots={referralTree} shopName={ctx.shop.name} t={t.admin} />
+      <Link
+        href="/admin/atribuciones/mapa"
+        prefetch={false}
+        className="btn items-center gap-2 bg-lime px-6 py-4 text-[1rem] text-ink"
+      >
+        <OrbitIcon className="size-5" />
+        {t.admin.viewReferralMap}
+      </Link>
 
       {attributions.length === 0 ? (
         <p className="text-[0.9375rem] text-chalk/45">{t.admin.attrEmpty}</p>
@@ -123,6 +129,8 @@ export default async function AttributionsPage() {
           ))}
         </ul>
       )}
+
+      <BottomNav t={t.admin} active="atribuciones" />
     </Screen>
   );
 }

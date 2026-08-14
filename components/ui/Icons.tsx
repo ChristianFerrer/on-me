@@ -173,6 +173,25 @@ export function PulseIcon(props: IconProps) {
   );
 }
 
+export function OrbitIcon(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <circle cx="12" cy="12" r="2.25" />
+      <ellipse cx="12" cy="12" rx="9.5" ry="4.25" transform="rotate(-28 12 12)" />
+      <circle cx="20.5" cy="8.3" r="1.15" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
+export function CompassIcon(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <circle cx="12" cy="12" r="9" />
+      <path d="m15 9-4.5 1.5L9 15l4.5-1.5z" />
+    </svg>
+  );
+}
+
 export function PlusIcon(props: IconProps) {
   return (
     <svg {...base(props)}>
