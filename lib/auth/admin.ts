@@ -93,10 +93,11 @@ export async function verifyCredentials(
 
   const { data, error } = await auth.auth.signInWithPassword({ email, password });
   if (error || !data.user) {
+    // Solo va a los logs del servidor, nunca al cliente: sin esto, cualquier
+    // fallo de Supabase Auth (proveedor deshabilitado, rate limit, fila de
+    // usuario corrupta, credenciales) se ve idéntico desde fuera como
+    // "credenciales inválidas", como pasó con el bug de confirmation_token.
     if (error) {
-      // Diagnóstico temporal: sin esto, cualquier fallo de Supabase Auth
-      // (proveedor deshabilitado, rate limit, credenciales) se ve idéntico
-      // desde fuera como "credenciales inválidas".
       console.error(`verifyCredentials: ${error.status ?? "?"} ${error.code ?? "?"} ${error.message}`);
     }
     return null;
