@@ -12,13 +12,13 @@ export function Screen({
 }: {
   children: React.ReactNode;
   className?: string;
-  /** aurora: degradado pleno · quiet: degradado apagado · ink: grafito */
+  /** aurora: degradado de cliente · quiet: degradado apagado · ink: degradado nocturno, pantallas de trabajo */
   tone?: "aurora" | "quiet" | "ink";
 }) {
   const skin = {
     aurora: "aurora text-ink",
     quiet: "aurora-quiet text-ink",
-    ink: "bg-void text-chalk",
+    ink: "aurora-night text-chalk",
   }[tone];
 
   return (

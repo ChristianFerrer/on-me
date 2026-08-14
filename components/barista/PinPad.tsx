@@ -37,7 +37,7 @@ export function PinPad({
   }
 
   return (
-    <div className="fixed inset-0 z-[70] flex flex-col bg-void text-chalk">
+    <div className="fixed inset-0 z-[70] flex flex-col aurora-night text-chalk">
       <div className="flex flex-1 flex-col items-center justify-center gap-7 px-8">
         <p className="eyebrow text-chalk/45">{t.confirmPin}</p>
 

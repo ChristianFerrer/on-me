@@ -76,22 +76,12 @@ export default async function AdminPage() {
         </dl>
       </section>
 
-      <div className="mt-auto flex flex-col gap-3">
-        <Link
-          href={`/j/${ctx.shop.slug}/qr`}
-          target="_blank"
-          rel="noopener"
-          className="btn w-full bg-ink px-6 py-4 text-[1rem] text-chalk ring-1 ring-inset ring-chalk/15"
-        >
-          {t.admin.qrPoster} ↗
-        </Link>
-        <Link
-          href="/admin/atribuciones"
-          className="btn w-full bg-lime px-6 py-4 text-[1rem] text-ink"
-        >
-          {t.admin.attributions} →
-        </Link>
-      </div>
+      <Link
+        href="/admin/enlaces"
+        className="btn mt-auto w-full bg-lime px-6 py-4 text-[1rem] text-ink"
+      >
+        {t.admin.links} →
+      </Link>
     </Screen>
   );
 }

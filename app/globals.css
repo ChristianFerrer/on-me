@@ -121,6 +121,20 @@
       radial-gradient(80% 60% at 100% 5%, rgba(45, 212, 191, 0.35) 0%, transparent 60%);
   }
 
+  /* Variante nocturna: el mismo lenguaje —focos radiales sobre una base
+     diagonal— para las pantallas de trabajo (barra, panel, cartel del QR).
+     Índigo/violeta/coral sobre grafito en vez del lima-verde de cliente, y
+     lo bastante oscura para que el texto claro (chalk) siga siendo el que
+     manda, igual que antes sobre el fondo plano. */
+  .aurora-night {
+    background-color: var(--color-void);
+    background-image:
+      radial-gradient(115% 85% at 2% 0%, rgba(129, 140, 248, 0.38) 0%, transparent 55%),
+      radial-gradient(100% 75% at 98% 8%, rgba(251, 113, 133, 0.22) 0%, transparent 58%),
+      radial-gradient(120% 95% at 50% 108%, rgba(167, 139, 250, 0.34) 0%, transparent 62%),
+      linear-gradient(155deg, #12131c 0%, #1a1530 48%, #0d1420 100%);
+  }
+
   /* ==========================================================================
      Superficies
      ========================================================================== */

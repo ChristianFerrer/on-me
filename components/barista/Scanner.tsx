@@ -61,7 +61,7 @@ export function Scanner({
   const blocked = !online || status === "no_camera";
 
   return (
-    <div className="fixed inset-0 overflow-hidden bg-void text-chalk">
+    <div className="fixed inset-0 overflow-hidden aurora-night text-chalk">
       <video
         ref={videoRef}
         playsInline
