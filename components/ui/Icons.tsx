@@ -148,6 +148,31 @@ export function TabletIcon(props: IconProps) {
   );
 }
 
+export function GateIcon(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M5 21V7.5L12 3l7 4.5V21" />
+      <path d="M9 21v-7h6v7" />
+    </svg>
+  );
+}
+
+export function FunnelIcon(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M4 4h16l-6 8v6l-4 2v-8z" />
+    </svg>
+  );
+}
+
+export function PulseIcon(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M3 12h4l2-7 4 14 2-7h6" />
+    </svg>
+  );
+}
+
 export function PlusIcon(props: IconProps) {
   return (
     <svg {...base(props)}>

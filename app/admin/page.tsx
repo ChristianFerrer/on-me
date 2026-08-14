@@ -1,9 +1,10 @@
 import Link from "next/link";
+import { AdminNav } from "@/components/admin/AdminNav";
 import { FunnelBars } from "@/components/admin/FunnelBars";
 import { GateCard } from "@/components/admin/GateCard";
 import { LoginForm } from "@/components/admin/LoginForm";
 import { WaveChart } from "@/components/admin/WaveChart";
-import { ChartIcon, HomeIcon, ShieldIcon, TabletIcon } from "@/components/ui/Icons";
+import { ChartIcon, HomeIcon, ShieldIcon } from "@/components/ui/Icons";
 import { LangSwitch } from "@/components/ui/LangSwitch";
 import { Logo } from "@/components/ui/Logo";
 import { Screen } from "@/components/ui/Screen";
@@ -60,7 +61,9 @@ export default async function AdminPage() {
         <LangSwitch locale={locale} tone="chalk" />
       </header>
 
-      <section className="flex flex-col gap-3">
+      <AdminNav t={t.admin} />
+
+      <section id="gates" className="scroll-mt-4 flex flex-col gap-3">
         <p className="eyebrow text-chalk/35">{t.admin.gates}</p>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <GateCard gate={data.gates.p1} label={t.admin.gate1} t={t.admin} />
@@ -69,7 +72,7 @@ export default async function AdminPage() {
         </div>
       </section>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:items-start">
+      <div id="embudo" className="scroll-mt-4 grid grid-cols-1 gap-6 lg:grid-cols-2 lg:items-start">
         <section className="rounded-[var(--radius-card)] bg-ink p-6">
           <p className="eyebrow flex items-center gap-2 text-chalk/35">
             <ChartIcon className="size-4" />
@@ -86,7 +89,7 @@ export default async function AdminPage() {
         </section>
       </div>
 
-      <section>
+      <section id="senales" className="scroll-mt-4">
         <p className="eyebrow text-chalk/35">{t.admin.ops}</p>
         <dl className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
           <Signal
@@ -116,29 +119,13 @@ export default async function AdminPage() {
         </dl>
       </section>
 
-      <div className="mt-auto flex flex-col gap-3 sm:flex-row">
-        <Link
-          href="/admin/dispositivos"
-          className="btn flex-1 items-center gap-2 bg-lime px-6 py-4 text-[1rem] text-ink"
-        >
-          <TabletIcon className="size-5" />
-          {t.admin.devices}
-        </Link>
-        <Link
-          href="/admin/atribuciones"
-          className="btn flex-1 items-center gap-2 bg-ink-2 px-6 py-4 text-[1rem] text-chalk ring-1 ring-inset ring-chalk/15"
-        >
-          <ChartIcon className="size-5" />
-          {t.admin.attributions}
-        </Link>
-        <Link
-          href="/privacidad?from=admin"
-          className="btn flex-1 items-center gap-2 bg-ink-2 px-6 py-4 text-[1rem] text-chalk ring-1 ring-inset ring-chalk/15"
-        >
-          <ShieldIcon className="size-5" />
-          {t.admin.linksPrivacy}
-        </Link>
-      </div>
+      <Link
+        href="/privacidad?from=admin"
+        className="btn mt-auto items-center gap-2 bg-ink-2 px-6 py-4 text-[1rem] text-chalk ring-1 ring-inset ring-chalk/15"
+      >
+        <ShieldIcon className="size-5" />
+        {t.admin.linksPrivacy}
+      </Link>
     </Screen>
   );
 }

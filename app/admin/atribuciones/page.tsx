@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { AdminNav } from "@/components/admin/AdminNav";
+import { ReferralMap } from "@/components/admin/ReferralMap";
 import { ArrowLeftIcon } from "@/components/ui/Icons";
 import { Screen } from "@/components/ui/Screen";
 import { getAdminContext } from "@/lib/auth/admin";
@@ -7,6 +9,7 @@ import { cn } from "@/lib/cn";
 import { db } from "@/lib/db/client";
 import { formatDateTime } from "@/lib/i18n";
 import { getI18n } from "@/lib/i18n/server";
+import { loadReferralTree } from "@/lib/referralTree";
 import { firstName } from "@/lib/scan-service";
 
 const STATE_SKIN = {
@@ -27,12 +30,15 @@ export default async function AttributionsPage() {
 
   const { locale, t } = await getI18n();
 
-  const { data: rows } = await db()
-    .from("attributions")
-    .select("id, padrino_id, ahijado_id, redeemed_at, returned_at, state, disputed")
-    .eq("shop_id", ctx.shop.id)
-    .order("redeemed_at", { ascending: false })
-    .limit(200);
+  const [{ data: rows }, referralTree] = await Promise.all([
+    db()
+      .from("attributions")
+      .select("id, padrino_id, ahijado_id, redeemed_at, returned_at, state, disputed")
+      .eq("shop_id", ctx.shop.id)
+      .order("redeemed_at", { ascending: false })
+      .limit(200),
+    loadReferralTree(ctx.shop.id),
+  ]);
 
   const attributions = rows ?? [];
 
@@ -71,6 +77,10 @@ export default async function AttributionsPage() {
       </header>
 
       <h1 className="display text-[1.75rem]">{t.admin.attributions}</h1>
+
+      <AdminNav t={t.admin} active="atribuciones" />
+
+      <ReferralMap roots={referralTree} shopName={ctx.shop.name} t={t.admin} />
 
       {attributions.length === 0 ? (
         <p className="text-[0.9375rem] text-chalk/45">{t.admin.attrEmpty}</p>

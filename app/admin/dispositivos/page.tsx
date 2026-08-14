@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { AdminNav } from "@/components/admin/AdminNav";
 import { DeviceManager } from "@/components/admin/DeviceManager";
 import { ArrowLeftIcon } from "@/components/ui/Icons";
 import { Screen } from "@/components/ui/Screen";
@@ -30,6 +31,8 @@ export default async function DevicesPage() {
       </header>
 
       <h1 className="display text-[1.75rem]">{t.admin.devices}</h1>
+
+      <AdminNav t={t.admin} active="dispositivos" />
 
       <DeviceManager t={t.admin} devices={devices} baseUrl={env.baseUrl} locale={locale} />
     </Screen>
