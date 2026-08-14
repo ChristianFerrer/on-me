@@ -192,6 +192,14 @@ export function CompassIcon(props: IconProps) {
   );
 }
 
+export function XIcon(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M6 6l12 12M18 6 6 18" />
+    </svg>
+  );
+}
+
 export function PlusIcon(props: IconProps) {
   return (
     <svg {...base(props)}>
