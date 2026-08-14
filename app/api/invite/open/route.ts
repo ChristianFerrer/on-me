@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db/client";
 import { normalizeInviteCode } from "@/lib/crypto";
+import { clientIp, rateLimit } from "@/lib/rate-limit";
 
 const Body = z.object({ code: z.string().trim().min(4).max(12) });
 
@@ -14,6 +15,15 @@ const Body = z.object({ code: z.string().trim().min(4).max(12) });
  * métrica justo entre las puertas P1 y P2.
  */
 export async function POST(request: Request) {
+  // Mismo motivo que en la landing: sin contador se puede sondear códigos.
+  const limit = rateLimit(`invite-open:${clientIp(request.headers)}`, 30, 60_000);
+  if (!limit.ok) {
+    return NextResponse.json(
+      { error: "rate" },
+      { status: 429, headers: { "retry-after": String(limit.retryAfterSeconds) } },
+    );
+  }
+
   const parsed = Body.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return new NextResponse(null, { status: 400 });
 

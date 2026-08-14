@@ -1,3 +1,4 @@
+import { headers } from "next/headers";
 import { ClaimForm } from "@/components/client/ClaimForm";
 import { MarkOpened } from "@/components/client/MarkOpened";
 import { Screen, Slab } from "@/components/ui/Screen";
@@ -6,9 +7,17 @@ import { normalizeInviteCode } from "@/lib/crypto";
 import { db } from "@/lib/db/client";
 import { fill, formatDate, type Locale } from "@/lib/i18n";
 import { getI18n } from "@/lib/i18n/server";
+import { clientIp, rateLimit } from "@/lib/rate-limit";
 import { firstName } from "@/lib/scan-service";
 
 const CLAIMABLE = ["created", "sent", "opened"];
+
+/**
+ * Un invitado abre su enlace una vez, dos si acaso. Treinta por minuto es
+ * holgado para una persona y hace inviable recorrer el espacio de códigos
+ * probando uno detrás de otro.
+ */
+const VIEWS_PER_MINUTE = 30;
 
 /**
  * Landing del invitado. Es la única pantalla de OnMe que verá gente que no
@@ -23,6 +32,19 @@ export default async function GuestPage({
   const { code: raw } = await params;
   const { locale, t } = await getI18n();
   const code = normalizeInviteCode(raw);
+
+  // Era la única puerta pública sin contador de intentos: sin esto se puede
+  // barrer el espacio de códigos a la caza de una invitación válida.
+  const limit = rateLimit(
+    `invite-view:${clientIp(await headers())}`,
+    VIEWS_PER_MINUTE,
+    60_000,
+  );
+  if (!limit.ok) {
+    return (
+      <Notice locale={locale} title={t.errors.generic} body={t.join.errors.rate} />
+    );
+  }
 
   const { data: invitation } = await db()
     .from("invitations")
