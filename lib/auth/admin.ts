@@ -92,7 +92,15 @@ export async function verifyCredentials(
   });
 
   const { data, error } = await auth.auth.signInWithPassword({ email, password });
-  if (error || !data.user) return null;
+  if (error || !data.user) {
+    if (error) {
+      // Diagnóstico temporal: sin esto, cualquier fallo de Supabase Auth
+      // (proveedor deshabilitado, rate limit, credenciales) se ve idéntico
+      // desde fuera como "credenciales inválidas".
+      console.error(`verifyCredentials: ${error.status ?? "?"} ${error.code ?? "?"} ${error.message}`);
+    }
+    return null;
+  }
 
   // La sesión de Supabase no se conserva: solo nos interesaba la verificación.
   await auth.auth.signOut();
