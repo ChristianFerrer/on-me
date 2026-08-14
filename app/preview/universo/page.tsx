@@ -1,15 +1,17 @@
-import { notFound } from "next/navigation";
 import { GiftUniverse } from "@/components/universe/GiftUniverse";
 import { getI18n } from "@/lib/i18n/server";
 
 /**
  * Revisión del universo 3D del mapa de saltos contra datos de ejemplo, antes
- * de conectarlo a /admin/atribuciones/mapa. Como el resto de /preview: no
- * se enlaza desde ningún sitio y devuelve 404 en producción.
+ * de conectarlo a /admin/atribuciones/mapa. A diferencia del resto de
+ * /preview, esta sí queda accesible en producción a propósito —Vercel
+ * compila esta rama entera con NODE_ENV=production, así que el guardián
+ * habitual (`if (NODE_ENV === "production") notFound()`) la escondía en
+ * todas partes, no solo en el sitio real— para poder abrirla desde el
+ * móvil mientras se revisa. Solo enseña datos de ejemplo, sin datos reales
+ * ni autenticación de por medio.
  */
 export default async function UniversePreviewPage() {
-  if (process.env.NODE_ENV === "production") notFound();
-
   const { t, locale } = await getI18n();
 
   return <GiftUniverse t={t} locale={locale} />;
