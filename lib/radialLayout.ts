@@ -5,6 +5,10 @@ export type RadialPoint = {
   name: string;
   depth: number;
   billable: boolean;
+  /** Cuántos clientes cuelgan de este, directa o indirectamente. */
+  descendants: number;
+  /** Radio de la burbuja, ya resuelto: cabe el nombre y refleja su alcance. */
+  radius: number;
   x: number;
   y: number;
 };
@@ -25,16 +29,36 @@ export type RadialEdge = {
 export type RadialLayout = {
   nodes: RadialPoint[];
   edges: RadialEdge[];
-  /** Radio máximo ocupado, para dimensionar el viewBox. */
+  /** Radio máximo ocupado, para dimensionar el viewBox y los anillos de fondo. */
   extent: number;
+  maxDepth: number;
 };
 
-/** Separación entre anillos. Un piloto con pocos niveles no necesita más. */
-const RADIUS_STEP = 96;
+/** Separación entre anillos. Burbujas grandes necesitan más aire que puntos. */
+const RADIUS_STEP = 138;
+
+const MIN_R = 22;
+const MAX_R = 40;
+const SHOP_MIN_R = 34;
+const SHOP_MAX_R = 58;
+
+/**
+ * Aproxima cuánto radio necesita una burbuja para que el nombre quepa
+ * dentro sin medir texto de verdad —esto se renderiza en servidor, sin
+ * lienzo—: un ancho medio por carácter basta para un nombre de pila.
+ */
+function textFitRadius(name: string, fontSize: number, padding: number): number {
+  const width = name.length * fontSize * 0.58;
+  return width / 2 + padding;
+}
 
 function countLeaves(node: ReferralNode): number {
   if (node.children.length === 0) return 1;
   return node.children.reduce((sum, child) => sum + countLeaves(child), 0);
+}
+
+function countDescendants(node: ReferralNode): number {
+  return node.children.reduce((sum, child) => sum + 1 + countDescendants(child), 0);
 }
 
 /**
@@ -47,11 +71,24 @@ function countLeaves(node: ReferralNode): number {
  * truco que usa d3.linkRadial), así que la rama gira suave hacia su hijo en
  * vez de partir en línea recta desde el centro. Eso es lo que las hace leer
  * como tentáculos.
+ *
+ * El radio de cada burbuja mezcla dos cosas: cuánto alcance tiene ese
+ * cliente (más ahijados, burbuja más grande) y cuánto sitio pide su
+ * nombre para no desbordar el círculo.
  */
 export function layoutRadialTree(roots: ReferralNode[]): RadialLayout {
-  const nodes: RadialPoint[] = [{ id: "shop", name: "", depth: 0, billable: false, x: 0, y: 0 }];
+  const shopDescendants = roots.reduce((sum, node) => sum + 1 + countDescendants(node), 0);
+  const shopRadius = Math.min(
+    SHOP_MAX_R,
+    Math.max(SHOP_MIN_R, textFitRadius("shop", 15, 14), SHOP_MIN_R + Math.min(shopDescendants, 12)),
+  );
+
+  const nodes: RadialPoint[] = [
+    { id: "shop", name: "", depth: 0, billable: false, descendants: shopDescendants, radius: shopRadius, x: 0, y: 0 },
+  ];
   const edges: RadialEdge[] = [];
   let extent = 0;
+  let maxDepth = 0;
 
   function place(
     node: ReferralNode,
@@ -65,8 +102,24 @@ export function layoutRadialTree(roots: ReferralNode[]): RadialLayout {
     const x = radius * Math.cos(angle);
     const y = radius * Math.sin(angle);
     extent = Math.max(extent, radius);
+    maxDepth = Math.max(maxDepth, depth);
 
-    nodes.push({ id: node.id, name: node.name, depth, billable: node.billable, x, y });
+    const descendants = countDescendants(node);
+    const bubbleRadius = Math.min(
+      MAX_R,
+      Math.max(MIN_R, textFitRadius(node.name, 11, 10), MIN_R + Math.min(descendants, 8) * 1.4),
+    );
+
+    nodes.push({
+      id: node.id,
+      name: node.name,
+      depth,
+      billable: node.billable,
+      descendants,
+      radius: bubbleRadius,
+      x,
+      y,
+    });
 
     // Desde el propio centro (radio 0) el ángulo del padre no significa
     // nada: el primer tramo sale recto, y ya curva a partir del segundo.
@@ -104,5 +157,5 @@ export function layoutRadialTree(roots: ReferralNode[]): RadialLayout {
     cursor += span;
   }
 
-  return { nodes, edges, extent };
+  return { nodes, edges, extent, maxDepth };
 }
