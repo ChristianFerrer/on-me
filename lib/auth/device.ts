@@ -1,4 +1,4 @@
-import { db } from "@/lib/db/client";
+import { assertNoQueryError, db } from "@/lib/db/client";
 import type { DeviceRow, ShopRow } from "@/lib/db/types";
 import { hashWithSalt } from "@/lib/crypto";
 import { readDeviceSessionToken } from "@/lib/session";
@@ -33,6 +33,9 @@ export async function getDeviceContext(): Promise<DeviceContext | null> {
   // de cada escaneo. El tipo se declara a mano con `.returns<T>()` porque
   // nuestro `Database` no describe las relaciones y supabase-js no puede
   // inferir la forma del `select` embebido.
+  // Un error real de Supabase aquí no es "sesión inválida": es "no puedo
+  // decírtelo". Revienta en vez de enseñar "dispositivo no autorizado"
+  // cuando el problema de verdad es la conexión con la base.
   const { data, error } = await db()
     .from("device_sessions")
     .select("id, revoked_at, devices(*, shops(*))")
@@ -40,7 +43,8 @@ export async function getDeviceContext(): Promise<DeviceContext | null> {
     .maybeSingle()
     .returns<SessionWithDevice>();
 
-  if (error || !data || data.revoked_at) return null;
+  assertNoQueryError(error, "device_sessions.token_hash");
+  if (!data || data.revoked_at) return null;
 
   const device = data.devices;
   if (!device || !device.active || !device.shops) return null;

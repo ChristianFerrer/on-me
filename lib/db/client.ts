@@ -4,6 +4,9 @@ import type { Database } from "./types";
 
 export type Db = SupabaseClient<Database>;
 
+/** Forma mínima de un error de PostgREST: lo que hace falta para diagnosticar. */
+type QueryError = { message: string; code?: string | null };
+
 let client: Db | null = null;
 
 /**
@@ -79,4 +82,38 @@ function jwtRole(key: string): string | null {
   } catch {
     return null;
   }
+}
+
+/**
+ * Separa "no hay filas" (un resultado legítimo: `maybeSingle()` sin match
+ * devuelve `data: null, error: null`) de "Supabase devolvió un error" (clave
+ * revocada, proyecto equivocado, límite de conexiones, timeout…).
+ *
+ * Nace del mismo fallo que `assertServiceRole`, un nivel más abajo: en cada
+ * `const { data } = await db()...; if (!data) notFound()` de la aplicación,
+ * un error real de la API se leía exactamente igual que "esto no existe".
+ * El local desaparecía, las tarjetas dejaban de existir, y en los registros
+ * no había ni una línea que lo explicara — porque nadie miraba `error`.
+ *
+ * Recibe `error` suelto y no el resultado completo a propósito: el tipo que
+ * devuelve supabase-js es una unión discriminada entre la rama de éxito y la
+ * de error, y pedirle a TypeScript que infiera `T` desde esa unión dentro de
+ * un solo parámetro degenera en `never`. Separado, no hay nada que inferir.
+ *
+ * Se usa en los puntos de entrada de cada superficie (alta, tarjeta,
+ * invitación, dispositivo, admin): donde un 404 silencioso cuesta más caro,
+ * porque es lo primero que ve un cliente real escaneando un QR en la barra.
+ *
+ *   const { data: shop, error } = await db().from("shops")...maybeSingle();
+ *   assertNoQueryError(error, `shops.slug=${slug}`);
+ *   if (!shop) notFound();   // ahora sí es "no existe" de verdad
+ */
+export function assertNoQueryError(error: QueryError | null, context: string): void {
+  if (!error) return;
+
+  throw new Error(
+    `Supabase devolvió un error en "${context}": ${error.message} ` +
+      `(código ${error.code ?? "desconocido"}). No es "no existe": es un ` +
+      "fallo real — revisa NEXT_PUBLIC_SUPABASE_URL y SUPABASE_SERVICE_ROLE_KEY.",
+  );
 }

@@ -4,7 +4,7 @@ import { MarkOpened } from "@/components/client/MarkOpened";
 import { Screen, Slab } from "@/components/ui/Screen";
 import { TopBar } from "@/components/ui/TopBar";
 import { normalizeInviteCode } from "@/lib/crypto";
-import { db } from "@/lib/db/client";
+import { assertNoQueryError, db } from "@/lib/db/client";
 import { fill, formatDate, type Locale } from "@/lib/i18n";
 import { getI18n } from "@/lib/i18n/server";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
@@ -46,11 +46,13 @@ export default async function GuestPage({
     );
   }
 
-  const { data: invitation } = await db()
+  const { data: invitation, error: invitationError } = await db()
     .from("invitations")
     .select("id, code, state, expires_at, shop_id, padrino_id")
     .eq("code", code)
     .maybeSingle();
+
+  assertNoQueryError(invitationError, `invitations.code=${code}`);
 
   if (!invitation) {
     return <Notice locale={locale} title={t.guest.invalid} body={t.errors.notFoundBody} />;

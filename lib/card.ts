@@ -1,4 +1,4 @@
-import { db } from "@/lib/db/client";
+import { assertNoQueryError, db } from "@/lib/db/client";
 import type { CustomerRow, InvitationRow, ShopRow } from "@/lib/db/types";
 import { ACTIVE_STATES } from "@/lib/invitations";
 
@@ -22,12 +22,15 @@ export type CardData = {
 };
 
 export async function loadCard(token: string): Promise<CardData | null> {
-  const { data: customer } = await db()
+  // `data: null, error: null` es legítimo aquí: alguien sin cookie o con un
+  // token viejo. Solo revienta si Supabase devolvió un error real.
+  const { data: customer, error: customerError } = await db()
     .from("customers")
     .select("*")
     .eq("token", token)
     .maybeSingle();
 
+  assertNoQueryError(customerError, "customers.token");
   if (!customer) return null;
 
   const [shopResult, passResult, invitesResult, attributionsResult] =
@@ -50,6 +53,7 @@ export async function loadCard(token: string): Promise<CardData | null> {
         .eq("state", "billable"),
     ]);
 
+  assertNoQueryError(shopResult.error, `shops.id=${customer.shop_id}`);
   const shop = shopResult.data;
   if (!shop) return null;
 

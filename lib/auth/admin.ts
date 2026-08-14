@@ -1,7 +1,7 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { cookies } from "next/headers";
 import { createClient } from "@supabase/supabase-js";
-import { db } from "@/lib/db/client";
+import { assertNoQueryError, db } from "@/lib/db/client";
 import type { ShopRow } from "@/lib/db/types";
 import { env } from "@/lib/env";
 
@@ -58,13 +58,15 @@ export async function getAdminContext(): Promise<AdminContext | null> {
   if (!userId) return null;
 
   // La pertenencia se comprueba en cada petición, no se confía en la cookie.
-  const { data } = await db()
+  // Un error real aquí no es "no eres miembro": es "no puedo comprobarlo".
+  const { data, error } = await db()
     .from("shop_members")
     .select("role, shops(*)")
     .eq("user_id", userId)
     .maybeSingle()
     .returns<{ role: string; shops: ShopRow | null }>();
 
+  assertNoQueryError(error, "shop_members.user_id");
   if (!data?.shops) return null;
 
   return { userId, shop: data.shops, role: data.role };

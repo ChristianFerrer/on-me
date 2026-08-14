@@ -3,7 +3,7 @@ import { JoinForm } from "@/components/client/JoinForm";
 import { Screen } from "@/components/ui/Screen";
 import { StampCard } from "@/components/ui/StampCard";
 import { TopBar } from "@/components/ui/TopBar";
-import { db } from "@/lib/db/client";
+import { assertNoQueryError, db } from "@/lib/db/client";
 import { getI18n } from "@/lib/i18n/server";
 
 /**
@@ -19,12 +19,13 @@ export default async function JoinPage({
   const { shop: slug } = await params;
   const { locale, t } = await getI18n();
 
-  const { data: shop } = await db()
+  const { data: shop, error } = await db()
     .from("shops")
     .select("slug, name, address, hours, stamps_goal")
     .eq("slug", slug)
     .maybeSingle();
 
+  assertNoQueryError(error, `shops.slug=${slug}`);
   if (!shop) notFound();
 
   return (
