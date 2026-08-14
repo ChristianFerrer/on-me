@@ -51,6 +51,12 @@ export const es = {
     welcomeBack: "¡ya nos conoces! tu tarjeta sigue aquí",
   },
 
+  poster: {
+    eyebrow: "escanea para unirte",
+    hint: "apunta la cámara del móvil al código",
+    urlHint: "o entra en",
+  },
+
   card: {
     eyebrow: "tu tarjeta",
     stampsOf: "{n} de {goal}",
@@ -184,6 +190,7 @@ export const es = {
     manualRate: "sellos manuales",
     expiredInvites: "invitaciones caducadas",
     attributions: "atribuciones",
+    qrPoster: "cartel del QR",
     attrPadrino: "padrino",
     attrGuest: "invitado",
     attrRedeemed: "canjeado",
@@ -262,6 +269,12 @@ export const en: Dict = {
       shop: "this café doesn't exist or no longer uses OnMe.",
     },
     welcomeBack: "we know you already! your card is right here",
+  },
+
+  poster: {
+    eyebrow: "scan to join",
+    hint: "point your phone's camera at the code",
+    urlHint: "or go to",
   },
 
   card: {
@@ -397,6 +410,7 @@ export const en: Dict = {
     manualRate: "manual stamps",
     expiredInvites: "expired invites",
     attributions: "attributions",
+    qrPoster: "QR poster",
     attrPadrino: "referrer",
     attrGuest: "guest",
     attrRedeemed: "redeemed",
