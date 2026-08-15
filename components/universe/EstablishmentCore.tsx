@@ -6,9 +6,8 @@ import { AdditiveBlending, type Mesh, type Sprite } from "three";
 import { getGlowTexture } from "@/components/universe/glowTexture";
 import { LIME } from "@/components/universe/palette";
 import { SPHERE_GEOMETRY } from "@/components/universe/sphereGeometry";
-import { breathingScale } from "@/lib/giftGraph/organicMotion";
+import { breathingScale, ESTABLISHMENT_RADIUS_FACTOR } from "@/lib/giftGraph/organicMotion";
 
-const ESTABLISHMENT_FACTOR = 1.4;
 const GLOW_SCALE = 2.6;
 
 export function EstablishmentCore({
@@ -24,7 +23,7 @@ export function EstablishmentCore({
   const texture = useMemo(() => getGlowTexture(), []);
 
   // El establecimiento siempre es la esfera más grande de la escena.
-  const radius = maxNodeRadius * ESTABLISHMENT_FACTOR;
+  const radius = maxNodeRadius * ESTABLISHMENT_RADIUS_FACTOR;
 
   useFrame((_, delta) => {
     clock.current += delta;

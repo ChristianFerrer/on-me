@@ -11,9 +11,10 @@ import { EstablishmentCore } from "@/components/universe/EstablishmentCore";
 import { GlowSprites } from "@/components/universe/GlowSprites";
 import type { LiveNode } from "@/components/universe/liveNodes";
 import { DEEP_VOID } from "@/components/universe/palette";
+import { PendingField } from "@/components/universe/PendingField";
 import { PersonLabels } from "@/components/universe/PersonLabels";
 import { PersonNodes } from "@/components/universe/PersonNodes";
-import { computeRadius } from "@/lib/giftGraph/organicMotion";
+import { computeRadius, ESTABLISHMENT_RADIUS_FACTOR } from "@/lib/giftGraph/organicMotion";
 import type { Dict } from "@/lib/i18n";
 import type { Vec3 } from "@/lib/giftGraph/sphereLayout";
 import type { GiftGraph } from "@/lib/giftGraph/types";
@@ -94,6 +95,11 @@ export function GiftUniverseCanvas({
     () => graph.nodes.filter((n) => n.childCount > n.loadedChildCount).map((n) => n.id),
     [graph.nodes],
   );
+  const graphExtent = useMemo(() => {
+    let max = 10;
+    for (const pos of positions.values()) max = Math.max(max, Math.hypot(pos.x, pos.y, pos.z));
+    return max;
+  }, [positions]);
 
   return (
     <Canvas
@@ -125,12 +131,13 @@ export function GiftUniverseCanvas({
       </Environment>
 
       <Stars radius={140} depth={70} count={600} factor={2.8} saturation={0} fade speed={reducedMotion ? 0 : 0.08} />
+      <PendingField innerRadius={graphExtent} reducedMotion={reducedMotion} />
 
       <EstablishmentCore maxNodeRadius={maxNodeRadius} reducedMotion={reducedMotion} />
       <PersonNodes
         nodes={graph.nodes}
         positions={positions}
-        roots={graph.roots}
+        edges={graph.edges}
         focusId={focusId}
         selectedId={selectedId}
         directlyConnected={directlyConnected}
@@ -139,7 +146,13 @@ export function GiftUniverseCanvas({
         onSelect={onSelect}
       />
       <GlowSprites haloNodeIds={haloNodeIds} liveRef={liveNodesRef} reducedMotion={reducedMotion} />
-      <PersonLabels nodes={graph.nodes} establishmentName={graph.establishment.name} liveRef={liveNodesRef} t={t} />
+      <PersonLabels
+        nodes={graph.nodes}
+        establishmentName={graph.establishment.name}
+        establishmentRadius={maxNodeRadius * ESTABLISHMENT_RADIUS_FACTOR}
+        liveRef={liveNodesRef}
+        t={t}
+      />
       <ConnectionLines
         edges={graph.edges}
         positions={positions}

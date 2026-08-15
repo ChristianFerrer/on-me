@@ -12,11 +12,16 @@ export const LIME = "#d2fb4f";
 export const LIME_COLOR = new Color(LIME);
 export const CHALK_COLOR = new Color(CHALK);
 
-/** Un tono ligeramente distinto del acento por cadena, sin salirse de la paleta. */
-export function chainColor(chainIndex: number, chainCount: number): Color {
+/**
+ * Un tono que se desliza por el espectro según cuántos saltos hay hasta el
+ * local: depth 1 (los primeros invitados) se queda en el propio acento,
+ * y cada salto más allá gira un poco más el matiz. Así de un vistazo se
+ * distingue cuánto de lejos viene cada persona en su cadena.
+ */
+export function depthColor(depth: number): Color {
   const color = LIME_COLOR.clone();
-  const spread = chainCount <= 1 ? 0 : (chainIndex / chainCount - 0.5) * 0.22;
-  color.offsetHSL(spread, 0, 0);
+  const hueShift = ((Math.max(1, depth) - 1) * 0.085) % 1;
+  color.offsetHSL(hueShift, 0, 0);
   return color;
 }
 

@@ -3,8 +3,8 @@ import { breathingScale, computeRadius, hash01 } from "@/lib/giftGraph/organicMo
 
 describe("computeRadius", () => {
   it("nunca baja del mínimo, ni con cero invitados", () => {
-    expect(computeRadius(0)).toBeCloseTo(0.55);
-    expect(computeRadius(-5)).toBeCloseTo(0.55);
+    expect(computeRadius(0)).toBeCloseTo(0.34);
+    expect(computeRadius(-5)).toBeCloseTo(0.34);
   });
 
   it("crece en raíz, no en línea recta", () => {
@@ -17,7 +17,7 @@ describe("computeRadius", () => {
   });
 
   it("nunca pasa del máximo aunque haya muchísimos invitados", () => {
-    expect(computeRadius(10_000)).toBeCloseTo(2.6);
+    expect(computeRadius(10_000)).toBeCloseTo(1.5);
   });
 });
 

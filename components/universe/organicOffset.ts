@@ -21,7 +21,9 @@ function seedFor(id: string): number {
  */
 export function organicOffset(id: string, elapsedSeconds: number, amplitude: number, out: Vector3): Vector3 {
   const seed = seedFor(id);
-  const t = elapsedSeconds * 0.06;
+  // Más lento que antes: se pide que floten como globos de helio, no que
+  // tiemblen.
+  const t = elapsedSeconds * 0.04;
   out.set(
     noise3D(seed + t, seed, seed) * amplitude,
     noise3D(seed, seed + AXIS_SHIFT_Y + t, seed) * amplitude,

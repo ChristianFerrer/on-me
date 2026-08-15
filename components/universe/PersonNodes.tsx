@@ -4,18 +4,20 @@ import { useFrame } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
 import { Color, InstancedMesh, MathUtils, Object3D, Vector3 } from "three";
 import { organicOffset } from "@/components/universe/organicOffset";
-import { chainColor, dimColor, LIME } from "@/components/universe/palette";
+import { depthColor, dimColor, LIME } from "@/components/universe/palette";
 import { SPHERE_GEOMETRY } from "@/components/universe/sphereGeometry";
 import { breathingScale, computeRadius } from "@/lib/giftGraph/organicMotion";
 import { isTap, type PointerPoint } from "@/lib/giftGraph/tapGesture";
 import type { LiveNodesRef } from "@/components/universe/liveNodes";
-import type { Node } from "@/lib/giftGraph/types";
+import type { Edge, Node } from "@/lib/giftGraph/types";
 import type { Vec3 } from "@/lib/giftGraph/sphereLayout";
 
 /** Cuánto tarda en converger el radio hacia su objetivo: mayor = más rápido. */
 const RADIUS_DAMP_LAMBDA = 4;
 /** Deriva orgánica como fracción del radio del propio nodo. */
-const OFFSET_AMPLITUDE_FACTOR = 0.18;
+const OFFSET_AMPLITUDE_FACTOR = 0.14;
+/** Cuánto del vaivén del padre hereda el hijo, como si tirara del hilo. */
+const PARENT_SWAY_FACTOR = 0.35;
 const ENTRY_STAGGER_SEC = 0.09;
 
 type PendingTap = { pointerId: number; nodeId: string; down: PointerPoint };
@@ -23,7 +25,7 @@ type PendingTap = { pointerId: number; nodeId: string; down: PointerPoint };
 export function PersonNodes({
   nodes,
   positions,
-  roots,
+  edges,
   focusId,
   selectedId,
   directlyConnected,
@@ -33,7 +35,7 @@ export function PersonNodes({
 }: {
   nodes: Node[];
   positions: Map<string, Vec3>;
-  roots: string[];
+  edges: Edge[];
   focusId: string | null;
   selectedId: string | null;
   directlyConnected: Set<string>;
@@ -45,8 +47,13 @@ export function PersonNodes({
   const pendingTap = useRef<PendingTap | null>(null);
   const entryStartRef = useRef(new Map<string, number>());
   const clockRef = useRef(0);
+  // El propio vaivén de cada nodo (sin el aporte heredado del padre), para
+  // que sus hijos puedan tirar de él con un frame de desfase: así el efecto
+  // "atado por un hilo" se propaga cadena abajo sin depender del orden en
+  // que se recorren los nodos.
+  const ownOffsetRef = useRef(new Map<string, Vector3>());
 
-  const rootIndex = useMemo(() => new Map(roots.map((id, index) => [id, index])), [roots]);
+  const parentOf = useMemo(() => new Map(edges.map((edge) => [edge.to, edge.from])), [edges]);
   const dummy = useMemo(() => new Object3D(), []);
   const offsetVec = useMemo(() => new Vector3(), []);
 
@@ -87,9 +94,18 @@ export function PersonNodes({
       let pz = basePos.z;
       if (!reducedMotion && dampedRadius > 0.01) {
         organicOffset(node.id, elapsed, OFFSET_AMPLITUDE_FACTOR * dampedRadius, offsetVec);
-        px += offsetVec.x;
-        py += offsetVec.y;
-        pz += offsetVec.z;
+        let ownOffset = ownOffsetRef.current.get(node.id);
+        if (!ownOffset) {
+          ownOffset = new Vector3();
+          ownOffsetRef.current.set(node.id, ownOffset);
+        }
+        ownOffset.copy(offsetVec);
+
+        const parentId = parentOf.get(node.id);
+        const parentOffset = parentId ? ownOffsetRef.current.get(parentId) : undefined;
+        px += offsetVec.x + (parentOffset ? parentOffset.x * PARENT_SWAY_FACTOR : 0);
+        py += offsetVec.y + (parentOffset ? parentOffset.y * PARENT_SWAY_FACTOR : 0);
+        pz += offsetVec.z + (parentOffset ? parentOffset.z * PARENT_SWAY_FACTOR : 0);
       }
 
       live.position.set(px, py, pz);
@@ -102,7 +118,7 @@ export function PersonNodes({
 
       const isFocused = node.id === focusId || node.id === selectedId;
       const isDim = selectedId != null && !isFocused && !directlyConnected.has(node.id);
-      const base = chainColor(rootIndex.get(node.rootId) ?? 0, roots.length);
+      const base = depthColor(node.depth);
       const color = isDim ? dimColor(base, 0.75) : isFocused ? new Color(LIME) : base;
       mesh.setColorAt(index, color);
     });
