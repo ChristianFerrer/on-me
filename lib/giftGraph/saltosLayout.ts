@@ -22,14 +22,29 @@ export type SaltosLayout = {
 };
 
 /** Separación entre anillos. */
-export const RING_STEP = 108;
-const MIN_NODE_R = 9;
-const MAX_NODE_R = 30;
-export const ESTABLISHMENT_RADIUS = 40;
+export const RING_STEP = 84;
+const MIN_NODE_R = 6;
+const MAX_NODE_R = 18;
+export const ESTABLISHMENT_RADIUS = 26;
 
 /** Radio de burbuja por sellos: crece en raíz, para que una tarjeta completa no aplaste al resto. */
 function nodeRadiusFor(stamps: number): number {
-  return Math.min(MAX_NODE_R, Math.max(MIN_NODE_R, MIN_NODE_R + 3.4 * Math.sqrt(Math.max(0, stamps))));
+  return Math.min(MAX_NODE_R, Math.max(MIN_NODE_R, MIN_NODE_R + 2.6 * Math.sqrt(Math.max(0, stamps))));
+}
+
+/**
+ * Zoom que encuadra el grafo tal cual es ahora -pocas ramas o muchas-, en vez
+ * de un scale fijo. `half` es el radio del viewBox (ya incluye el aire extra
+ * para poder arrastrar); `extent` es cuánto ocupa el grafo de verdad. Con
+ * poca profundidad, `extent` es pequeño y el resultado da zoom in; con
+ * cadenas largas, da zoom out -siempre respetando los límites de escala.
+ */
+export function computeFitScale(extent: number, half: number, minScale: number, maxScale: number): number {
+  const FIT_MARGIN = 1.25;
+  const LABEL_ROOM = 48;
+  const contentRadius = Math.max(extent + LABEL_ROOM, ESTABLISHMENT_RADIUS * 2.4);
+  const raw = half / (contentRadius * FIT_MARGIN);
+  return Math.min(maxScale, Math.max(minScale, raw));
 }
 
 /**

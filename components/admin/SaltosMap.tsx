@@ -8,7 +8,7 @@ import { cn } from "@/lib/cn";
 import { hash01 } from "@/lib/giftGraph/organicMotion";
 import { bestPadrinoId, isExpiringSoon } from "@/lib/giftGraph/insights";
 import { type Pan, panBy, pixelsToUnits, zoomAtPoint } from "@/lib/panZoom";
-import { ESTABLISHMENT_RADIUS, layoutSaltos, RING_STEP } from "@/lib/giftGraph/saltosLayout";
+import { computeFitScale, ESTABLISHMENT_RADIUS, layoutSaltos, RING_STEP } from "@/lib/giftGraph/saltosLayout";
 import { STATE_BADGE_SKIN, STATE_LINE_COLOR, stateBadgeLabel } from "@/lib/giftGraph/stateBadge";
 import { isTap, type PointerPoint } from "@/lib/giftGraph/tapGesture";
 import type { GiftGraph, NodeState } from "@/lib/giftGraph/types";
@@ -155,8 +155,9 @@ export function SaltosMap({ graph, shopName, locale, t }: { graph: GiftGraph; sh
   const half = layout.extent + LABEL_PAD + PAN_ROOM;
   const size = half * 2;
   const funnelRadius = layout.extent + 34;
+  const fitScale = computeFitScale(layout.extent, half, MIN_SCALE, MAX_SCALE);
 
-  const [pan, setPan] = useState<Pan>({ x: 0, y: 0, scale: 1 });
+  const [pan, setPan] = useState<Pan>(() => ({ x: 0, y: 0, scale: fitScale }));
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [legendOpen, setLegendOpen] = useState(true);
 
@@ -376,7 +377,7 @@ export function SaltosMap({ graph, shopName, locale, t }: { graph: GiftGraph; sh
   }, [layout, reducedMotion, interacting, expiringIds]);
 
   function resetView() {
-    setPan({ x: 0, y: 0, scale: 1 });
+    setPan({ x: 0, y: 0, scale: fitScale });
     setSelectedId(null);
   }
 

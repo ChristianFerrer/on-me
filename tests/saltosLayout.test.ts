@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { layoutSaltos } from "@/lib/giftGraph/saltosLayout";
+import { computeFitScale, layoutSaltos } from "@/lib/giftGraph/saltosLayout";
 import type { Edge, Node } from "@/lib/giftGraph/types";
 
 const SHOP = "shop";
@@ -101,5 +101,38 @@ describe("layoutSaltos", () => {
     const layout = layoutSaltos([node("pau"), node("chris")], [edge(SHOP, "pau"), edge("pau", "chris")], SHOP);
     expect(layout.links).toContainEqual({ fromId: SHOP, toId: "pau" });
     expect(layout.links).toContainEqual({ fromId: "pau", toId: "chris" });
+  });
+});
+
+describe("computeFitScale", () => {
+  const MIN = 0.5;
+  const MAX = 3.5;
+
+  it("con poca profundidad hace zoom in, no deja aire de sobra", () => {
+    const half = 84 + 64 + 200; // un solo anillo (RING_STEP) + paddings
+    const scale = computeFitScale(84, half, MIN, MAX);
+    expect(scale).toBeGreaterThan(1);
+  });
+
+  it("con cadenas largas no supera el máximo permitido", () => {
+    const extent = 84 * 8; // ocho saltos de profundidad
+    const half = extent + 64 + 200;
+    const scale = computeFitScale(extent, half, MIN, MAX);
+    expect(scale).toBeLessThanOrEqual(MAX);
+    expect(scale).toBeGreaterThanOrEqual(MIN);
+  });
+
+  it("un grafo vacío no revienta ni da una escala absurda", () => {
+    const half = 0 + 64 + 200;
+    const scale = computeFitScale(0, half, MIN, MAX);
+    expect(Number.isNaN(scale)).toBe(false);
+    expect(scale).toBeGreaterThanOrEqual(MIN);
+    expect(scale).toBeLessThanOrEqual(MAX);
+  });
+
+  it("más ramificación (extent mayor) nunca da más zoom que menos ramificación", () => {
+    const shallow = computeFitScale(84, 84 + 64 + 200, MIN, MAX);
+    const deep = computeFitScale(84 * 5, 84 * 5 + 64 + 200, MIN, MAX);
+    expect(deep).toBeLessThanOrEqual(shallow);
   });
 });
