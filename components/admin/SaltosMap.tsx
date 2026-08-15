@@ -42,9 +42,17 @@ const RECENT_REDEMPTION_MS = 30 * 24 * 60 * 60 * 1000;
  * springboard de iOS. Solo toca la capa decorativa de estrellas, nunca la
  * constelación interactiva: mover el grafo con el gesto habría interferido
  * con el propio toque/pellizco que ya usa esos mismos dedos.
+ *
+ * El desplazamiento máximo es una fracción del viewBox -no un número fijo
+ * de unidades-: en un grafo pequeño (viewBox chico) un valor fijo ya se
+ * notaba, pero en uno grande el mismo desplazamiento absoluto se perdía
+ * de lo pequeño que se veía en proporción. Con un porcentaje, el efecto
+ * se nota igual de bien sin importar cuántos saltos tenga la constelación.
  */
-const PARALLAX_MAX_SHIFT = 14;
-const PARALLAX_EASE = 0.08;
+const PARALLAX_SHIFT_FRACTION = 0.09;
+const PARALLAX_MIN_SHIFT = 20;
+const PARALLAX_MAX_SHIFT = 90;
+const PARALLAX_EASE = 0.12;
 const PARALLAX_TILT_RANGE_DEG = 20;
 
 function clamp(value: number, min: number, max: number): number {
@@ -64,30 +72,28 @@ const FUNNEL_ORDER: NodeState[] = ["sent", "expired", "opened", "window", "billa
  * Colores propios de esta vista, no del embudo compartido
  * (lib/giftGraph/stateBadge.ts): la especificación de la constelación pide
  * "abierta" en ámbar -distinto del azul que usan /admin/atribuciones y el
- * universo 3D- y un tono para el "cliente original" (1er salto, sin estado
- * de invitación propio) que la paleta del proyecto no tiene en morado o
- * lavanda. Overrides solo aquí; STATE_LINE_COLOR/STATE_BADGE_SKIN de
+ * universo 3D-. Overrides solo aquí; STATE_LINE_COLOR/STATE_BADGE_SKIN de
  * stateBadge.ts se quedan como están para no desincronizar el embudo real.
  *
- * "en ventana" y "descartada" compartían el mismo slate que "enviada" en
- * STATE_LINE_COLOR -de un vistazo se confundían los tres-, así que aquí se
- * separan en tres tonos bien distintos: enviada se queda en slate (neutro,
- * "todavía nada"), en ventana pasa a azure (en curso) y descartada a teal
- * (el tercer tono frío que quedaba libre, ya que abierta le quitó el suyo).
+ * Los seis estados en tonos bien distintos entre sí: enviada en verde
+ * (mint), caducada en coral, abierta en ámbar, en ventana en azure,
+ * facturable en lima, descartada en gris (slate, el neutro del proyecto).
+ *
+ * Sin distinción especial por profundidad: todos los nodos de "1er
+ * salto" son clientes originales sin padrino propio en el modelo de
+ * datos real, así que siempre están en estado "en ventana" -pintarlos
+ * aparte hacía que los nodos junto al núcleo nunca se vieran del azure
+ * que le corresponde a ese estado en el resto del mapa.
  */
-const SALTOS_OPENED_COLOR = "var(--color-amber)";
-/** Sustituye a --padrino (#cfcadd) de la especificación: no hay token morado/lavanda en el proyecto. */
-const SALTOS_PADRINO_COLOR = "rgba(245, 247, 245, 0.55)";
-
 const SALTOS_STATE_COLOR: Record<NodeState, string> = {
   ...STATE_LINE_COLOR,
-  opened: SALTOS_OPENED_COLOR,
+  sent: "var(--color-mint)",
+  opened: "var(--color-amber)",
   window: "var(--color-azure)",
-  discarded: "var(--color-teal)",
+  discarded: "var(--color-slate)",
 };
 
 function saltosNodeColor(node: Node): string {
-  if (node.depth === 1) return SALTOS_PADRINO_COLOR;
   return SALTOS_STATE_COLOR[node.state];
 }
 
@@ -343,6 +349,8 @@ export function SaltosMap({
   const orientationAttachedRef = useRef(false);
   const orientationRequestedRef = useRef(false);
 
+  const parallaxShift = clamp(half * PARALLAX_SHIFT_FRACTION, PARALLAX_MIN_SHIFT, PARALLAX_MAX_SHIFT);
+
   function handleOrientation(event: DeviceOrientationEvent) {
     if (event.beta == null || event.gamma == null) return;
     // Calibra contra la primera lectura: da igual el ángulo con el que se
@@ -352,8 +360,8 @@ export function SaltosMap({
     const dGamma = clamp(event.gamma - base.gamma, -PARALLAX_TILT_RANGE_DEG, PARALLAX_TILT_RANGE_DEG);
     const dBeta = clamp(event.beta - base.beta, -PARALLAX_TILT_RANGE_DEG, PARALLAX_TILT_RANGE_DEG);
     tiltTargetRef.current = {
-      x: (dGamma / PARALLAX_TILT_RANGE_DEG) * PARALLAX_MAX_SHIFT,
-      y: (dBeta / PARALLAX_TILT_RANGE_DEG) * PARALLAX_MAX_SHIFT,
+      x: (dGamma / PARALLAX_TILT_RANGE_DEG) * parallaxShift,
+      y: (dBeta / PARALLAX_TILT_RANGE_DEG) * parallaxShift,
     };
   }
 
@@ -412,7 +420,7 @@ export function SaltosMap({
       if (pointers.current.size > 0) return;
       const nx = clamp((event.clientX - window.innerWidth / 2) / (window.innerWidth / 2), -1, 1);
       const ny = clamp((event.clientY - window.innerHeight / 2) / (window.innerHeight / 2), -1, 1);
-      tiltTargetRef.current = { x: nx * PARALLAX_MAX_SHIFT, y: ny * PARALLAX_MAX_SHIFT };
+      tiltTargetRef.current = { x: nx * parallaxShift, y: ny * parallaxShift };
     }
     window.addEventListener("mousemove", onMouseMove);
 

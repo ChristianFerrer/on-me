@@ -7,7 +7,7 @@ export type SaltosPoint = {
   angle: number;
   /** Distancia radial desde el centro, ya resuelta por el anillo adaptativo de su profundidad. */
   ringRadius: number;
-  /** Radio visual de la burbuja, por sellos. */
+  /** Radio visual de la burbuja, por número de personas invitadas. */
   nodeRadius: number;
   /** Orden estable de aparición: semilla del bamboleo (freq/phase), no depende de un hash. */
   index: number;
@@ -36,9 +36,9 @@ const MIN_ARC_PER_NODE = 15;
 const MIN_RING_GAP = 44;
 const ARC_RADIUS_FACTOR = 1.18;
 
-/** Radio de burbuja por sellos: crece en raíz, para que una tarjeta completa no aplaste al resto. */
-function nodeRadiusFor(stamps: number): number {
-  return Math.min(MAX_NODE_R, Math.max(MIN_NODE_R, NODE_R_BASE + 2.35 * Math.sqrt(Math.max(0, stamps))));
+/** Radio de burbuja por gente invitada: crece en raíz, para que un padrino con muchas invitaciones no aplaste al resto. */
+function nodeRadiusFor(childCount: number): number {
+  return Math.min(MAX_NODE_R, Math.max(MIN_NODE_R, NODE_R_BASE + 2.35 * Math.sqrt(Math.max(0, childCount))));
 }
 
 /**
@@ -117,7 +117,7 @@ export function layoutSaltos(nodes: Node[], edges: Edge[], establishmentId: stri
 
   placed.forEach((p, i) => {
     const ringRadius = ringRadiusByDepth.get(p.depth) ?? 0;
-    const nodeRadius = nodeRadiusFor(byId.get(p.id)?.stamps ?? 0);
+    const nodeRadius = nodeRadiusFor(byId.get(p.id)?.childCount ?? 0);
     points.set(p.id, { id: p.id, depth: p.depth, angle: p.angle, ringRadius, nodeRadius, index: i + 1 });
   });
 

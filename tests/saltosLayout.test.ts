@@ -4,7 +4,7 @@ import type { Edge, Node } from "@/lib/giftGraph/types";
 
 const SHOP = "shop";
 
-function node(id: string, stamps = 0): Node {
+function node(id: string, invited = 0): Node {
   return {
     id,
     name: id,
@@ -12,13 +12,13 @@ function node(id: string, stamps = 0): Node {
     depth: 1,
     rootId: id,
     state: "billable",
-    stamps,
+    stamps: 0,
     redeemedAt: null,
     returnedAt: null,
     lastActivityAt: new Date(0).toISOString(),
     expiresAt: null,
-    childCount: 0,
-    loadedChildCount: 0,
+    childCount: invited,
+    loadedChildCount: invited,
   };
 }
 
@@ -90,7 +90,7 @@ describe("layoutSaltos", () => {
     expect(layout.points.size).toBe(6); // shop + 5 nodos reales
   });
 
-  it("nunca produce NaN, incluso con sellos en 0 o negativos", () => {
+  it("nunca produce NaN, incluso con invitados en 0 o negativos", () => {
     const layout = layoutSaltos([node("a", 0), node("b", -3)], [edge(SHOP, "a"), edge("a", "b")], SHOP);
     for (const p of layout.points.values()) {
       expect(Number.isNaN(p.angle)).toBe(false);
