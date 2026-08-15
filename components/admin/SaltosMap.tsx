@@ -27,8 +27,9 @@ const TAP_MAX_DURATION_MS = 400;
 /** Radianes por frame de la rotación de fondo, y cuánto tarda en reanudarse tras soltar. */
 const ROTATION_PER_FRAME = 0.00019;
 const ROTATION_RESUME_DELAY_MS = 2600;
-/** Amplitud del bamboleo radial de cada nodo, en unidades del viewBox. */
-const WOBBLE_AMPLITUDE = 2.2;
+/** Amplitud del bamboleo de cada nodo: radial (unidades del viewBox) y angular (radianes) -globo de helio en un hilo flojo, no un radio de rueda rígido. */
+const WOBBLE_AMPLITUDE = 6.5;
+const WOBBLE_ANGULAR_AMPLITUDE = 0.075;
 /** Avance por frame del punto que recorre las cadenas con canje reciente, y su radio. */
 const PULSE_STEP = 0.0035;
 const PULSE_DOT_R = 1.9;
@@ -79,24 +80,56 @@ const FUNNEL_ORDER: NodeState[] = ["sent", "expired", "opened", "claimed", "wind
  * esta vista pide valores exactos, propios de la constelación, que no
  * tienen por qué existir en la paleta del resto del panel.
  *
- * Progresión deliberada: blanco (prospecto, la señal más débil) → verde
- * pálido -C8FFA0- (ya es cliente real, pero todavía provisional: se dio
- * de alta o está en ventana) → verde lima -E9FF72- (verificado: facturable
+ * Progresión deliberada, pensada para leerse a un vistazo sobre el fondo
+ * casi negro del mapa: blanco (prospecto, la señal más débil) → cian
+ * vivo -38E1FF- (ya es cliente real, pero todavía provisional: se dio de
+ * alta o está en ventana) → verde lima -E9FF72- (verificado: facturable
  * o alta directa, siempre en primera línea así que el color no necesita
- * distinguirlos más) → negro (descartada/caducada, sin historia que
- * seguir contando). "abierta" usa el mismo E9FF72 que el estado
- * verificado a propósito: aunque siga siendo un prospecto, ya demostró
- * interés real -abrió el enlace- y merece destacar sobre el enviado.
+ * distinguirlos más) → negro con borde blanco (descartada/caducada, sin
+ * historia que seguir contando -el borde es el que las hace visibles
+ * sobre un fondo igual de oscuro que su propio relleno-). Cian y lima
+ * son a propósito de familias de matiz distintas -azul contra
+ * amarillo-verde-, no solo de brillo distinto: se distinguen incluso en
+ * los puntos más pequeños del mapa, donde una diferencia de saturación
+ * dentro del mismo verde se pierde. "abierta" usa el mismo E9FF72 que el
+ * estado verificado a propósito: aunque siga siendo un prospecto, ya
+ * demostró interés real -abrió el enlace- y merece destacar sobre el
+ * enviado.
  */
 const SALTOS_PHASE_COLOR: Record<NodeState, string> = {
   sent: "#FFFFFF",
   opened: "#E9FF72",
-  claimed: "#C8FFA0",
-  window: "#C8FFA0",
+  claimed: "#38E1FF",
+  window: "#38E1FF",
   billable: "#E9FF72",
   direct: "#E9FF72",
   discarded: "#000000",
   expired: "#000000",
+};
+
+/** Borde de cada punto: el mismo casi invisible de siempre, salvo en los dos negros -sin él, se funden con el fondo. */
+const SALTOS_STROKE_COLOR: Record<NodeState, string> = {
+  sent: "rgba(255,255,255,.16)",
+  opened: "rgba(255,255,255,.16)",
+  claimed: "rgba(255,255,255,.16)",
+  window: "rgba(255,255,255,.16)",
+  billable: "rgba(255,255,255,.16)",
+  direct: "rgba(255,255,255,.16)",
+  discarded: "rgba(255,255,255,.85)",
+  expired: "rgba(255,255,255,.85)",
+};
+
+/**
+ * Color del arco del embudo y de su etiqueta numérica: el mismo de cada
+ * fase, salvo en los dos negros -un trazo o un texto negro sobre el
+ * fondo casi negro del mapa no se ve, y ahí no hay forma de ponerles un
+ * borde como al punto-. Gris claro en su lugar: sigue leyéndose "menos
+ * importante" que los colores vivos, pero sin desaparecer.
+ */
+const SALTOS_ARC_COLOR: Record<NodeState, string> = {
+  ...SALTOS_PHASE_COLOR,
+  discarded: "rgba(255,255,255,.55)",
+  expired: "rgba(255,255,255,.55)",
 };
 
 function saltosNodeColor(node: Node): string {
@@ -140,12 +173,28 @@ function windowBlinkDurationS(daysRemaining: number, returnWindowDays: number): 
 type PointerState = { x: number; y: number };
 type XY = { x: number; y: number };
 
-/** Semillas del bamboleo: por índice de aparición, no por hash -así lo pide la especificación. */
+/**
+ * Semillas del bamboleo: por índice de aparición, no por hash -así lo
+ * pide la especificación-. Dos ejes independientes y desincronizados
+ * entre sí -radial y angular, cada uno con su propia frecuencia y fase-,
+ * para que el nodo no se limite a acercarse y alejarse en línea recta
+ * como un radio de rueda: un globo de helio amarrado con un hilo muy
+ * ligero también se balancea de lado a lado, y ese balanceo no va a la
+ * vez que el vaivén de acercarse/alejarse. Frecuencias bajas a propósito
+ * -períodos de varios segundos-: rápido se lee como cuerda tensa
+ * vibrando, lento se lee como cuerda floja meciéndose con la brisa.
+ */
 function wobbleFreq(index: number): number {
-  return 0.3 + ((index * 37) % 13) / 28;
+  return 0.16 + ((index * 37) % 13) / 34;
 }
 function wobblePhase(index: number): number {
   return index * 1.87;
+}
+function wobbleFreqAngular(index: number): number {
+  return 0.11 + ((index * 53) % 17) / 44;
+}
+function wobblePhaseAngular(index: number): number {
+  return index * 2.63;
 }
 
 function nodeXY(point: { angle: number; ringRadius: number; depth: number }): XY {
@@ -153,12 +202,14 @@ function nodeXY(point: { angle: number; ringRadius: number; depth: number }): XY
   return { x: point.ringRadius * Math.cos(point.angle), y: point.ringRadius * Math.sin(point.angle) };
 }
 
-/** Misma posición que nodeXY, pero con la rotación de fondo y el bamboleo del nodo ya aplicados. */
+/** Misma posición que nodeXY, pero con la rotación de fondo y el bamboleo del nodo -radial y angular- ya aplicados. */
 function animatedXY(point: SaltosPoint, rotation: number, nowMs: number): XY {
   if (point.depth === 0) return { x: 0, y: 0 };
-  const wobble = Math.sin((nowMs / 1000) * wobbleFreq(point.index) + wobblePhase(point.index)) * WOBBLE_AMPLITUDE;
-  const r = point.ringRadius + wobble;
-  const angle = point.angle + rotation;
+  const t = nowMs / 1000;
+  const radialWobble = Math.sin(t * wobbleFreq(point.index) + wobblePhase(point.index)) * WOBBLE_AMPLITUDE;
+  const angularWobble = Math.sin(t * wobbleFreqAngular(point.index) + wobblePhaseAngular(point.index)) * WOBBLE_ANGULAR_AMPLITUDE;
+  const r = point.ringRadius + radialWobble;
+  const angle = point.angle + rotation + angularWobble;
   return { x: r * Math.cos(angle), y: r * Math.sin(angle) };
 }
 
@@ -196,11 +247,13 @@ function arcPath(a0: number, a1: number, r: number): string {
   return `M${x0.toFixed(2)},${y0.toFixed(2)} A${r.toFixed(2)},${r.toFixed(2)} 0 ${largeArc} 1 ${x1.toFixed(2)},${y1.toFixed(2)}`;
 }
 
-/** 130 puntos deterministas -sin Math.random(), igual que el resto del repo- fuera del grupo de zoom. */
+/** Puntos deterministas -sin Math.random(), igual que el resto del repo- fuera del grupo de zoom. */
+const STAR_COUNT = 320;
+
 function starfield(vb: number): { x: number; y: number; r: number; o: number }[] {
   const stars = [];
-  for (let i = 0; i < 130; i++) {
-    const angle = (i * 2.399963) % (2 * Math.PI); // ángulo dorado: reparte 130 puntos sin amontonarse
+  for (let i = 0; i < STAR_COUNT; i++) {
+    const angle = (i * 2.399963) % (2 * Math.PI); // ángulo dorado: reparte los puntos sin amontonarse
     const radius = 60 + ((i * 53) % 97) / 97 * (vb * 1.05 - 60);
     const r = 0.2 + ((i * 31) % 17) / 16 * 0.9;
     const o = 0.04 + ((i * 19) % 23) / 22 * 0.28;
@@ -770,7 +823,7 @@ export function SaltosMap({
                       key={state}
                       d={arcPath(cursor, a1, arcRadius)}
                       fill="none"
-                      stroke={SALTOS_PHASE_COLOR[state]}
+                      stroke={SALTOS_ARC_COLOR[state]}
                       strokeWidth={arcWidth}
                       strokeOpacity={arcOpacity}
                       strokeLinecap="round"
@@ -783,7 +836,7 @@ export function SaltosMap({
                       dominantBaseline="middle"
                       fontSize={6}
                       fontWeight={600}
-                      fill={SALTOS_PHASE_COLOR[state]}
+                      fill={SALTOS_ARC_COLOR[state]}
                       fillOpacity={isMutedArc ? 0.5 : 0.8}
                     >
                       {count}
@@ -818,7 +871,7 @@ export function SaltosMap({
                 }}
                 d={d}
                 fill="none"
-                stroke={toNode ? saltosNodeColor(toNode) : "rgba(245,247,245,0.22)"}
+                stroke={toNode ? SALTOS_ARC_COLOR[toNode.state] : "rgba(245,247,245,0.22)"}
                 strokeOpacity={opacity}
                 strokeWidth={width}
                 strokeLinecap="round"
@@ -916,7 +969,7 @@ export function SaltosMap({
                   filter="url(#saltos-soft)"
                 />
                 <circle className={isWindow ? "saltos-window-blink" : undefined} style={windowBlinkStyle} r={displayRadius} fill={color} />
-                <circle r={displayRadius} fill="none" stroke="rgba(255,255,255,.16)" strokeWidth={0.55} />
+                <circle r={displayRadius} fill="none" stroke={SALTOS_STROKE_COLOR[node.state]} strokeWidth={isMuted ? 0.9 : 0.55} />
                 <circle r={Math.max(displayRadius + 7, 12)} fill="transparent" />
 
                 {node.claimed ? (
@@ -981,7 +1034,13 @@ export function SaltosMap({
                 >
                   <span
                     className="block rounded-full"
-                    style={{ width: swatchPx, height: swatchPx, background: SALTOS_PHASE_COLOR[state], opacity: isMutedRow ? 0.55 : 1 }}
+                    style={{
+                      width: swatchPx,
+                      height: swatchPx,
+                      background: SALTOS_PHASE_COLOR[state],
+                      opacity: isMutedRow ? 0.55 : 1,
+                      border: isMutedRow ? `1px solid ${SALTOS_STROKE_COLOR[state]}` : undefined,
+                    }}
                   />
                 </span>
                 <span className="min-w-0 flex-1 truncate">{stateBadgeLabel(state, t)}</span>
@@ -1035,7 +1094,7 @@ export function SaltosMap({
         node={selectedNode}
         giftedByName={giftedByName}
         invitedCount={selectedNode?.childCount ?? 0}
-        color={selectedNode ? saltosNodeColor(selectedNode) : "var(--color-slate)"}
+        color={selectedNode ? SALTOS_ARC_COLOR[selectedNode.state] : "var(--color-slate)"}
         stampsGoal={stampsGoal}
         locale={locale}
         t={t}
