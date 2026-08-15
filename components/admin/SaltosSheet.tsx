@@ -65,7 +65,7 @@ export function SaltosSheet({
         : fill(t.admin.saltosDaysAgoMany, { n: daysSinceLastVisit });
 
   // La cuenta atrás solo tiene sentido mientras la ventana sigue abierta -"window"-:
-  // en cualquier otro estado (facturable, descartada...) ya se resolvió.
+  // en cualquier otro estado (nuevo verificado, descartada...) ya se resolvió.
   const windowDaysLeft =
     shown.state === "window" && shown.redeemedAt
       ? Math.max(0, returnWindowDays - Math.floor((nowMs - new Date(shown.redeemedAt).getTime()) / DAY_MS))

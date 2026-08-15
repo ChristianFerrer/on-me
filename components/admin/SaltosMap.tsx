@@ -64,14 +64,15 @@ function clamp(value: number, min: number, max: number): number {
 
 /**
  * Orden narrativo del arco perimetral, del peor al mejor en sentido horario:
- * enviada → caducada → abierta → se dio de alta → en ventana → facturable
- * → directo. "discarded" no tiene hueco en el embudo de invitación de 5
- * pasos, pero los nodos descartados existen de verdad, así que se enseñan
- * igual, al final del arco, en vez de desaparecer en silencio. "direct"
- * tampoco viene de ese embudo -es alta directa por QR-, pero este mapa ya
- * no es solo "el embudo de invitación": es donde el dueño cuenta cuántos
- * clientes tiene en total, así que se enseña junto a "facturable", el
- * otro estado que también es dinero de verdad.
+ * enviada → caducada → abierta → se dio de alta → en ventana → nuevo
+ * verificado → directo. "discarded" no tiene hueco en el embudo de
+ * invitación de 5 pasos, pero los nodos descartados existen de verdad, así
+ * que se enseñan igual, al final del arco, en vez de desaparecer en
+ * silencio. "direct" tampoco viene de ese embudo -es alta directa por
+ * QR-, pero este mapa ya no es solo "el embudo de invitación": es donde
+ * el dueño cuenta cuántos clientes tiene en total, así que se enseña
+ * junto a "nuevo verificado", el otro estado que también es dinero de
+ * verdad.
  */
 const FUNNEL_ORDER: NodeState[] = ["sent", "expired", "opened", "claimed", "window", "billable", "direct", "discarded"];
 
@@ -84,33 +85,26 @@ const FUNNEL_ORDER: NodeState[] = ["sent", "expired", "opened", "claimed", "wind
  * Blanco (prospecto) → cian vivo -38E1FF- (ya es cliente real, pero
  * todavía provisional: se dio de alta o está en ventana) → ámbar -FBBF24-
  * (abrió el enlace: ya demostró interés, pero sigue siendo un
- * prospecto, no comparte color con nada verificado) → verde lima
+ * prospecto, no comparte color con nada verificado) → magenta -FF00F9-
+ * (nuevo verificado: hizo su primer consumo pagado después de canjear la
+ * invitación -la definición exacta de "Cliente Nuevo Verificado" de
+ * lib/attribution.ts-, el hito que de verdad factura al local, así que
+ * lleva el color más alto de contraste de todo el mapa) → verde lima
  * -E9FF72- (alta directa, siempre en primera línea) → negro con borde
  * blanco (descartada/caducada, sin historia que seguir contando -el
  * borde es el que las hace visibles sobre un fondo igual de oscuro que
- * su propio relleno-). "Facturable" no es un color fijo: ver
- * BILLABLE_FRESH_COLOR más abajo.
+ * su propio relleno-).
  */
 const SALTOS_PHASE_COLOR: Record<NodeState, string> = {
   sent: "#FFFFFF",
   opened: "#FBBF24",
   claimed: "#38E1FF",
   window: "#38E1FF",
-  billable: "#E9FF72",
+  billable: "#FF00F9",
   direct: "#E9FF72",
   discarded: "#000000",
   expired: "#000000",
 };
-
-/**
- * "Facturable" no siempre es lima: ese verde se gana, no se hereda solo
- * por entrar en el estado. Recién resuelta la atribución -antes de su
- * segunda compra en la tarjeta actual, `stamps < 2`- se pinta en un
- * magenta llamativo; a partir de la segunda compra pasa a ser un
- * facturable "hecho y derecho" y se une al lima de siempre.
- */
-const BILLABLE_FRESH_COLOR = "#FF00F9";
-const BILLABLE_PROVEN_STAMPS = 2;
 
 /** Borde de cada punto: el mismo casi invisible de siempre, salvo en los dos negros -sin él, se funden con el fondo. */
 const SALTOS_STROKE_COLOR: Record<NodeState, string> = {
@@ -140,17 +134,17 @@ const SALTOS_ARC_COLOR: Record<NodeState, string> = {
 /**
  * Jerarquía visual, no solo de color: este es el mapa que el dueño del
  * local quiere dejar abierto en un monitor y ver crecer día a día, así
- * que los dos estados que son dinero de verdad -"facturable" y "directo"-
- * llevan el glow que respira; las dos salidas sin historia (caducada,
- * descartada) se retiran del resto de elementos que las rodean -enlace,
- * arco, fila de leyenda- en vez de competir por la atención.
+ * que los dos estados que son dinero de verdad -"nuevo verificado" y
+ * "directo"- llevan el glow que respira; las dos salidas sin historia
+ * (caducada, descartada) se retiran del resto de elementos que las
+ * rodean -enlace, arco, fila de leyenda- en vez de competir por la
+ * atención.
  */
 const SALTOS_POSITIVE_STATES = new Set<NodeState>(["billable", "direct"]);
 const SALTOS_MUTED_STATES = new Set<NodeState>(["expired", "discarded"]);
 
-/** Color real de un nodo -con la excepción de "facturable" recién estrenado-, para el propio punto, sus enlaces y su ficha. */
+/** Color real de un nodo, para el propio punto, sus enlaces y su ficha. */
 function saltosNodeColor(node: Node): string {
-  if (node.state === "billable" && node.stamps < BILLABLE_PROVEN_STAMPS) return BILLABLE_FRESH_COLOR;
   return SALTOS_PHASE_COLOR[node.state];
 }
 
