@@ -21,6 +21,20 @@ export const STATE_BADGE_SKIN: Record<NodeState, string> = {
   sent: "border border-white/15 text-chalk/45",
 };
 
+/**
+ * Los mismos colores de STATE_BADGE_SKIN, pero como valor de color pintable
+ * -var(--color-x)-, no como clase de Tailwind: hace falta para pintar un
+ * <circle> o <path> de SVG, donde una clase de fondo no sirve.
+ */
+export const STATE_LINE_COLOR: Record<NodeState, string> = {
+  billable: "var(--color-lime)",
+  window: "var(--color-slate)",
+  discarded: "var(--color-slate)",
+  opened: "var(--color-azure)",
+  expired: "var(--color-coral)",
+  sent: "var(--color-slate)",
+};
+
 export function stateBadgeLabel(state: NodeState, t: Dict): string {
   const label: Record<NodeState, string> = {
     billable: t.admin.attrBillable,
