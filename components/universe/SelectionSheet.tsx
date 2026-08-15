@@ -1,20 +1,25 @@
 "use client";
 
 import { XIcon } from "@/components/ui/Icons";
-import { fill, formatDate, plural, type Dict, type Locale } from "@/lib/i18n";
+import { cn } from "@/lib/cn";
+import { STATE_BADGE_SKIN, stateBadgeLabel } from "@/lib/giftGraph/stateBadge";
+import { formatDateTime, type Dict, type Locale } from "@/lib/i18n";
 import type { Node } from "@/lib/giftGraph/types";
 
+/**
+ * Misma tarjeta que /admin/atribuciones (nombre, padrino, canjeado, volvió,
+ * badge de estado): quien ya conoce esa lista reconoce esto al instante,
+ * en vez de aprenderse una ficha nueva solo para el mapa.
+ */
 export function SelectionSheet({
   node,
   giftedByName,
-  rootName,
   locale,
   t,
   onClose,
 }: {
   node: Node | null;
   giftedByName: string;
-  rootName: string;
   locale: Locale;
   t: Dict;
   onClose: () => void;
@@ -24,38 +29,36 @@ export function SelectionSheet({
   return (
     <div className="pointer-events-none fixed inset-x-0 bottom-0 z-30 flex justify-center px-3 pb-[max(1rem,env(safe-area-inset-bottom))]">
       <div className="glass-dark pointer-events-auto w-full max-w-[30rem] rounded-3xl border border-white/10 p-5 sm:max-w-[34rem]">
-        <div className="mb-4 flex items-start justify-between gap-3">
-          <h2 className="text-[1.25rem] font-bold text-chalk">{node.name}</h2>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label={t.common.close}
-            className="btn -m-1 size-9 shrink-0 text-chalk/60 hover:text-chalk"
-          >
-            <XIcon className="size-5" />
-          </button>
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="truncate text-[1.0625rem] font-semibold">{node.name}</p>
+            <p className="eyebrow mt-1.5 text-chalk/35">
+              {t.admin.attrPadrino} · {giftedByName || "—"}
+            </p>
+          </div>
+          <div className="flex shrink-0 items-center gap-2">
+            <span className={cn("eyebrow rounded-full px-2.5 py-1", STATE_BADGE_SKIN[node.state])}>
+              {stateBadgeLabel(node.state, t)}
+            </span>
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label={t.common.close}
+              className="btn -m-1 size-9 shrink-0 text-chalk/60 hover:text-chalk"
+            >
+              <XIcon className="size-5" />
+            </button>
+          </div>
         </div>
 
-        <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-[0.875rem]">
+        <dl className="numeral mt-4 grid grid-cols-2 gap-3 text-[0.75rem] text-chalk/45">
           <div>
-            <dt className="text-chalk/45">{t.admin.universeGiftedByLabel}</dt>
-            <dd className="mt-0.5 font-semibold text-chalk">{giftedByName}</dd>
+            <dt className="text-chalk/30">{t.admin.attrRedeemed}</dt>
+            <dd className="mt-0.5">{node.redeemedAt ? formatDateTime(node.redeemedAt, locale) : "—"}</dd>
           </div>
           <div>
-            <dt className="text-chalk/45">{t.admin.universeGiftedOnLabel}</dt>
-            <dd className="mt-0.5 font-semibold text-chalk">{formatDate(node.giftedAt, locale)}</dd>
-          </div>
-          <div>
-            <dt className="text-chalk/45">{t.admin.universeGiftsGivenLabel}</dt>
-            <dd className="mt-0.5 font-semibold text-lime">
-              {fill(plural(node.childCount, t.admin.universeGiftsGivenValueOne, t.admin.universeGiftsGivenValueMany), {
-                n: node.childCount,
-              })}
-            </dd>
-          </div>
-          <div>
-            <dt className="text-chalk/45">{t.admin.universeChainLabel}</dt>
-            <dd className="mt-0.5 font-semibold text-chalk">{rootName}</dd>
+            <dt className="text-chalk/30">{t.admin.attrReturned}</dt>
+            <dd className="mt-0.5">{node.returnedAt ? formatDateTime(node.returnedAt, locale) : "—"}</dd>
           </div>
         </dl>
       </div>

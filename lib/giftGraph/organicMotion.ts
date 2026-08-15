@@ -1,14 +1,15 @@
-const MIN_RADIUS = 0.34;
-const MAX_RADIUS = 1.5;
+const MIN_RADIUS = 0.55;
+const MAX_RADIUS = 2.6;
 /** El establecimiento siempre es la esfera más grande de la escena. */
 export const ESTABLISHMENT_RADIUS_FACTOR = 1.4;
 
 /**
- * Radio de una esfera de persona según cuánta gente ha invitado. Escala en
- * raíz, no lineal: con lineal un nodo con 20 invitados aplastaría al resto.
+ * Radio de una esfera de persona según cuántos cafés ha consumido (avance
+ * de su tarjeta). Escala en raíz, no lineal: con lineal una tarjeta
+ * completa aplastaría al resto.
  */
-export function computeRadius(invitedCount: number): number {
-  const raw = MIN_RADIUS + 0.26 * Math.sqrt(Math.max(0, invitedCount));
+export function computeRadius(stamps: number): number {
+  const raw = MIN_RADIUS + 0.42 * Math.sqrt(Math.max(0, stamps));
   return Math.min(MAX_RADIUS, Math.max(MIN_RADIUS, raw));
 }
 

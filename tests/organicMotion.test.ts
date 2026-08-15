@@ -2,9 +2,9 @@ import { describe, expect, it } from "vitest";
 import { breathingScale, computeRadius, hash01 } from "@/lib/giftGraph/organicMotion";
 
 describe("computeRadius", () => {
-  it("nunca baja del mínimo, ni con cero invitados", () => {
-    expect(computeRadius(0)).toBeCloseTo(0.34);
-    expect(computeRadius(-5)).toBeCloseTo(0.34);
+  it("nunca baja del mínimo, ni con cero sellos", () => {
+    expect(computeRadius(0)).toBeCloseTo(0.55);
+    expect(computeRadius(-5)).toBeCloseTo(0.55);
   });
 
   it("crece en raíz, no en línea recta", () => {
@@ -16,8 +16,8 @@ describe("computeRadius", () => {
     expect(r16 - r4).toBeLessThan((r4 - r1) * 4);
   });
 
-  it("nunca pasa del máximo aunque haya muchísimos invitados", () => {
-    expect(computeRadius(10_000)).toBeCloseTo(1.5);
+  it("nunca pasa del máximo aunque haya muchísimos sellos", () => {
+    expect(computeRadius(10_000)).toBeCloseTo(2.6);
   });
 });
 

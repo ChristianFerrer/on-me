@@ -53,7 +53,20 @@ describe("layoutSphere", () => {
 
   it("nunca produce NaN, incluso con una sola cadena", () => {
     const nodes: Node[] = [
-      { id: "solo", name: "Solo", depth: 1, rootId: "solo", giftedAt: "2025-01-01T00:00:00.000Z", childCount: 0, loadedChildCount: 0 },
+      {
+        id: "solo",
+        name: "Solo",
+        depth: 1,
+        rootId: "solo",
+        state: "billable",
+        stamps: 3,
+        redeemedAt: "2025-01-01T00:00:00.000Z",
+        returnedAt: "2025-01-01T00:00:00.000Z",
+        lastActivityAt: "2025-01-01T00:00:00.000Z",
+        expiresAt: null,
+        childCount: 0,
+        loadedChildCount: 0,
+      },
     ];
     const positions = layoutSphere(nodes, [{ from: "shop", to: "solo", giftedAt: "2025-01-01T00:00:00.000Z" }], ["solo"]);
     const pos = positions.get("solo")!;

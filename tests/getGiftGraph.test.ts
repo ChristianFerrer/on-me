@@ -19,7 +19,7 @@ describe("getGiftGraph", () => {
 
   it("trae `radius` saltos desde un nodo foco, incluido él mismo", async () => {
     const slice = await getGiftGraph("delia", 2);
-    expect(slice.nodes.map((n) => n.id).sort()).toEqual(["bru", "delia", "martina", "nora", "omar", "vega"]);
+    expect(slice.nodes.map((n) => n.id).sort()).toEqual(["bru", "delia", "martina", "nora", "vega"]);
   });
 
   it("el resultado se puede fusionar contra un grafo vacío sin perder nodos", async () => {

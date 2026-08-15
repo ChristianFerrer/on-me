@@ -7,15 +7,10 @@ import { Screen } from "@/components/ui/Screen";
 import { getAdminContext } from "@/lib/auth/admin";
 import { cn } from "@/lib/cn";
 import { db } from "@/lib/db/client";
+import { STATE_BADGE_SKIN, stateBadgeLabel } from "@/lib/giftGraph/stateBadge";
 import { formatDateTime } from "@/lib/i18n";
 import { getI18n } from "@/lib/i18n/server";
 import { firstName } from "@/lib/scan-service";
-
-const STATE_SKIN = {
-  billable: "bg-lime text-ink",
-  window: "bg-white/8 text-chalk/60",
-  discarded: "bg-white/8 text-chalk/35",
-} as const;
 
 /**
  * Registro de atribuciones: la tabla de facturación y de auditoría.
@@ -52,12 +47,6 @@ export default async function AttributionsPage() {
     : { data: [] };
 
   const names = new Map((people ?? []).map((row) => [row.id, firstName(row.name)]));
-
-  const label = {
-    billable: t.admin.attrBillable,
-    window: t.admin.attrWindow,
-    discarded: t.admin.attrDiscarded,
-  } as const;
 
   return (
     <Screen tone="ink" className="gap-7 pb-28 lg:max-w-3xl">
@@ -106,10 +95,10 @@ export default async function AttributionsPage() {
                 <span
                   className={cn(
                     "eyebrow shrink-0 rounded-full px-2.5 py-1",
-                    STATE_SKIN[row.state],
+                    STATE_BADGE_SKIN[row.state],
                   )}
                 >
-                  {label[row.state]}
+                  {stateBadgeLabel(row.state, t)}
                 </span>
               </div>
 

@@ -1,3 +1,14 @@
+/**
+ * Estado real de un salto: las mismas seis situaciones que ya existen en
+ * `AttributionState` ("window" | "billable" | "discarded") e
+ * `InvitationState` ("sent" | "opened" | ...) — aquí unificadas para poder
+ * pintar en el mismo mapa tanto a quien ya es cliente como a quien todavía
+ * no ha canjeado su invitación.
+ */
+export type NodeState = "billable" | "window" | "discarded" | "opened" | "sent" | "expired";
+
+export const ALL_NODE_STATES: NodeState[] = ["billable", "window", "opened", "sent", "expired", "discarded"];
+
 export type Node = {
   id: string;
   name: string;
@@ -6,7 +17,17 @@ export type Node = {
   depth: number;
   /** Id del cliente que inició esa cadena (un nodo de depth 1). */
   rootId: string;
-  giftedAt: string;
+  state: NodeState;
+  /** Cafés consumidos hasta ahora. 0 si todavía no es cliente (sent/opened). */
+  stamps: number;
+  /** Cuándo canjeó su primer café. null si todavía no es cliente. */
+  redeemedAt: string | null;
+  /** Cuándo volvió a pagar dentro de la ventana de atribución. null si no ha vuelto. */
+  returnedAt: string | null;
+  /** Última actividad conocida (canje, escaneo...), para el brillo por recencia. */
+  lastActivityAt: string;
+  /** Cuándo caduca la invitación, si sigue pendiente (sent/opened). null en cualquier otro estado. */
+  expiresAt: string | null;
   /** Total de hijos reales que tiene este nodo, cargados o no. */
   childCount: number;
   /** Cuántos de esos hijos vienen incluidos en el grafo cargado ahora mismo. */

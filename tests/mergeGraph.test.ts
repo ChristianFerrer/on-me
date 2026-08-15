@@ -5,7 +5,20 @@ import type { GiftGraph } from "@/lib/giftGraph/types";
 const establishment = { id: "shop", name: "OnMe" };
 
 function node(id: string, depth: number, rootId: string, childCount = 0, loadedChildCount = 0) {
-  return { id, name: id, depth, rootId, giftedAt: "2025-01-01T00:00:00.000Z", childCount, loadedChildCount };
+  return {
+    id,
+    name: id,
+    depth,
+    rootId,
+    state: "billable" as const,
+    stamps: 3,
+    redeemedAt: "2025-01-01T00:00:00.000Z",
+    returnedAt: "2025-01-01T00:00:00.000Z",
+    lastActivityAt: "2025-01-01T00:00:00.000Z",
+    expiresAt: null,
+    childCount,
+    loadedChildCount,
+  };
 }
 
 describe("mergeGraph", () => {

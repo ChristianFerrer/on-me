@@ -5,6 +5,7 @@ import { Canvas, useFrame } from "@react-three/fiber";
 import { useMemo, useRef, useState } from "react";
 import { ACESFilmicToneMapping, MathUtils, TOUCH, Vector3 } from "three";
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
+import { BestPadrinoGlow } from "@/components/universe/BestPadrinoGlow";
 import { CameraRig } from "@/components/universe/CameraRig";
 import { ConnectionLines } from "@/components/universe/ConnectionLines";
 import { EstablishmentCore } from "@/components/universe/EstablishmentCore";
@@ -14,10 +15,11 @@ import { DEEP_VOID } from "@/components/universe/palette";
 import { PendingField } from "@/components/universe/PendingField";
 import { PersonLabels } from "@/components/universe/PersonLabels";
 import { PersonNodes } from "@/components/universe/PersonNodes";
+import { bestPadrinoId } from "@/lib/giftGraph/insights";
 import { computeRadius, ESTABLISHMENT_RADIUS_FACTOR } from "@/lib/giftGraph/organicMotion";
 import type { Dict } from "@/lib/i18n";
 import type { Vec3 } from "@/lib/giftGraph/sphereLayout";
-import type { GiftGraph } from "@/lib/giftGraph/types";
+import type { GiftGraph, NodeState } from "@/lib/giftGraph/types";
 
 const MIN_DISTANCE = 6;
 const MAX_DISTANCE = 90;
@@ -62,6 +64,7 @@ export function GiftUniverseCanvas({
   focusId,
   selectedId,
   directlyConnected,
+  activeStates,
   reducedMotion,
   onSelect,
   t,
@@ -71,6 +74,8 @@ export function GiftUniverseCanvas({
   focusId: string | null;
   selectedId: string | null;
   directlyConnected: Set<string>;
+  /** null = sin filtro. Se pasa tal cual a PersonNodes. */
+  activeStates: Set<NodeState> | null;
   reducedMotion: boolean;
   onSelect: (id: string) => void;
   t: Dict;
@@ -88,13 +93,14 @@ export function GiftUniverseCanvas({
   }, [selectedId, positions]);
 
   const maxNodeRadius = useMemo(
-    () => graph.nodes.reduce((max, node) => Math.max(max, computeRadius(node.childCount)), 0.55),
+    () => graph.nodes.reduce((max, node) => Math.max(max, computeRadius(node.stamps)), 0.55),
     [graph.nodes],
   );
   const haloNodeIds = useMemo(
     () => graph.nodes.filter((n) => n.childCount > n.loadedChildCount).map((n) => n.id),
     [graph.nodes],
   );
+  const bestPadrino = useMemo(() => bestPadrinoId(graph.nodes, graph.edges), [graph.nodes, graph.edges]);
   const graphExtent = useMemo(() => {
     let max = 10;
     for (const pos of positions.values()) max = Math.max(max, Math.hypot(pos.x, pos.y, pos.z));
@@ -141,11 +147,13 @@ export function GiftUniverseCanvas({
         focusId={focusId}
         selectedId={selectedId}
         directlyConnected={directlyConnected}
+        activeStates={activeStates}
         reducedMotion={reducedMotion}
         liveRef={liveNodesRef}
         onSelect={onSelect}
       />
       <GlowSprites haloNodeIds={haloNodeIds} liveRef={liveNodesRef} reducedMotion={reducedMotion} />
+      <BestPadrinoGlow nodeId={bestPadrino} liveRef={liveNodesRef} reducedMotion={reducedMotion} />
       <PersonLabels
         nodes={graph.nodes}
         establishmentName={graph.establishment.name}

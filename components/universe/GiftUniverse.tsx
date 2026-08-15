@@ -5,10 +5,11 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { FallbackList } from "@/components/universe/FallbackList";
 import { RecenterButton } from "@/components/universe/RecenterButton";
 import { SelectionSheet } from "@/components/universe/SelectionSheet";
+import { StateFilterBar } from "@/components/universe/StateFilterBar";
 import { getGiftGraph } from "@/lib/giftGraph/getGiftGraph";
 import { EMPTY_GIFT_GRAPH, mergeGraph } from "@/lib/giftGraph/mergeGraph";
 import { layoutSphere, type Vec3 } from "@/lib/giftGraph/sphereLayout";
-import type { GiftGraph } from "@/lib/giftGraph/types";
+import { ALL_NODE_STATES, type GiftGraph, type NodeState } from "@/lib/giftGraph/types";
 import type { Dict, Locale } from "@/lib/i18n";
 
 const GiftUniverseCanvas = dynamic(
@@ -41,6 +42,23 @@ export function GiftUniverse({ t, locale }: { t: Dict; locale: Locale }) {
   const [reducedMotion] = useState(
     () => typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches,
   );
+  // Se guarda lo excluido, no lo incluido: así "sin tocar nada" es
+  // exactamente "sin filtro" (set vacío), sin tener que sincronizar un
+  // estado inicial con la lista completa de NodeState.
+  const [excludedStates, setExcludedStates] = useState<Set<NodeState>>(new Set());
+  const activeStates = useMemo<Set<NodeState> | null>(
+    () => (excludedStates.size === 0 ? null : new Set(ALL_NODE_STATES.filter((s) => !excludedStates.has(s)))),
+    [excludedStates],
+  );
+
+  function toggleState(state: NodeState) {
+    setExcludedStates((prev) => {
+      const next = new Set(prev);
+      if (next.has(state)) next.delete(state);
+      else next.add(state);
+      return next;
+    });
+  }
 
   useEffect(() => {
     // Diferido a un microtask, no una llamada síncrona dentro del propio
@@ -109,7 +127,6 @@ export function GiftUniverse({ t, locale }: { t: Dict; locale: Locale }) {
     if (parentEdge.from === graph.establishment.id) return graph.establishment.name;
     return graph.nodes.find((n) => n.id === parentEdge.from)?.name ?? "";
   }, [selectedNode, graph]);
-  const rootName = selectedNode ? (graph.nodes.find((n) => n.id === selectedNode.rootId)?.name ?? "") : "";
 
   function handleSelect(nodeId: string) {
     setSelectedId(nodeId);
@@ -139,6 +156,7 @@ export function GiftUniverse({ t, locale }: { t: Dict; locale: Locale }) {
         focusId={focusId}
         selectedId={selectedId}
         directlyConnected={directlyConnected}
+        activeStates={activeStates}
         reducedMotion={reducedMotion}
         onSelect={handleSelect}
         t={t}
@@ -151,6 +169,7 @@ export function GiftUniverse({ t, locale }: { t: Dict; locale: Locale }) {
       />
 
       <RecenterButton t={t} onClick={handleRecenter} />
+      <StateFilterBar excluded={excludedStates} onToggle={toggleState} t={t} />
 
       {loading ? (
         <div className="glass-dark pointer-events-none fixed left-4 top-[max(1rem,env(safe-area-inset-top))] z-20 rounded-full px-3.5 py-2 text-[0.75rem] text-chalk/70">
@@ -166,7 +185,6 @@ export function GiftUniverse({ t, locale }: { t: Dict; locale: Locale }) {
         <SelectionSheet
           node={selectedNode}
           giftedByName={giftedByName}
-          rootName={rootName}
           locale={locale}
           t={t}
           onClose={handleCloseSheet}
