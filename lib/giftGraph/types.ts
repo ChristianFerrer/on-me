@@ -10,10 +10,26 @@
  * tabla solo existe para pares padrino/ahijado-, así que no puede ser
  * "billable" ni ningún otro estado del embudo de invitación; es, sin más,
  * un cliente real que también cuenta para el negocio.
+ *
+ * "claimed" es la octava: un invitado que ya se dio de alta desde la
+ * invitación -tiene ficha propia, `claimed: true`- pero todavía no ha
+ * canjeado en barra, así que `attributions` no existe todavía para él.
+ * Antes compartía etiqueta con "opened" (invitación abierta, sin reclamar
+ * todavía); son fases distintas del mismo camino -prospecto vs. cliente
+ * real- y necesitan poder pintarse distinto.
  */
-export type NodeState = "billable" | "window" | "discarded" | "opened" | "sent" | "expired" | "direct";
+export type NodeState = "billable" | "window" | "discarded" | "opened" | "sent" | "expired" | "direct" | "claimed";
 
-export const ALL_NODE_STATES: NodeState[] = ["billable", "direct", "window", "opened", "sent", "expired", "discarded"];
+export const ALL_NODE_STATES: NodeState[] = [
+  "billable",
+  "direct",
+  "window",
+  "claimed",
+  "opened",
+  "sent",
+  "expired",
+  "discarded",
+];
 
 export type Node = {
   id: string;

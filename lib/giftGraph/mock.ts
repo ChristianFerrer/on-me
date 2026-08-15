@@ -218,20 +218,26 @@ const CHAINS: TreeSpec[] = [
       },
     ],
   },
-  // Clientes directos: alta por QR en el mostrador, sin invitación de
-  // nadie. Tres recencias distintas a propósito, para poder ver los tres
-  // regímenes de brillo del mapa en la misma vista -sol, parpadeo, apagada.
-  { name: "Noel", state: "direct", stamps: 6, lastActivityDaysAgo: 1 }, // sol: visitó ayer
+  // Clientes directos: alta por QR en el mostrador, sin invitación de nadie.
+  { name: "Noel", state: "direct", stamps: 6, lastActivityDaysAgo: 1 },
   {
     name: "Uxue",
     state: "direct",
     stamps: 10,
     lastActivityDaysAgo: 3,
     // Un cliente directo también puede invitar: no tiene padrino, pero sí puede ser uno.
-    children: [{ name: "Kike", state: "opened", lastActivityDaysAgo: 1, expiresInHours: 90 }],
+    children: [
+      // "claimed": ya se dio de alta desde la invitación, todavía sin canjear en barra.
+      { name: "Kike", state: "claimed", lastActivityDaysAgo: 1 },
+      // "en ventana" a un día del canje: casi sin encoger, parpadeo lento.
+      { name: "Yago", state: "window", stamps: 1, lastActivityDaysAgo: 1 },
+      // "en ventana" a 25 días del canje: bien encogido, parpadeo rápido -a
+      // 5 días de que el barrido diario la resuelva a facturable o descartada.
+      { name: "Zaida", state: "window", stamps: 2, lastActivityDaysAgo: 25 },
+    ],
   },
-  { name: "Vale", state: "direct", stamps: 9, lastActivityDaysAgo: 26 }, // parpadeo: entrando en el mes sin volver
-  { name: "Bea", state: "direct", stamps: 10, lastActivityDaysAgo: 55 }, // apagada: hace casi dos meses
+  { name: "Vale", state: "direct", stamps: 9, lastActivityDaysAgo: 26 },
+  { name: "Bea", state: "direct", stamps: 10, lastActivityDaysAgo: 55 },
 ];
 
 function slug(name: string): string {
@@ -241,9 +247,14 @@ function slug(name: string): string {
 const DAY_MS = 86_400_000;
 const HOUR_MS = 3_600_000;
 
-/** Es cliente (ya canjeó su primer café) en cualquier estado salvo los tres previos a serlo. */
+/** Tiene ficha propia -nombre, ficha, tarjeta- en cualquier estado salvo los tres previos a reclamar la invitación. */
 function isCustomer(state: NodeState): boolean {
   return state !== "sent" && state !== "opened" && state !== "expired";
+}
+
+/** Además, ya canjeó en barra: "claimed" es cliente real, pero todavía sin ese canje. */
+function hasRedeemed(state: NodeState): boolean {
+  return isCustomer(state) && state !== "claimed";
 }
 
 /** Solo "billable" implica que además volvió a pagar dentro de la ventana. */
@@ -273,7 +284,7 @@ function buildGraph(): GiftGraph {
       // todavía no tiene identidad.
       claimed: true,
       stamps: customer ? (spec.stamps ?? 0) : 0,
-      redeemedAt: customer ? lastActivityAt : null,
+      redeemedAt: hasRedeemed(spec.state) ? lastActivityAt : null,
       returnedAt: hasReturned(spec.state) ? lastActivityAt : null,
       lastActivityAt,
       expiresAt: spec.expiresInHours != null ? new Date(NOW + spec.expiresInHours * HOUR_MS).toISOString() : null,

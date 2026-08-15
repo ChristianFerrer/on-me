@@ -3,30 +3,16 @@ import type { InvitationRow, ShopRow } from "@/lib/db/types";
 import { newInviteCode } from "@/lib/crypto";
 import type { Locale } from "@/lib/i18n";
 
-/** Estados que ocupan cupo: creada, enviada o abierta pero sin usar. */
+/** Estados de una invitación todavía sin usar -creada, enviada o abierta-, para listarlas en la app del cliente. */
 export const ACTIVE_STATES = ["created", "sent", "opened"] as const;
 
-export async function activeInvitations(
-  padrinoId: string,
-): Promise<InvitationRow[]> {
-  const { data } = await db()
-    .from("invitations")
-    .select("*")
-    .eq("padrino_id", padrinoId)
-    .in("state", [...ACTIVE_STATES])
-    .order("created_at", { ascending: false });
-
-  return data ?? [];
-}
-
 /**
- * Crea una invitación si el padrino tiene cupo.
+ * Crea una invitación.
  *
- * El cupo existe por el cliente de diez cafés al día que el dueño describió:
- * llenaría una tarjeta diaria y generaría treinta invitaciones al mes él
- * solo, saturando el barrio en dos semanas.
- *
- * Devuelve null si no hay cupo — no es un error, es el caso esperado.
+ * Sin tope de cupo activo: cada tarjeta completada dispara la suya, sin
+ * límite de por vida ni de cuántas tiene abiertas a la vez — más
+ * invitaciones en vuelo es más oportunidad de negocio, no un riesgo a
+ * frenar.
  */
 export async function createInvitation(opts: {
   shop: ShopRow;
@@ -34,9 +20,6 @@ export async function createInvitation(opts: {
   locale: Locale;
 }): Promise<InvitationRow | null> {
   const { shop, padrinoId, locale } = opts;
-
-  const active = await activeInvitations(padrinoId);
-  if (active.length >= shop.max_active_invites) return null;
 
   const expiresAt = new Date(
     Date.now() + shop.invite_ttl_days * 24 * 3_600_000,

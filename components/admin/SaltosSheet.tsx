@@ -129,6 +129,7 @@ function stateBadgeText(node: Node, t: Dict): string {
     direct: t.admin.attrDirect,
     window: t.admin.attrWindow,
     discarded: t.admin.attrDiscarded,
+    claimed: t.admin.attrClaimed,
     opened: t.admin.attrOpened,
     sent: t.admin.attrSent,
     expired: t.admin.attrExpired,

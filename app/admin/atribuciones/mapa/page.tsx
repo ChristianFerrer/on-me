@@ -29,5 +29,14 @@ export default async function ReferralMapPage() {
   const { locale, t } = await getI18n();
   const graph = await loadRealGiftGraph(ctx.shop.id, ctx.shop.name);
 
-  return <SaltosMap graph={graph} shopName={ctx.shop.name} stampsGoal={ctx.shop.stamps_goal} locale={locale} t={t} />;
+  return (
+    <SaltosMap
+      graph={graph}
+      shopName={ctx.shop.name}
+      stampsGoal={ctx.shop.stamps_goal}
+      returnWindowDays={ctx.shop.return_window_days}
+      locale={locale}
+      t={t}
+    />
+  );
 }

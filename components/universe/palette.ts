@@ -14,6 +14,7 @@ export const AZURE = "#60a5fa";
 export const CORAL = "#fb7185";
 export const AMBER = "#fbbf24";
 export const TEAL = "#2dd4bf";
+export const MINT = "#4ade80";
 
 export const LIME_COLOR = new Color(LIME);
 export const CHALK_COLOR = new Color(CHALK);
@@ -38,6 +39,8 @@ export function stateColor(state: NodeState): Color {
       return new Color(LIME);
     case "direct":
       return new Color(TEAL);
+    case "claimed":
+      return new Color(MINT);
     case "window":
       return new Color(SLATE);
     case "discarded":

@@ -1,4 +1,4 @@
-import type { Edge, Node } from "@/lib/giftGraph/types";
+import type { Edge, Node, NodeState } from "@/lib/giftGraph/types";
 
 export type SaltosPoint = {
   id: string;
@@ -7,7 +7,7 @@ export type SaltosPoint = {
   angle: number;
   /** Distancia radial desde el centro, ya resuelta por el anillo adaptativo de su profundidad. */
   ringRadius: number;
-  /** Radio visual de la burbuja, por número de personas invitadas. */
+  /** Radio visual de la burbuja, por fase del camino del cliente -ver SALTOS_PHASE_SIZE-. */
   nodeRadius: number;
   /** Orden estable de aparición: semilla del bamboleo (freq/phase), no depende de un hash. */
   index: number;
@@ -25,13 +25,6 @@ export type SaltosLayout = {
   arcRadius: number;
 };
 
-// Más pequeños que antes a propósito: con "direct" el mapa ya no enseña
-// solo cadenas de referidos, sino a todos los clientes -de docenas a
-// cientos de puntos-, así que cada burbuja tiene que pesar menos para que
-// quepan sin que el conjunto se vuelva ruido ilegible.
-const NODE_R_BASE = 2.5;
-const MIN_NODE_R = 2.7;
-const MAX_NODE_R = 11;
 export const ESTABLISHMENT_RADIUS = 27;
 
 /** Cuánto arco de circunferencia (en unidades del viewBox) le hace falta a cada burbuja para no pisar a la de al lado. */
@@ -40,9 +33,32 @@ const MIN_ARC_PER_NODE = 11;
 const MIN_RING_GAP = 36;
 const ARC_RADIUS_FACTOR = 1.18;
 
-/** Radio de burbuja por gente invitada: crece en raíz, para que un padrino con muchas invitaciones no aplaste al resto. */
-function nodeRadiusFor(childCount: number): number {
-  return Math.min(MAX_NODE_R, Math.max(MIN_NODE_R, NODE_R_BASE + 2.35 * Math.sqrt(Math.max(0, childCount))));
+/**
+ * Radio de burbuja por fase del camino del cliente, no por cuánta gente ha
+ * invitado: este mapa cuenta el journey -prospecto, cliente, verificado-,
+ * así que el tamaño tiene que contar esa misma historia. "sent" es la
+ * unidad de referencia (1.0); el resto son múltiplos suyos, tal como pide
+ * la especificación ("10% más grande", "50% más grande", "100% más
+ * grande" = el doble). "window" arranca en el tamaño del canje (2.0) y se
+ * encoge con el tiempo -eso lo aplica SaltosMap en cada frame, no aquí,
+ * porque depende de la hora actual y esta capa no vuelve a calcularse en
+ * cada tick-. "expired"/"discarded" son las dos salidas sin historia que
+ * seguir contando: el tamaño mínimo de todos.
+ */
+export const SALTOS_PHASE_SIZE: Record<NodeState, number> = {
+  sent: 1.0,
+  opened: 1.1,
+  claimed: 1.5,
+  window: 2.0,
+  billable: 2.0,
+  direct: 2.0,
+  expired: 0.75,
+  discarded: 0.75,
+};
+const BASE_NODE_R = 2.2;
+
+function nodeRadiusFor(node: Node | undefined): number {
+  return BASE_NODE_R * (node ? SALTOS_PHASE_SIZE[node.state] : 1);
 }
 
 /**
@@ -121,7 +137,7 @@ export function layoutSaltos(nodes: Node[], edges: Edge[], establishmentId: stri
 
   placed.forEach((p, i) => {
     const ringRadius = ringRadiusByDepth.get(p.depth) ?? 0;
-    const nodeRadius = nodeRadiusFor(byId.get(p.id)?.childCount ?? 0);
+    const nodeRadius = nodeRadiusFor(byId.get(p.id));
     points.set(p.id, { id: p.id, depth: p.depth, angle: p.angle, ringRadius, nodeRadius, index: i + 1 });
   });
 

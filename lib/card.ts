@@ -73,8 +73,7 @@ export async function loadCard(token: string): Promise<CardData | null> {
     rewardPending: passResult.data?.reward_pending ?? false,
     activeInvites,
     pendingGrants,
-    canCreateInvite:
-      pendingGrants > 0 && activeInvites.length < shop.max_active_invites,
+    canCreateInvite: pendingGrants > 0,
     returnedGuests: attributionsResult.data?.length ?? 0,
   };
 }

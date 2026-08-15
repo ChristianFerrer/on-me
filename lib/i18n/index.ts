@@ -80,25 +80,4 @@ export function formatDateTime(date: Date | string, locale: Locale): string {
   }).format(d);
 }
 
-/**
- * Ordinal corto para la etiqueta de cada anillo del mapa de saltos: "1er
- * salto", "2º salto"... En español el apócope ("1er", "3er") solo aplica
- * antes de un sustantivo masculino singular como "salto"; en inglés basta
- * la regla estándar 1st/2nd/3rd/nth con la excepción de 11-13.
- */
-export function ordinalHop(n: number, locale: Locale): string {
-  if (locale === "es") {
-    if (n === 1) return "1er";
-    if (n === 3) return "3er";
-    return `${n}º`;
-  }
-  const mod100 = n % 100;
-  if (mod100 >= 11 && mod100 <= 13) return `${n}th`;
-  const mod10 = n % 10;
-  if (mod10 === 1) return `${n}st`;
-  if (mod10 === 2) return `${n}nd`;
-  if (mod10 === 3) return `${n}rd`;
-  return `${n}th`;
-}
-
 export type { Dict };

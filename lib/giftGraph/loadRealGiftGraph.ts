@@ -94,7 +94,8 @@ export async function loadRealGiftGraph(shopId: string, establishmentName: strin
       } else if (inv) {
         // Se dio de alta desde la invitación, pero todavía no ha canjeado
         // en barra: ya es cliente, pero attributions no nace hasta el canje.
-        state = "opened";
+        // Distinto de "opened" -que es todavía un prospecto sin ficha propia.
+        state = "claimed";
         lastActivityAt = pass?.updated_at ?? inv.claimed_at ?? inv.opened_at ?? inv.sent_at ?? inv.created_at;
       } else {
         // Alta directa por QR, sin invitación que la traiga: cliente real,
