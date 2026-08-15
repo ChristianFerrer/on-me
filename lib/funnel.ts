@@ -58,12 +58,14 @@ export async function loadFunnel(shopId: string): Promise<FunnelData> {
       .eq("customers.shop_id", shopId)
       .returns<{ cards_completed: number }[]>(),
     // "Enviadas" incluye todo lo que pasó de ahí: una invitación canjeada
-    // se envió antes, aunque su estado actual ya no lo diga.
-    countOf(
-      counter("invitations")
-        .eq("shop_id", shopId)
-        .in("state", ["sent", "opened", "claimed", "redeemed"]),
-    ),
+    // se envió antes, aunque su estado actual ya no lo diga. Por eso se
+    // comprueba `sent_at` -una marca de tiempo real que nunca se borra-, no
+    // una lista de estados: una invitación que se envió y luego caducó o se
+    // anuló (el destinatario ya era cliente) seguía contando como "sent" en
+    // el estado actual, pero desaparecía de esta lista si el filtro era por
+    // estado. `opened_at` de la siguiente consulta ya usaba el patrón
+    // correcto; este debía ser igual.
+    countOf(counter("invitations").eq("shop_id", shopId).not("sent_at", "is", null)),
     countOf(counter("invitations").eq("shop_id", shopId).not("opened_at", "is", null)),
     countOf(counter("invitations").eq("shop_id", shopId).eq("state", "redeemed")),
     countOf(counter("attributions").eq("shop_id", shopId).eq("state", "billable")),

@@ -174,6 +174,9 @@ export const es = {
     signInError: "no hemos podido entrar con esos datos",
     signOut: "salir",
     gates: "las tres puertas",
+    /** Versión corta para la pestaña de la barra inferior: "las tres puertas" no cabe en 5 pestañas a 360px. */
+    navGates: "puertas",
+    navOps: "señales",
     gate1: "invitaciones enviadas ÷ tarjetas completadas",
     gate2: "canjes ÷ invitaciones enviadas",
     gate3: "retornos con compra ÷ canjes",
@@ -487,6 +490,8 @@ export const en: Dict = {
     signInError: "we couldn't sign you in with those details",
     signOut: "sign out",
     gates: "the three gates",
+    navGates: "gates",
+    navOps: "signals",
     gate1: "invites sent ÷ cards completed",
     gate2: "redemptions ÷ invites sent",
     gate3: "paid returns ÷ redemptions",

@@ -20,9 +20,9 @@ export type AdminSection = "gates" | "embudo" | "senales" | "dispositivos" | "at
  */
 export function BottomNav({ t, active }: { t: AdminDict; active?: AdminSection }) {
   const items: { key: AdminSection; href: string; label: string; icon: React.ReactNode }[] = [
-    { key: "gates", href: "/admin", label: t.gates, icon: <GateIcon className="size-5" /> },
+    { key: "gates", href: "/admin", label: t.navGates, icon: <GateIcon className="size-5" /> },
     { key: "embudo", href: "/admin/embudo", label: t.title, icon: <FunnelIcon className="size-5" /> },
-    { key: "senales", href: "/admin/senales", label: t.ops, icon: <PulseIcon className="size-5" /> },
+    { key: "senales", href: "/admin/senales", label: t.navOps, icon: <PulseIcon className="size-5" /> },
     {
       key: "dispositivos",
       href: "/admin/dispositivos",

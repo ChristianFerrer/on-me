@@ -59,17 +59,26 @@ export async function getAdminContext(): Promise<AdminContext | null> {
 
   // La pertenencia se comprueba en cada petición, no se confía en la cookie.
   // Un error real aquí no es "no eres miembro": es "no puedo comprobarlo".
+  //
+  // `shop_members` solo obliga unique(shop_id, user_id), no unique(user_id):
+  // una persona puede pertenecer a más de un local. `.maybeSingle()` lanzaba
+  // en ese caso (PGRST116, "multiple rows"), así que cualquier miembro de
+  // dos locales se quedaba fuera del panel entero con un 500. Sin selector
+  // de local todavía, se toma el primero por el que entró -orden estable,
+  // no el más reciente cada vez- en vez de reventar.
   const { data, error } = await db()
     .from("shop_members")
     .select("role, shops(*)")
     .eq("user_id", userId)
-    .maybeSingle()
-    .returns<{ role: string; shops: ShopRow | null }>();
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .returns<{ role: string; shops: ShopRow | null }[]>();
 
   assertNoQueryError(error, "shop_members.user_id");
-  if (!data?.shops) return null;
+  const membership = data?.[0];
+  if (!membership?.shops) return null;
 
-  return { userId, shop: data.shops, role: data.role };
+  return { userId, shop: membership.shops, role: membership.role };
 }
 
 /**

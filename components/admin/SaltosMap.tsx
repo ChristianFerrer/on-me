@@ -97,6 +97,18 @@ function saltosNodeColor(node: Node): string {
   return SALTOS_STATE_COLOR[node.state];
 }
 
+/**
+ * Jerarquía visual, no solo de color: este es el mapa que el dueño del
+ * local quiere dejar abierto en un monitor y ver crecer día a día, así
+ * que "facturable" -dinero ganado de verdad- tiene que ganar peso visual
+ * a medida que hay más, y las dos salidas negativas (caducada,
+ * descartada) tienen que retirarse en vez de competir por la atención:
+ * si compiten con el mismo peso que lo bueno, el conjunto se siente como
+ * ruido de seis colores en vez de como progreso.
+ */
+const SALTOS_POSITIVE_STATE: NodeState = "billable";
+const SALTOS_MUTED_STATES = new Set<NodeState>(["expired", "discarded"]);
+
 type PointerState = { x: number; y: number };
 type XY = { x: number; y: number };
 
@@ -216,12 +228,15 @@ export function SaltosMap({
   graph,
   shopName,
   stampsGoal,
+  hud: hudTotals,
   locale,
   t,
 }: {
   graph: GiftGraph;
   shopName: string;
   stampsGoal: number;
+  /** Los mismos totales de /admin/embudo (mismo loadFunnel()), no una cuenta paralela sobre el grafo. */
+  hud: { sent: number; opened: number; redeemed: number; billable: number };
   locale: Locale;
   t: Dict;
 }) {
@@ -267,16 +282,10 @@ export function SaltosMap({
     return keys;
   }, [graph.nodes, parentOf, nowMs]);
 
-  const hud = useMemo(() => {
-    const realInvites = graph.edges.filter((e) => e.from !== graph.establishment.id);
-    return {
-      invites: realInvites.length,
-      opened: graph.nodes.filter((n) => n.state === "opened").length,
-      redeemed: graph.nodes.filter((n) => n.redeemedAt != null).length,
-      billable: graph.nodes.filter((n) => n.state === "billable").length,
-      maxHops: layout.maxDepth,
-    };
-  }, [graph, layout.maxDepth]);
+  // sent/opened/redeemed/billable llegan ya resueltos por prop -los mismos
+  // números que pinta /admin/embudo-; aquí solo se añade maxHops, que no
+  // tiene equivalente fuera del propio grafo de saltos.
+  const hud = { ...hudTotals, maxHops: layout.maxDepth };
 
   const funnelCounts = useMemo(() => {
     const counts = new Map(FUNNEL_ORDER.map((s) => [s, 0]));
@@ -654,12 +663,14 @@ export function SaltosMap({
       <style>{`
         @keyframes saltos-hub-pulse { 0% { transform: scale(1); opacity: 0.5; } 100% { transform: scale(2.4); opacity: 0; } }
         @keyframes saltos-flow { to { stroke-dashoffset: -24; } }
-        @keyframes saltos-alert-pulse { 0%, 100% { transform: scale(1); opacity: 0.14; } 50% { transform: scale(1.35); opacity: 0.6; } }
+        @keyframes saltos-alert-pulse { 0%, 100% { transform: scale(1); opacity: 0.12; } 50% { transform: scale(1.2); opacity: 0.4; } }
+        @keyframes saltos-billable-glow { 0%, 100% { transform: scale(1); opacity: 0.22; } 50% { transform: scale(1.08); opacity: 0.32; } }
         .saltos-hub-pulse { transform-origin: center; transform-box: fill-box; animation: saltos-hub-pulse 3.6s cubic-bezier(0.2,0.6,0.4,1) infinite; }
         .saltos-dashed { stroke-dasharray: 3 3; animation: saltos-flow 9s linear infinite; }
-        .saltos-alert-ring { transform-origin: center; transform-box: fill-box; animation: saltos-alert-pulse 1.9s ease-in-out infinite; }
+        .saltos-alert-ring { transform-origin: center; transform-box: fill-box; animation: saltos-alert-pulse 2.6s ease-in-out infinite; }
+        .saltos-billable-glow { transform-origin: center; transform-box: fill-box; animation: saltos-billable-glow 5s ease-in-out infinite; }
         @media (prefers-reduced-motion: reduce) {
-          .saltos-hub-pulse, .saltos-dashed, .saltos-alert-ring { animation: none; }
+          .saltos-hub-pulse, .saltos-dashed, .saltos-alert-ring, .saltos-billable-glow { animation: none; }
         }
       `}</style>
 
@@ -730,14 +741,18 @@ export function SaltosMap({
                   const a1 = cursor + span - GAP;
                   const mid = (cursor + a1) / 2;
                   const labelR = arcRadius + 12;
+                  const isMutedArc = SALTOS_MUTED_STATES.has(state);
+                  const isPositiveArc = state === SALTOS_POSITIVE_STATE;
+                  const arcWidth = isPositiveArc ? 5.5 : isMutedArc ? 3 : 4.5;
+                  const arcOpacity = isPositiveArc ? 0.95 : isMutedArc ? 0.4 : 0.85;
                   arcs.push(
                     <path
                       key={state}
                       d={arcPath(cursor, a1, arcRadius)}
                       fill="none"
                       stroke={SALTOS_STATE_COLOR[state]}
-                      strokeWidth={4.5}
-                      strokeOpacity={0.85}
+                      strokeWidth={arcWidth}
+                      strokeOpacity={arcOpacity}
                       strokeLinecap="round"
                     />,
                     <text
@@ -749,7 +764,7 @@ export function SaltosMap({
                       fontSize={6}
                       fontWeight={600}
                       fill={SALTOS_STATE_COLOR[state]}
-                      fillOpacity={0.8}
+                      fillOpacity={isMutedArc ? 0.5 : 0.8}
                     >
                       {count}
                     </text>,
@@ -778,8 +793,14 @@ export function SaltosMap({
             const d = linkPath(layout, 0, 0, link.fromId, link.toId);
             if (!d) return null;
             const isPathLink = selectedId != null && ancestors.has(link.toId);
-            const opacity = selectedId ? (isPathLink ? 0.95 : 0.04) : 0.3;
-            const width = selectedId && isPathLink ? 2.2 : selectedId ? 1.1 : 1.3;
+            // Mismo criterio que en los nodos: una rama que terminó en nada
+            // -caducada, descartada- se retira visualmente en vez de pesar
+            // igual que una que sigue viva.
+            const isMutedLink = toNode != null && SALTOS_MUTED_STATES.has(toNode.state);
+            const restOpacity = isMutedLink ? 0.14 : 0.3;
+            const restWidth = isMutedLink ? 0.9 : 1.3;
+            const opacity = selectedId ? (isPathLink ? 0.95 : 0.04) : restOpacity;
+            const width = selectedId && isPathLink ? 2.2 : selectedId ? 1.1 : restWidth;
             return (
               <path
                 key={key}
@@ -847,6 +868,14 @@ export function SaltosMap({
             const color = saltosNodeColor(node);
             const showLabel = node.claimed && (pan.scale >= LABEL_VISIBLE_SCALE || isSelected || isAncestor);
             const pendingStrokeOpacity = node.state === "expired" ? 0.6 : 0.75;
+            // Jerarquía visual: lo bueno pesa más, lo perdido se retira -no
+            // compiten por la atención a partes iguales-. Ver el comentario
+            // de SALTOS_POSITIVE_STATE/SALTOS_MUTED_STATES más arriba.
+            const isPositive = node.state === SALTOS_POSITIVE_STATE;
+            const isMuted = SALTOS_MUTED_STATES.has(node.state);
+            const haloFillOpacity = isPositive ? 0.24 : isMuted ? 0.07 : 0.13;
+            const haloScale = isPositive ? 2.15 : 1.85;
+            const restOpacity = isMuted ? 0.55 : 1;
 
             return (
               <g
@@ -857,7 +886,7 @@ export function SaltosMap({
                 }}
                 data-node-id={node.id}
                 className="cursor-pointer"
-                opacity={dimmed ? 0.11 : 1}
+                opacity={dimmed ? 0.11 : restOpacity}
                 transform={`translate(${pos.x.toFixed(2)},${pos.y.toFixed(2)})`}
               >
                 {isExpiringNode ? (
@@ -876,7 +905,13 @@ export function SaltosMap({
                   />
                 ) : (
                   <>
-                    <circle r={pt.nodeRadius * 1.85} fill={color} fillOpacity={0.13} filter="url(#saltos-soft)" />
+                    <circle
+                      className={isPositive ? "saltos-billable-glow" : undefined}
+                      r={pt.nodeRadius * haloScale}
+                      fill={color}
+                      fillOpacity={haloFillOpacity}
+                      filter="url(#saltos-soft)"
+                    />
                     <circle r={pt.nodeRadius} fill={color} />
                     <circle r={pt.nodeRadius} fill="none" stroke="rgba(255,255,255,.16)" strokeWidth={0.55} />
                   </>
@@ -902,7 +937,10 @@ export function SaltosMap({
         </g>
       </svg>
 
-      <header className="pointer-events-none fixed inset-x-0 top-0 z-20 flex items-start justify-between gap-3 px-5 pt-[max(1rem,env(safe-area-inset-top))]">
+      {/* z-30, por encima de la leyenda y el footer (z-20): en viewports bajos
+          -móvil en horizontal- la leyenda puede crecer hasta solaparse con la
+          cabecera, y el botón de volver tiene que seguir pudiéndose tocar. */}
+      <header className="pointer-events-none fixed inset-x-0 top-0 z-30 flex items-start justify-between gap-3 px-5 pt-[max(1rem,env(safe-area-inset-top))]">
         <Link
           href="/admin/atribuciones"
           prefetch={false}
@@ -913,7 +951,7 @@ export function SaltosMap({
         </Link>
 
         <div className="pointer-events-none flex flex-col items-end gap-0.5 pt-1">
-          <CountUpStat value={hud.invites} label={t.admin.sent} active={mounted} delayMs={0} />
+          <CountUpStat value={hud.sent} label={t.admin.sent} active={mounted} delayMs={0} />
           <CountUpStat value={hud.opened} label={t.admin.opened} active={mounted} delayMs={85} />
           <CountUpStat value={hud.redeemed} label={t.admin.redeemed} active={mounted} delayMs={170} />
           <CountUpStat value={hud.billable} label={t.admin.attrBillable} active={mounted} delayMs={255} />
@@ -922,19 +960,25 @@ export function SaltosMap({
       </header>
 
       <div
-        className="glass-dark pointer-events-none fixed bottom-[7.5rem] left-3 z-20 max-w-[13rem] p-3.5 transition-transform duration-300 ease-[var(--ease-out-soft)]"
+        className="glass-dark pointer-events-auto fixed bottom-[7.5rem] left-3 z-20 max-h-[min(60dvh,19rem)] max-w-[13rem] overflow-y-auto p-3.5 transition-transform duration-300 ease-[var(--ease-out-soft)]"
         style={{ transform: legendOpen ? "translateX(0)" : "translateX(-120%)" }}
       >
         <p className="eyebrow text-chalk/40">{t.admin.saltosLegendTitle}</p>
         <p className="mt-0.5 text-[0.6875rem] leading-snug text-chalk/30">{t.admin.saltosLegendDesc}</p>
         <div className="mt-2 flex flex-col gap-1.5">
-          {FUNNEL_ORDER.map((state) => (
-            <div key={state} className="flex items-center gap-2 text-[0.75rem] text-chalk/75">
-              <span className="size-2.5 shrink-0 rounded-full" style={{ background: SALTOS_STATE_COLOR[state] }} />
-              <span className="min-w-0 flex-1 truncate">{stateBadgeLabel(state, t)}</span>
-              <span className="numeral text-[0.6875rem] text-chalk/40">{funnelCounts.get(state) ?? 0}</span>
-            </div>
-          ))}
+          {FUNNEL_ORDER.map((state) => {
+            const isMutedRow = SALTOS_MUTED_STATES.has(state);
+            return (
+              <div key={state} className={cn("flex items-center gap-2 text-[0.75rem]", isMutedRow ? "text-chalk/45" : "text-chalk/75")}>
+                <span
+                  className="size-2.5 shrink-0 rounded-full"
+                  style={{ background: SALTOS_STATE_COLOR[state], opacity: isMutedRow ? 0.55 : 1 }}
+                />
+                <span className="min-w-0 flex-1 truncate">{stateBadgeLabel(state, t)}</span>
+                <span className="numeral text-[0.6875rem] text-chalk/40">{funnelCounts.get(state) ?? 0}</span>
+              </div>
+            );
+          })}
         </div>
         <div className="mt-3 flex items-end gap-2.5 border-t border-white/8 pt-2.5">
           <span className="block size-[7px] rounded-full bg-chalk/25" />
@@ -950,7 +994,11 @@ export function SaltosMap({
             {funnelTotal === 0 ? t.admin.referralMapEmpty : t.admin.referralMapHint}
           </p>
         ) : null}
-        <div className="pointer-events-auto flex items-center gap-2">
+        {/* La ficha (z-30, opaca, ancho completo) se pinta encima de este footer
+            (z-20) en cuanto hay un nodo seleccionado: sin ocultarlos aquí, estos
+            dos botones quedaban tapados y sin forma de tocarlos hasta cerrar la
+            ficha con su propio botón. */}
+        <div className={cn("pointer-events-auto flex items-center gap-2", selectedNode ? "invisible" : "visible")}>
           <button
             type="button"
             onClick={() => setLegendOpen((v) => !v)}

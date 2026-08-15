@@ -23,7 +23,7 @@ export default async function SignalsPage() {
           <Link
             href="/inicio"
             prefetch={false}
-            className="text-chalk/45 transition-colors hover:text-chalk"
+            className="-m-2 p-2 text-chalk/45 transition-colors hover:text-chalk"
             aria-label={t.home.eyebrow}
           >
             <HomeIcon className="size-6" />

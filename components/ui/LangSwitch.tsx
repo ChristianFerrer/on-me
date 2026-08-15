@@ -31,7 +31,7 @@ export function LangSwitch({
             hrefLang={code}
             aria-current={active ? "true" : undefined}
             className={cn(
-              "eyebrow flex size-9 items-center justify-center rounded-full transition-colors",
+              "eyebrow flex size-10 items-center justify-center rounded-full transition-colors",
               active
                 ? tone === "ink"
                   ? "bg-ink text-chalk"

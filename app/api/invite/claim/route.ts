@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db/client";
 import { newToken, normalizeInviteCode, normalizePhone } from "@/lib/crypto";
+import type { InvitationState } from "@/lib/db/types";
 import { LOCALES } from "@/lib/i18n";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
 import { writeCustomerCookie } from "@/lib/session";
@@ -14,7 +15,7 @@ const Body = z.object({
   locale: z.enum(LOCALES).optional(),
 });
 
-const CLAIMABLE = ["created", "sent", "opened"];
+const CLAIMABLE: InvitationState[] = ["created", "sent", "opened"];
 
 /**
  * El invitado acepta el café.
@@ -84,7 +85,10 @@ export async function POST(request: Request) {
     .maybeSingle();
 
   if (existing) {
-    await db().from("invitations").update({ state: "void" }).eq("id", invitation.id);
+    // Condicionado al estado -no solo al id-: si otra petición concurrente
+    // para el mismo código ya lo reclamó de verdad justo antes de que esta
+    // llegue aquí, esto no debe pisarle su "claimed" con un "void".
+    await db().from("invitations").update({ state: "void" }).eq("id", invitation.id).in("state", CLAIMABLE);
     await writeCustomerCookie(existing.token);
 
     // Se le devuelve su tarjeta con sus sellos, pero ni café ni atribución.
@@ -116,14 +120,32 @@ export async function POST(request: Request) {
 
   await db().from("passes").insert({ customer_id: customer.id });
 
-  await db()
+  // Condicionado a que el estado siga siendo reclamable, no solo al id: la
+  // comprobación de arriba (línea 55) y esta escritura son dos viajes
+  // separados a la base de datos, así que dos peticiones concurrentes para
+  // el mismo código -con dos teléfonos distintos- podían pasar ambas la
+  // comprobación antes de que ninguna escribiera, crear cada una su propio
+  // cliente, y la segunda escritura ganar `claimed_by` dejando al cliente
+  // de la primera huérfano -sin invitación que canjear nunca, gastando de
+  // todos modos un hueco de invitación del padrino. Con la condición, solo
+  // una escritura afecta a alguna fila; la otra lo sabe por `claimedRows`
+  // vacío y deshace el cliente que acaba de crear en vez de dejarlo suelto.
+  const { data: claimedRows } = await db()
     .from("invitations")
     .update({
       state: "claimed",
       claimed_at: new Date().toISOString(),
       claimed_by: customer.id,
     })
-    .eq("id", invitation.id);
+    .eq("id", invitation.id)
+    .in("state", CLAIMABLE)
+    .select("id");
+
+  if (!claimedRows?.length) {
+    await db().from("passes").delete().eq("customer_id", customer.id);
+    await db().from("customers").delete().eq("id", customer.id);
+    return NextResponse.json({ error: "invalid" }, { status: 404 });
+  }
 
   await writeCustomerCookie(token);
 
