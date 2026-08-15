@@ -228,15 +228,12 @@ export function SaltosMap({
   graph,
   shopName,
   stampsGoal,
-  hud: hudTotals,
   locale,
   t,
 }: {
   graph: GiftGraph;
   shopName: string;
   stampsGoal: number;
-  /** Los mismos totales de /admin/embudo (mismo loadFunnel()), no una cuenta paralela sobre el grafo. */
-  hud: { sent: number; opened: number; redeemed: number; billable: number };
   locale: Locale;
   t: Dict;
 }) {
@@ -282,17 +279,27 @@ export function SaltosMap({
     return keys;
   }, [graph.nodes, parentOf, nowMs]);
 
-  // sent/opened/redeemed/billable llegan ya resueltos por prop -los mismos
-  // números que pinta /admin/embudo-; aquí solo se añade maxHops, que no
-  // tiene equivalente fuera del propio grafo de saltos.
-  const hud = { ...hudTotals, maxHops: layout.maxDepth };
-
   const funnelCounts = useMemo(() => {
     const counts = new Map(FUNNEL_ORDER.map((s) => [s, 0]));
     for (const n of graph.nodes) counts.set(n.state, (counts.get(n.state) ?? 0) + 1);
     return counts;
   }, [graph.nodes]);
   const funnelTotal = useMemo(() => [...funnelCounts.values()].reduce((a, b) => a + b, 0), [funnelCounts]);
+
+  // El HUD sale de la misma cuenta que la leyenda -funnelCounts, por
+  // estado actual de cada nodo del grafo-, no del histórico de
+  // /admin/embudo: son preguntas distintas ("cuántas se han enviado
+  // alguna vez" vs. "cuántas están AHORA en ese punto del camino"), y
+  // enseñar las dos con la misma etiqueta y valores distintos en la
+  // misma pantalla se leía como un dato roto. Con la misma fuente que la
+  // leyenda, HUD y leyenda nunca pueden discreparse.
+  const hud = {
+    sent: funnelCounts.get("sent") ?? 0,
+    opened: funnelCounts.get("opened") ?? 0,
+    redeemed: graph.nodes.filter((n) => n.redeemedAt != null).length,
+    billable: funnelCounts.get("billable") ?? 0,
+    maxHops: layout.maxDepth,
+  };
 
   const customerCount = useMemo(() => graph.nodes.filter((n) => n.claimed).length, [graph.nodes]);
 
