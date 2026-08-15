@@ -259,6 +259,27 @@ export const es = {
     scannerBody: "sellar y canjear",
     panel: "panel",
     panelBody: "el embudo y las tres puertas",
+    instructions: "cómo funciona",
+    instructionsBody: "el flujo de la app, paso a paso",
+  },
+
+  guide: {
+    eyebrow: "cómo funciona",
+    title: "el flujo de onme",
+    intro:
+      "una vuelta rápida por lo que pasa desde que alguien invita hasta que el local cobra por ello.",
+    step1Title: "invita",
+    step1Body: "un cliente reparte su invitación -qr o enlace- a quien quiera.",
+    step2Title: "se da de alta",
+    step2Body:
+      "quien la recibe escanea, pone su nombre y los últimos dígitos de su móvil, y ya tiene tarjeta. sin contraseña.",
+    step3Title: "suma sellos",
+    step3Body: "en cada visita, el barista sella la tarjeta desde el escáner de barra.",
+    step4Title: "canjea el premio",
+    step4Body: "con la tarjeta completa, el siguiente café es gratis.",
+    step5Title: "se factura la invitación",
+    step5Body:
+      "si esa persona vuelve a comprar, la invitación original queda registrada como una atribución facturable para el local.",
   },
 
   legal: {
@@ -534,6 +555,24 @@ export const en: Dict = {
     scannerBody: "stamp and redeem",
     panel: "panel",
     panelBody: "the funnel and the three gates",
+    instructions: "how it works",
+    instructionsBody: "the app flow, step by step",
+  },
+
+  guide: {
+    eyebrow: "how it works",
+    title: "the onme flow",
+    intro: "a quick tour of what happens from someone inviting a friend to the shop getting paid for it.",
+    step1Title: "invite",
+    step1Body: "a customer shares their invite -QR or link- with whoever they like.",
+    step2Title: "sign up",
+    step2Body: "whoever gets it scans, enters their name and the last digits of their phone, and already has a card. no password.",
+    step3Title: "stamp up",
+    step3Body: "on every visit, the barista stamps the card from the counter scanner.",
+    step4Title: "redeem the reward",
+    step4Body: "with a full card, the next coffee is free.",
+    step5Title: "the invite gets billed",
+    step5Body: "if that person comes back and buys again, the original invite is recorded as a billable attribution for the shop.",
   },
 
   legal: {

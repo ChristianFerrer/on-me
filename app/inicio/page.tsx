@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { PanelIcon, QrIcon, ScanIcon } from "@/components/ui/Icons";
+import { InfoIcon, PanelIcon, QrIcon, ScanIcon } from "@/components/ui/Icons";
 import { Logo } from "@/components/ui/Logo";
 import { assertNoQueryError, db } from "@/lib/db/client";
 import { getI18n } from "@/lib/i18n/server";
@@ -35,7 +35,7 @@ export default async function InicioPage() {
           <p className="eyebrow text-chalk/40">{t.home.subtitle}</p>
         </div>
 
-        <nav className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <nav className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {shop ? (
             <Tile
               href={`/j/${shop.slug}/qr`}
@@ -55,6 +55,12 @@ export default async function InicioPage() {
             icon={<PanelIcon className="size-7" />}
             title={t.home.panel}
             body={t.home.panelBody}
+          />
+          <Tile
+            href="/como-funciona"
+            icon={<InfoIcon className="size-7" />}
+            title={t.home.instructions}
+            body={t.home.instructionsBody}
           />
         </nav>
       </main>
