@@ -926,6 +926,7 @@ export function SaltosMap({
         style={{ transform: legendOpen ? "translateX(0)" : "translateX(-120%)" }}
       >
         <p className="eyebrow text-chalk/40">{t.admin.saltosLegendTitle}</p>
+        <p className="mt-0.5 text-[0.6875rem] leading-snug text-chalk/30">{t.admin.saltosLegendDesc}</p>
         <div className="mt-2 flex flex-col gap-1.5">
           {FUNNEL_ORDER.map((state) => (
             <div key={state} className="flex items-center gap-2 text-[0.75rem] text-chalk/75">

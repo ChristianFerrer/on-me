@@ -12,12 +12,12 @@ type AdminDict = Dict["admin"];
  */
 export function FunnelBars({ data, t }: { data: FunnelData; t: AdminDict }) {
   const steps = [
-    { label: t.signups, value: data.signups },
-    { label: t.cards, value: data.cards },
-    { label: t.sent, value: data.sent },
-    { label: t.opened, value: data.opened },
-    { label: t.redeemed, value: data.redeemed },
-    { label: t.returns, value: data.returns },
+    { label: t.signups, description: t.signupsDesc, value: data.signups },
+    { label: t.cards, description: t.cardsDesc, value: data.cards },
+    { label: t.sent, description: t.sentDesc, value: data.sent },
+    { label: t.opened, description: t.openedDesc, value: data.opened },
+    { label: t.redeemed, description: t.redeemedDesc, value: data.redeemed },
+    { label: t.returns, description: t.returnsDesc, value: data.returns },
   ];
 
   const top = Math.max(...steps.map((step) => step.value), 1);
@@ -34,6 +34,7 @@ export function FunnelBars({ data, t }: { data: FunnelData; t: AdminDict }) {
               {step.value}
             </span>
           </div>
+          <p className="mt-0.5 text-[0.75rem] leading-snug text-chalk/35">{step.description}</p>
           <div className="mt-2 h-1 w-full overflow-hidden rounded-full bg-white/8">
             <div
               className={index === steps.length - 1 ? "h-full bg-lime" : "h-full bg-chalk/70"}

@@ -44,10 +44,12 @@ function wavePath(values: number[]): { line: string; area: string } {
 
 export function WaveChart({
   label,
+  description,
   points,
   accent = "var(--color-lime)",
 }: {
   label: string;
+  description?: string;
   points: DailyPoint[];
   accent?: string;
 }) {
@@ -63,6 +65,7 @@ export function WaveChart({
         <span className="text-[0.875rem] font-medium text-chalk/65">{label}</span>
         <span className="numeral text-[0.9375rem] font-semibold">{total}</span>
       </div>
+      {description ? <p className="mt-0.5 text-[0.75rem] leading-snug text-chalk/35">{description}</p> : null}
 
       <svg
         viewBox={`0 0 ${VIEW_W} ${VIEW_H}`}

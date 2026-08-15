@@ -45,8 +45,8 @@ export default async function FunnelPage() {
         </section>
 
         <section className="flex flex-col gap-5 rounded-[var(--radius-card)] bg-ink p-6">
-          <WaveChart label={t.admin.signups} points={data.series.signups} accent="var(--color-lime)" />
-          <WaveChart label={t.admin.dailyScans} points={data.series.scans} accent="var(--color-azure)" />
+          <WaveChart label={t.admin.signups} description={t.admin.signupsDesc} points={data.series.signups} accent="var(--color-lime)" />
+          <WaveChart label={t.admin.dailyScans} description={t.admin.dailyScansDesc} points={data.series.scans} accent="var(--color-azure)" />
         </section>
       </div>
 
