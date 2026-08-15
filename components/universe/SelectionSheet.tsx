@@ -26,12 +26,19 @@ export function SelectionSheet({
 }) {
   if (!node) return null;
 
+  // Invitación sin reclamar: no tiene nombre -createInvitation no lo pide,
+  // llega en el claim-, así que ni lo inventamos ni enseñamos el código
+  // interno. Un texto genérico y la fecha de envío bastan.
+  const isPending = !node.claimed;
+
   return (
     <div className="pointer-events-none fixed inset-x-0 bottom-0 z-30 flex justify-center px-3 pb-[max(1rem,env(safe-area-inset-bottom))]">
       <div className="glass-dark pointer-events-auto w-full max-w-[30rem] rounded-3xl border border-white/10 p-5 sm:max-w-[34rem]">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <p className="truncate text-[1.0625rem] font-semibold">{node.name}</p>
+            <p className="truncate text-[1.0625rem] font-semibold">
+              {isPending ? t.admin.saltosPendingInvite : node.name}
+            </p>
             <p className="eyebrow mt-1.5 text-chalk/35">
               {t.admin.attrPadrino} · {giftedByName || "—"}
             </p>
@@ -51,16 +58,23 @@ export function SelectionSheet({
           </div>
         </div>
 
-        <dl className="numeral mt-4 grid grid-cols-2 gap-3 text-[0.75rem] text-chalk/45">
-          <div>
-            <dt className="text-chalk/30">{t.admin.attrRedeemed}</dt>
-            <dd className="mt-0.5">{node.redeemedAt ? formatDateTime(node.redeemedAt, locale) : "—"}</dd>
+        {isPending ? (
+          <div className="numeral mt-4 text-[0.75rem] text-chalk/45">
+            <dt className="text-chalk/30">{t.admin.saltosSentAt}</dt>
+            <dd className="mt-0.5">{formatDateTime(node.lastActivityAt, locale)}</dd>
           </div>
-          <div>
-            <dt className="text-chalk/30">{t.admin.attrReturned}</dt>
-            <dd className="mt-0.5">{node.returnedAt ? formatDateTime(node.returnedAt, locale) : "—"}</dd>
-          </div>
-        </dl>
+        ) : (
+          <dl className="numeral mt-4 grid grid-cols-2 gap-3 text-[0.75rem] text-chalk/45">
+            <div>
+              <dt className="text-chalk/30">{t.admin.attrRedeemed}</dt>
+              <dd className="mt-0.5">{node.redeemedAt ? formatDateTime(node.redeemedAt, locale) : "—"}</dd>
+            </div>
+            <div>
+              <dt className="text-chalk/30">{t.admin.attrReturned}</dt>
+              <dd className="mt-0.5">{node.returnedAt ? formatDateTime(node.returnedAt, locale) : "—"}</dd>
+            </div>
+          </dl>
+        )}
       </div>
     </div>
   );

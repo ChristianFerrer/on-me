@@ -2,71 +2,62 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ZoomSlider } from "@/components/admin/ZoomSlider";
 import { ArrowLeftIcon, CompassIcon } from "@/components/ui/Icons";
 import { SelectionSheet } from "@/components/universe/SelectionSheet";
 import { cn } from "@/lib/cn";
-import { hash01 } from "@/lib/giftGraph/organicMotion";
 import { bestPadrinoId, isExpiringSoon } from "@/lib/giftGraph/insights";
 import { type Pan, panBy, pixelsToUnits, zoomAtPoint } from "@/lib/panZoom";
-import { computeFitScale, ESTABLISHMENT_RADIUS, layoutSaltos, RING_STEP } from "@/lib/giftGraph/saltosLayout";
+import { ESTABLISHMENT_RADIUS, layoutSaltos, type SaltosLayout } from "@/lib/giftGraph/saltosLayout";
 import { STATE_BADGE_SKIN, STATE_LINE_COLOR, stateBadgeLabel } from "@/lib/giftGraph/stateBadge";
 import { isTap, type PointerPoint } from "@/lib/giftGraph/tapGesture";
 import type { GiftGraph, NodeState } from "@/lib/giftGraph/types";
 import type { Dict, Locale } from "@/lib/i18n";
 
-const LABEL_PAD = 64;
-const PAN_ROOM = 200;
-const MIN_SCALE = 0.35;
-const MAX_SCALE = 5;
-const LABEL_VISIBLE_SCALE = 1.3;
-/**
- * El encuadre por defecto nunca intenta mostrar el grafo entero -con datos
- * reales de muchas ramas eso deja todo diminuto-, solo el establecimiento y
- * un par de anillos. El resto se explora a mano (pellizco, rueda o la barra
- * de zoom); "centrar" vuelve aquí, no a un zoom que encoja todo lo demás.
- */
-const DEFAULT_FIT_RINGS = 2.5;
-
-/** rad/s: una vuelta completa cada ~13 minutos, apenas perceptible. */
-const ROTATE_SPEED = 0.008;
-const ROTATE_RESUME_DELAY_SEC = 2.6;
-const WOBBLE_AMPLITUDE = 6;
-const EXPIRING_PULSE_SPEED = 3.4;
-/** Cuántas cadenas vivas (que llegan a facturable) reciben una partícula viajera. */
-const MAX_ALIVE_PULSES = 10;
+/** Zoom manual sobre el encuadre automático (pellizco, rueda): 1 = el encuadre tal cual. */
+const MIN_SCALE = 0.6;
+const MAX_SCALE = 4;
+/** Por debajo de esto los nombres no se enseñan -evita el solapamiento con muchos nodos juntos. */
+const LABEL_VISIBLE_SCALE = 1.45;
+/** El arco del embudo siempre a este múltiplo del nodo más lejano: nunca más lejos. */
+const ARC_RADIUS_FACTOR = 1.18;
+/** Aire para el número de cada tramo del arco, más allá del propio arco. */
+const ARC_LABEL_PAD = 20;
+/** Cuánto del viewport (dimensión menor) ocupa el contenido al encuadrar. */
+const FIT_FRACTION = 0.88;
 
 /** Orden narrativo del arco perimetral: el camino feliz primero, las dos salidas negativas al final. */
 const FUNNEL_ORDER: NodeState[] = ["sent", "opened", "window", "billable", "expired", "discarded"];
 
 type PointerState = { x: number; y: number };
-type LiveXY = { x: number; y: number };
+type XY = { x: number; y: number };
 
-/** Vaivén radial suave, propio de cada nodo -periodo y fase por hash, nunca Math.random(). */
-function wobbleOffset(id: string, elapsedSec: number): number {
-  const freq = 0.05 + hash01(`${id}:freq`) * 0.04;
-  const phase = hash01(`${id}:phase`) * Math.PI * 2;
-  return Math.sin(elapsedSec * Math.PI * 2 * freq + phase) * WOBBLE_AMPLITUDE;
+function nodeXY(point: { angle: number; ringRadius: number; depth: number }): XY {
+  if (point.depth === 0) return { x: 0, y: 0 };
+  return { x: point.ringRadius * Math.cos(point.angle), y: point.ringRadius * Math.sin(point.angle) };
 }
 
-function liveXY(angle: number, ringRadius: number, depth: number, id: string, rotation: number, elapsedSec: number, reducedMotion: boolean): LiveXY {
-  if (depth === 0) return { x: 0, y: 0 };
-  const a = angle + rotation;
-  const r = ringRadius + (reducedMotion ? 0 : wobbleOffset(id, elapsedSec));
-  return { x: r * Math.cos(a), y: r * Math.sin(a) };
-}
+/**
+ * Curva Bézier cúbica: los puntos de control van al radio medio entre el
+ * anillo del padre y el del hijo, cada uno en su propio ángulo -el mismo
+ * truco que ya usaba lib/radialLayout.ts- para que la rama gire suave hacia
+ * su hijo en vez de salir en línea recta desde el centro. Estática: se
+ * calcula una vez por render a partir del layout, no en un bucle de animación.
+ */
+function linkPath(layout: SaltosLayout, positions: Map<string, XY>, fromId: string, toId: string): string | null {
+  const from = layout.points.get(fromId);
+  const to = layout.points.get(toId);
+  const p0 = positions.get(fromId);
+  const p1 = positions.get(toId);
+  if (!from || !to || !p0 || !p1) return null;
 
-/** Bezier cúbica evaluada a mano: la misma curva que dibuja el link, para que la partícula viaje exactamente encima. */
-function bezierPoint(p0: LiveXY, c1: LiveXY, c2: LiveXY, p1: LiveXY, t: number): LiveXY {
-  const u = 1 - t;
-  const a = u * u * u,
-    b = 3 * u * u * t,
-    c = 3 * u * t * t,
-    d = t * t * t;
-  return {
-    x: a * p0.x + b * c1.x + c * c2.x + d * p1.x,
-    y: a * p0.y + b * c1.y + c * c2.y + d * p1.y,
-  };
+  const midR = (from.ringRadius + to.ringRadius) / 2;
+  // Desde el propio centro (radio 0) el ángulo del padre no significa nada:
+  // el primer tramo sale recto, y ya curva a partir del segundo.
+  const a0 = from.depth === 0 ? to.angle : from.angle;
+  const a1 = to.angle;
+  const c1 = { x: midR * Math.cos(a0), y: midR * Math.sin(a0) };
+  const c2 = { x: midR * Math.cos(a1), y: midR * Math.sin(a1) };
+  return `M${p0.x.toFixed(2)},${p0.y.toFixed(2)} C${c1.x.toFixed(2)},${c1.y.toFixed(2)} ${c2.x.toFixed(2)},${c2.y.toFixed(2)} ${p1.x.toFixed(2)},${p1.y.toFixed(2)}`;
 }
 
 function arcPath(a0: number, a1: number, r: number): string {
@@ -106,14 +97,23 @@ function CountUpStat({ value, label, active }: { value: number; label: string; a
 /**
  * El mapa de saltos de verdad: constelación radial sobre el grafo real de
  * invitaciones/atribuciones, con los mismos tokens de diseño del resto del
- * panel. Layout, codificación por estado e interacciones (pan/zoom, toque
- * para seleccionar, leyenda plegable) calcados de la especificación visual;
- * los datos y colores salen de aquí, no de una paleta inventada.
+ * panel. Posiciones y curvas se calculan una vez por render, directamente en
+ * JSX -nada de refs ni de un bucle de animación de fondo-: el encuadre y las
+ * líneas tienen que ser correctos ya en el primer pintado, sin depender de
+ * que un efecto llegue a ejecutarse.
  */
 export function SaltosMap({ graph, shopName, locale, t }: { graph: GiftGraph; shopName: string; locale: Locale; t: Dict }) {
-  const [reducedMotion] = useState(
-    () => typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches,
-  );
+  const layout = useMemo(() => layoutSaltos(graph.nodes, graph.edges, graph.establishment.id), [graph]);
+  const byId = useMemo(() => new Map(graph.nodes.map((n) => [n.id, n])), [graph.nodes]);
+  const parentOf = useMemo(() => new Map(graph.edges.map((e) => [e.to, e.from])), [graph.edges]);
+  const bestPadrino = useMemo(() => bestPadrinoId(graph.nodes, graph.edges), [graph.nodes, graph.edges]);
+
+  const positions = useMemo(() => {
+    const map = new Map<string, XY>();
+    for (const point of layout.points.values()) map.set(point.id, nodeXY(point));
+    return map;
+  }, [layout]);
+
   const [mounted, setMounted] = useState(false);
   useEffect(() => {
     // Diferido a un microtask, no una llamada síncrona dentro del propio
@@ -121,24 +121,11 @@ export function SaltosMap({ graph, shopName, locale, t }: { graph: GiftGraph; sh
     queueMicrotask(() => setMounted(true));
   }, []);
 
-  const layout = useMemo(() => layoutSaltos(graph.nodes, graph.edges, graph.establishment.id), [graph]);
-  const byId = useMemo(() => new Map(graph.nodes.map((n) => [n.id, n])), [graph.nodes]);
-  const parentOf = useMemo(() => new Map(graph.edges.map((e) => [e.to, e.from])), [graph.edges]);
-  const bestPadrino = useMemo(() => bestPadrinoId(graph.nodes, graph.edges), [graph.nodes, graph.edges]);
-
   const [nowMs] = useState(() => Date.now());
   const expiringIds = useMemo(
     () => new Set(graph.nodes.filter((n) => isExpiringSoon(n.expiresAt, nowMs)).map((n) => n.id)),
     [graph.nodes, nowMs],
   );
-
-  // Cadenas vivas: aristas cuyo hijo ya es facturable, con partícula viajera. Un tope
-  // razonable, no por esconder datos -todo nodo/arista se pinta igual- sino porque un
-  // enjambre de puntos no se lee mejor que unos pocos.
-  const alivePulses = useMemo(() => {
-    const billableIds = new Set(graph.nodes.filter((n) => n.state === "billable").map((n) => n.id));
-    return graph.edges.filter((e) => billableIds.has(e.to)).slice(0, MAX_ALIVE_PULSES);
-  }, [graph.nodes, graph.edges]);
 
   const hud = useMemo(() => {
     const realInvites = graph.edges.filter((e) => e.from !== graph.establishment.id);
@@ -158,14 +145,20 @@ export function SaltosMap({ graph, shopName, locale, t }: { graph: GiftGraph; sh
   }, [graph.nodes]);
   const funnelTotal = useMemo(() => [...funnelCounts.values()].reduce((a, b) => a + b, 0), [funnelCounts]);
 
-  const customerCount = useMemo(() => graph.nodes.filter((n) => !n.id.startsWith("inv:")).length, [graph.nodes]);
+  const customerCount = useMemo(() => graph.nodes.filter((n) => n.claimed).length, [graph.nodes]);
 
-  const half = layout.extent + LABEL_PAD + PAN_ROOM;
+  // Encuadre automático: el radio del contenido -arco incluido, el elemento
+  // más lejano de todos- ocupa el 88% de la dimensión menor del viewport.
+  // Un viewBox cuadrado con "xMidYMid meet" ya reparte eso solo en cualquier
+  // proporción de pantalla, así que no hace falta recalcular en el resize:
+  // es una propiedad de cómo SVG escala un viewBox, no algo que dependa de
+  // los píxeles reales del contenedor.
+  const arcRadius = layout.maxNodeReach * ARC_RADIUS_FACTOR;
+  const contentRadius = funnelTotal > 0 ? arcRadius + ARC_LABEL_PAD : layout.maxNodeReach + 24;
+  const half = contentRadius / FIT_FRACTION;
   const size = half * 2;
-  const funnelRadius = layout.extent + 34;
-  const fitScale = computeFitScale(Math.min(layout.extent, RING_STEP * DEFAULT_FIT_RINGS), half, MIN_SCALE, MAX_SCALE);
 
-  const [pan, setPan] = useState<Pan>(() => ({ x: 0, y: 0, scale: fitScale }));
+  const [pan, setPan] = useState<Pan>({ x: 0, y: 0, scale: 1 });
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [legendOpen, setLegendOpen] = useState(true);
 
@@ -190,21 +183,9 @@ export function SaltosMap({ graph, shopName, locale, t }: { graph: GiftGraph; sh
   }, [selectedNode, parentOf, byId, graph.establishment]);
 
   const svgRef = useRef<SVGSVGElement>(null);
-  const nodeRefs = useRef(new Map<string, SVGGElement>());
-  const linkRefs = useRef(new Map<string, SVGPathElement>());
-  const particleRefs = useRef(new Map<string, SVGCircleElement>());
-  const pulseRefs = useRef(new Map<string, SVGCircleElement>());
-  const livePos = useRef(new Map<string, LiveXY>());
-
-  const rotRef = useRef(0);
-  const sinceInteractionRef = useRef(ROTATE_RESUME_DELAY_SEC);
-  const clockRef = useRef(0);
-  const pulsePhaseRef = useRef(new Map(alivePulses.map((e) => [`${e.from}>${e.to}`, hash01(`${e.from}>${e.to}`)])));
-
   const pointers = useRef(new Map<number, PointerState>());
   const dragOrigin = useRef<{ pan: Pan; mid: PointerState; dist: number } | null>(null);
   const tapCandidate = useRef<{ pointerId: number; nodeId: string | null; down: PointerPoint } | null>(null);
-  const [interacting, setInteracting] = useState(false);
 
   function viewPoint(clientX: number, clientY: number) {
     const rect = svgRef.current!.getBoundingClientRect();
@@ -223,7 +204,6 @@ export function SaltosMap({ graph, shopName, locale, t }: { graph: GiftGraph; sh
   function onPointerDown(event: React.PointerEvent<SVGSVGElement>) {
     event.currentTarget.setPointerCapture(event.pointerId);
     pointers.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
-    setInteracting(true);
 
     if (pointers.current.size === 1) {
       dragOrigin.current = { pan, mid: { x: event.clientX, y: event.clientY }, dist: 0 };
@@ -276,8 +256,6 @@ export function SaltosMap({ graph, shopName, locale, t }: { graph: GiftGraph; sh
 
     if (pointers.current.size === 0) {
       dragOrigin.current = null;
-      sinceInteractionRef.current = 0;
-      setInteracting(false);
       if (pending && pending.pointerId === event.pointerId) {
         const up: PointerPoint = { x: event.clientX, y: event.clientY, t: Date.now() };
         if (isTap(pending.down, up)) {
@@ -292,14 +270,6 @@ export function SaltosMap({ graph, shopName, locale, t }: { graph: GiftGraph; sh
     }
   }
 
-  // Zoom anclado al centro de la pantalla: en las unidades de "vista" que usa
-  // zoomAtPoint, el centro de la pantalla siempre es (0,0) -no depende del pan
-  // actual-, así que esto sirve igual para la barra que para los botones +/-.
-  function setScaleAtCenter(nextScale: number) {
-    setPan((prev) => zoomAtPoint(prev, 0, 0, nextScale / prev.scale, MIN_SCALE, MAX_SCALE));
-    sinceInteractionRef.current = 0;
-  }
-
   // React registra los listeners de wheel como pasivos: preventDefault() ahí no evita
   // el scroll nativo. Hace falta un listener nativo con { passive: false }.
   useEffect(() => {
@@ -310,108 +280,35 @@ export function SaltosMap({ graph, shopName, locale, t }: { graph: GiftGraph; sh
       const factor = Math.exp(-event.deltaY * 0.0015);
       const point = viewPoint(event.clientX, event.clientY);
       setPan((prev) => zoomAtPoint(prev, point.x, point.y, factor, MIN_SCALE, MAX_SCALE));
-      sinceInteractionRef.current = 0;
     }
     svg.addEventListener("wheel", onWheel, { passive: false });
     return () => svg.removeEventListener("wheel", onWheel);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Bucle de animación: rotación ambiental lentísima, vaivén propio por nodo y la
-  // partícula que recorre las cadenas ya facturables. Todo por refs -nunca setState
-  // por frame- para no repintar React sesenta veces por segundo.
-  useEffect(() => {
-    let raf = 0;
-    let last = performance.now();
-
-    function tick(now: number) {
-      const deltaSec = Math.min(0.05, (now - last) / 1000);
-      last = now;
-      clockRef.current += deltaSec;
-      sinceInteractionRef.current += deltaSec;
-
-      if (!reducedMotion && !interacting && sinceInteractionRef.current > ROTATE_RESUME_DELAY_SEC) {
-        rotRef.current += ROTATE_SPEED * deltaSec;
-      }
-
-      for (const pt of layout.points.values()) {
-        const xy = liveXY(pt.angle, pt.ringRadius, pt.depth, pt.id, rotRef.current, clockRef.current, reducedMotion);
-        livePos.current.set(pt.id, xy);
-        const g = nodeRefs.current.get(pt.id);
-        if (g) g.setAttribute("transform", `translate(${xy.x.toFixed(2)},${xy.y.toFixed(2)})`);
-      }
-
-      for (const link of layout.links) {
-        const key = `${link.fromId}>${link.toId}`;
-        const path = linkRefs.current.get(key);
-        if (!path) continue;
-        const from = layout.points.get(link.fromId);
-        const to = layout.points.get(link.toId);
-        const p0 = livePos.current.get(link.fromId);
-        const p1 = livePos.current.get(link.toId);
-        if (!from || !to || !p0 || !p1) continue;
-
-        const midR = (from.ringRadius + to.ringRadius) / 2;
-        const a0 = from.depth === 0 ? to.angle + rotRef.current : from.angle + rotRef.current;
-        const a1 = to.angle + rotRef.current;
-        const c1 = { x: midR * Math.cos(a0), y: midR * Math.sin(a0) };
-        const c2 = { x: midR * Math.cos(a1), y: midR * Math.sin(a1) };
-        path.setAttribute(
-          "d",
-          `M${p0.x.toFixed(2)},${p0.y.toFixed(2)} C${c1.x.toFixed(2)},${c1.y.toFixed(2)} ${c2.x.toFixed(2)},${c2.y.toFixed(2)} ${p1.x.toFixed(2)},${p1.y.toFixed(2)}`,
-        );
-
-        const dot = particleRefs.current.get(key);
-        if (dot && !reducedMotion) {
-          let phase = pulsePhaseRef.current.get(key) ?? 0;
-          phase += deltaSec * 0.11;
-          if (phase > 1) phase -= 1;
-          pulsePhaseRef.current.set(key, phase);
-          const along = bezierPoint(p0, c1, c2, p1, phase);
-          dot.setAttribute("cx", along.x.toFixed(2));
-          dot.setAttribute("cy", along.y.toFixed(2));
-          dot.setAttribute("opacity", (Math.sin(phase * Math.PI) * 0.85).toFixed(2));
-        }
-      }
-
-      if (!reducedMotion) {
-        for (const id of expiringIds) {
-          const ring = pulseRefs.current.get(id);
-          const pt = layout.points.get(id);
-          if (!ring || !pt) continue;
-          const pulse = 0.5 + 0.5 * Math.sin(clockRef.current * EXPIRING_PULSE_SPEED);
-          ring.setAttribute("r", (pt.nodeRadius + 3 + pulse * 7).toFixed(2));
-          ring.setAttribute("opacity", (0.15 + pulse * 0.5).toFixed(2));
-        }
-      }
-
-      raf = requestAnimationFrame(tick);
-    }
-
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-  }, [layout, reducedMotion, interacting, expiringIds]);
-
   function resetView() {
-    setPan({ x: 0, y: 0, scale: fitScale });
+    setPan({ x: 0, y: 0, scale: 1 });
     setSelectedId(null);
   }
 
   return (
     <div className="fixed inset-0 aurora-night text-chalk">
       <style>{`
-        @keyframes saltos-pulse { 0% { r: ${ESTABLISHMENT_RADIUS}px; opacity: 0.5; } 100% { r: ${ESTABLISHMENT_RADIUS + layout.extent * 0.55}px; opacity: 0; } }
+        @keyframes saltos-hub-pulse { 0% { transform: scale(1); opacity: 0.5; } 100% { transform: scale(2.4); opacity: 0; } }
         @keyframes saltos-flow { to { stroke-dashoffset: -24; } }
-        @keyframes saltos-breathe { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
-        .saltos-hub-pulse { animation: saltos-pulse 3.6s cubic-bezier(0.2,0.6,0.4,1) infinite; }
+        @keyframes saltos-alert-pulse { 0%, 100% { transform: scale(1); opacity: 0.2; } 50% { transform: scale(1.35); opacity: 0.7; } }
+        .saltos-hub-pulse { transform-origin: center; transform-box: fill-box; animation: saltos-hub-pulse 3.6s cubic-bezier(0.2,0.6,0.4,1) infinite; }
         .saltos-dashed { stroke-dasharray: 3 3; animation: saltos-flow 3.4s linear infinite; }
-        .saltos-ring { animation: saltos-breathe 6s ease-in-out infinite; }
-        ${reducedMotion ? ".saltos-hub-pulse,.saltos-dashed,.saltos-ring{animation:none}" : ""}
+        .saltos-alert-ring { transform-origin: center; transform-box: fill-box; animation: saltos-alert-pulse 1.9s ease-in-out infinite; }
+        @media (prefers-reduced-motion: reduce) {
+          .saltos-hub-pulse, .saltos-dashed, .saltos-alert-ring { animation: none; }
+        }
       `}</style>
 
       <svg
         ref={svgRef}
         viewBox={`${-half} ${-half} ${size} ${size}`}
+        preserveAspectRatio="xMidYMid meet"
         className="h-dvh w-full touch-none select-none"
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
@@ -434,22 +331,9 @@ export function SaltosMap({ graph, shopName, locale, t }: { graph: GiftGraph; sh
         </defs>
 
         <g transform={`translate(${pan.x} ${pan.y}) scale(${pan.scale})`}>
-          {Array.from({ length: layout.maxDepth }, (_, index) => {
-            const depth = index + 1;
-            return (
-              <circle
-                key={depth}
-                className="saltos-ring"
-                cx={0}
-                cy={0}
-                r={depth * RING_STEP}
-                fill="none"
-                stroke={depth % 2 === 1 ? "rgba(245,247,245,0.035)" : "rgba(245,247,245,0.06)"}
-                strokeWidth={RING_STEP}
-                style={{ animationDelay: `${depth * 0.5}s` }}
-              />
-            );
-          })}
+          {Array.from(layout.ringRadiusByDepth.entries()).map(([depth, r]) => (
+            <circle key={depth} cx={0} cy={0} r={r} fill="none" stroke="rgba(255,255,255,.07)" strokeDasharray="1 7" strokeLinecap="round" />
+          ))}
 
           {funnelTotal > 0
             ? (() => {
@@ -462,11 +346,11 @@ export function SaltosMap({ graph, shopName, locale, t }: { graph: GiftGraph; sh
                   const span = ((Math.PI * 2 - 0.3) * count) / funnelTotal;
                   const a1 = cursor + span - GAP;
                   const mid = (cursor + a1) / 2;
-                  const labelR = funnelRadius + 11;
+                  const labelR = arcRadius + 11;
                   arcs.push(
                     <path
                       key={state}
-                      d={arcPath(cursor, a1, funnelRadius)}
+                      d={arcPath(cursor, a1, arcRadius)}
                       fill="none"
                       stroke={STATE_LINE_COLOR[state]}
                       strokeWidth={4.5}
@@ -493,11 +377,12 @@ export function SaltosMap({ graph, shopName, locale, t }: { graph: GiftGraph; sh
               })()
             : null}
 
-          <circle className="saltos-hub-pulse" cx={0} cy={0} fill="none" stroke="var(--color-lime)" strokeWidth={2} />
+          <circle className="saltos-hub-pulse" cx={0} cy={0} r={ESTABLISHMENT_RADIUS} fill="none" stroke="var(--color-lime)" strokeWidth={2} />
           <circle
             className="saltos-hub-pulse"
             cx={0}
             cy={0}
+            r={ESTABLISHMENT_RADIUS}
             fill="none"
             stroke="var(--color-lime)"
             strokeWidth={2}
@@ -507,13 +392,12 @@ export function SaltosMap({ graph, shopName, locale, t }: { graph: GiftGraph; sh
           {layout.links.map((link) => {
             const toNode = byId.get(link.toId);
             const alive = toNode?.state === "billable";
+            const d = linkPath(layout, positions, link.fromId, link.toId);
+            if (!d) return null;
             return (
               <path
                 key={`${link.fromId}>${link.toId}`}
-                ref={(el) => {
-                  if (el) linkRefs.current.set(`${link.fromId}>${link.toId}`, el);
-                  else linkRefs.current.delete(`${link.fromId}>${link.toId}`);
-                }}
+                d={d}
                 fill="none"
                 stroke={toNode ? STATE_LINE_COLOR[toNode.state] : "rgba(245,247,245,0.22)"}
                 strokeOpacity={selectedId ? (ancestors.has(link.toId) ? 0.9 : 0.06) : alive ? 0.55 : 0.22}
@@ -524,30 +408,7 @@ export function SaltosMap({ graph, shopName, locale, t }: { graph: GiftGraph; sh
             );
           })}
 
-          {alivePulses.map((edge) => {
-            const key = `${edge.from}>${edge.to}`;
-            return (
-              <circle
-                key={key}
-                ref={(el) => {
-                  if (el) particleRefs.current.set(key, el);
-                  else particleRefs.current.delete(key);
-                }}
-                r={2.1}
-                fill="var(--color-chalk)"
-                opacity={0}
-              />
-            );
-          })}
-
-          <g
-            data-node-id={graph.establishment.id}
-            ref={(el) => {
-              if (el) nodeRefs.current.set(graph.establishment.id, el);
-              else nodeRefs.current.delete(graph.establishment.id);
-            }}
-            className="cursor-pointer"
-          >
+          <g data-node-id={graph.establishment.id} className="cursor-pointer">
             <circle cx={0} cy={0} r={ESTABLISHMENT_RADIUS * 2.3} fill="url(#saltos-hub-glow)" />
             <circle cx={0} cy={0} r={ESTABLISHMENT_RADIUS} fill="var(--color-lime)" />
             <text y={-2} textAnchor="middle" dominantBaseline="middle" fontSize={13} fontWeight={800} fill="var(--color-ink)">
@@ -560,38 +421,29 @@ export function SaltosMap({ graph, shopName, locale, t }: { graph: GiftGraph; sh
 
           {graph.nodes.map((node) => {
             const pt = layout.points.get(node.id);
-            if (!pt) return null;
+            const pos = positions.get(node.id);
+            if (!pt || !pos) return null;
             const isSelected = node.id === selectedId;
             const isAncestor = ancestors.has(node.id);
             const dimmed = selectedId != null && !isSelected && !isAncestor;
-            const isPending = node.state === "sent";
+            // Sin identidad todavía -invitación sin reclamar-: siempre en
+            // contorno, nunca relleno, y jamás con nombre a la vista.
+            const isPending = !node.claimed;
             const isBest = node.id === bestPadrino;
             const isExpiringNode = expiringIds.has(node.id);
             const color = STATE_LINE_COLOR[node.state];
-            const showLabel = pan.scale >= LABEL_VISIBLE_SCALE || isSelected || isAncestor;
+            const showLabel = node.claimed && (pan.scale >= LABEL_VISIBLE_SCALE || isSelected || isAncestor);
 
             return (
               <g
                 key={node.id}
                 data-node-id={node.id}
-                ref={(el) => {
-                  if (el) nodeRefs.current.set(node.id, el);
-                  else nodeRefs.current.delete(node.id);
-                }}
                 className="cursor-pointer"
                 opacity={dimmed ? 0.12 : 1}
+                transform={`translate(${pos.x.toFixed(2)},${pos.y.toFixed(2)})`}
               >
                 {isExpiringNode ? (
-                  <circle
-                    ref={(el) => {
-                      if (el) pulseRefs.current.set(node.id, el);
-                      else pulseRefs.current.delete(node.id);
-                    }}
-                    r={pt.nodeRadius + 4}
-                    fill="none"
-                    stroke="var(--color-coral)"
-                    strokeWidth={1.2}
-                  />
+                  <circle className="saltos-alert-ring" r={pt.nodeRadius + 4} fill="none" stroke="var(--color-coral)" strokeWidth={1.2} />
                 ) : null}
                 {isBest ? <circle r={pt.nodeRadius * 2.1} fill="var(--color-amber)" fillOpacity={0.16} filter="url(#saltos-soft)" /> : null}
 
@@ -606,17 +458,19 @@ export function SaltosMap({ graph, shopName, locale, t }: { graph: GiftGraph; sh
                 )}
                 <circle r={Math.max(pt.nodeRadius + 7, 14)} fill="transparent" />
 
-                <text
-                  y={pt.nodeRadius + 10}
-                  textAnchor="middle"
-                  fontSize={9}
-                  fontWeight={500}
-                  fill="rgba(245,247,245,0.86)"
-                  opacity={showLabel ? 1 : 0}
-                  style={{ transition: "opacity 0.2s" }}
-                >
-                  {node.name}
-                </text>
+                {node.claimed ? (
+                  <text
+                    y={pt.nodeRadius + 10}
+                    textAnchor="middle"
+                    fontSize={9}
+                    fontWeight={500}
+                    fill="rgba(245,247,245,0.86)"
+                    opacity={showLabel ? 1 : 0}
+                    style={{ transition: "opacity 0.2s" }}
+                  >
+                    {node.name}
+                  </text>
+                ) : null}
               </g>
             );
           })}
@@ -641,16 +495,6 @@ export function SaltosMap({ graph, shopName, locale, t }: { graph: GiftGraph; sh
           <CountUpStat value={hud.maxHops} label={t.admin.maxHops} active={mounted} />
         </div>
       </header>
-
-      <ZoomSlider
-        scale={pan.scale}
-        min={MIN_SCALE}
-        max={MAX_SCALE}
-        onChange={setScaleAtCenter}
-        zoomInLabel={t.admin.zoomIn}
-        zoomOutLabel={t.admin.zoomOut}
-        levelLabel={t.admin.zoomLevel}
-      />
 
       {legendOpen ? (
         <div className="glass-dark pointer-events-none fixed bottom-[7.5rem] left-3 z-20 max-w-[13rem] rounded-[var(--radius-card)] p-3.5">

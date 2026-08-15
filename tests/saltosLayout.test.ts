@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { computeFitScale, layoutSaltos } from "@/lib/giftGraph/saltosLayout";
+import { ESTABLISHMENT_RADIUS, layoutSaltos } from "@/lib/giftGraph/saltosLayout";
 import type { Edge, Node } from "@/lib/giftGraph/types";
 
 const SHOP = "shop";
@@ -8,6 +8,7 @@ function node(id: string, stamps = 0): Node {
   return {
     id,
     name: id,
+    claimed: true,
     depth: 1,
     rootId: id,
     state: "billable",
@@ -67,6 +68,7 @@ describe("layoutSaltos", () => {
     expect(layout.points.size).toBe(1);
     expect(layout.links).toHaveLength(0);
     expect(layout.maxDepth).toBe(0);
+    expect(layout.maxNodeReach).toBe(ESTABLISHMENT_RADIUS);
   });
 
   it("una rama con más descendencia recibe un arco angular mayor", () => {
@@ -102,37 +104,30 @@ describe("layoutSaltos", () => {
     expect(layout.links).toContainEqual({ fromId: SHOP, toId: "pau" });
     expect(layout.links).toContainEqual({ fromId: "pau", toId: "chris" });
   });
-});
 
-describe("computeFitScale", () => {
-  const MIN = 0.5;
-  const MAX = 3.5;
+  it("un anillo con muchos nodos crece para darles sitio, uno con pocos no", () => {
+    const crowdedNodes = Array.from({ length: 30 }, (_, i) => node(`c${i}`));
+    const crowdedEdges = crowdedNodes.map((n) => edge(SHOP, n.id));
+    const crowded = layoutSaltos(crowdedNodes, crowdedEdges, SHOP);
 
-  it("con poca profundidad hace zoom in, no deja aire de sobra", () => {
-    const half = 84 + 64 + 200; // un solo anillo (RING_STEP) + paddings
-    const scale = computeFitScale(84, half, MIN, MAX);
-    expect(scale).toBeGreaterThan(1);
+    const quietNodes = [node("solo")];
+    const quiet = layoutSaltos(quietNodes, [edge(SHOP, "solo")], SHOP);
+
+    expect(crowded.ringRadiusByDepth.get(1)!).toBeGreaterThan(quiet.ringRadiusByDepth.get(1)!);
   });
 
-  it("con cadenas largas no supera el máximo permitido", () => {
-    const extent = 84 * 8; // ocho saltos de profundidad
-    const half = extent + 64 + 200;
-    const scale = computeFitScale(extent, half, MIN, MAX);
-    expect(scale).toBeLessThanOrEqual(MAX);
-    expect(scale).toBeGreaterThanOrEqual(MIN);
+  it("nunca amontona: el arco disponible por nodo alcanza para todos", () => {
+    const nodes = Array.from({ length: 50 }, (_, i) => node(`n${i}`));
+    const edges = nodes.map((n) => edge(SHOP, n.id));
+    const layout = layoutSaltos(nodes, edges, SHOP);
+    const r1 = layout.ringRadiusByDepth.get(1)!;
+    // Circunferencia del anillo >= 15 unidades por nodo (el mínimo que pide el layout).
+    expect(2 * Math.PI * r1).toBeGreaterThanOrEqual(50 * 15 - 1); // -1 por redondeo de coma flotante
   });
 
-  it("un grafo vacío no revienta ni da una escala absurda", () => {
-    const half = 0 + 64 + 200;
-    const scale = computeFitScale(0, half, MIN, MAX);
-    expect(Number.isNaN(scale)).toBe(false);
-    expect(scale).toBeGreaterThanOrEqual(MIN);
-    expect(scale).toBeLessThanOrEqual(MAX);
-  });
-
-  it("más ramificación (extent mayor) nunca da más zoom que menos ramificación", () => {
-    const shallow = computeFitScale(84, 84 + 64 + 200, MIN, MAX);
-    const deep = computeFitScale(84 * 5, 84 * 5 + 64 + 200, MIN, MAX);
-    expect(deep).toBeLessThanOrEqual(shallow);
+  it("maxNodeReach incluye el radio de la propia burbuja, no solo el anillo", () => {
+    const layout = layoutSaltos([node("full", 20)], [edge(SHOP, "full")], SHOP);
+    const full = point(layout, "full");
+    expect(layout.maxNodeReach).toBeGreaterThanOrEqual(full.ringRadius + full.nodeRadius);
   });
 });

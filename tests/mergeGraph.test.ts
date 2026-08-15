@@ -8,6 +8,7 @@ function node(id: string, depth: number, rootId: string, childCount = 0, loadedC
   return {
     id,
     name: id,
+    claimed: true,
     depth,
     rootId,
     state: "billable" as const,

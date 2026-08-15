@@ -18,6 +18,14 @@ export type Node = {
   /** Id del cliente que inició esa cadena (un nodo de depth 1). */
   rootId: string;
   state: NodeState;
+  /**
+   * Si tiene identidad real -nombre, ficha propia- o es solo una invitación
+   * sin reclamar. `createInvitation` no pide el nombre de a quién se invita
+   * -eso llega en el claim-, así que un nodo sin reclamar no tiene nombre
+   * que enseñar: nunca en el mapa, y en la ficha se sustituye por un texto
+   * genérico. false solo para invitaciones sent/opened/expired sin claimed_by.
+   */
+  claimed: boolean;
   /** Cafés consumidos hasta ahora. 0 si todavía no es cliente (sent/opened). */
   stamps: number;
   /** Cuándo canjeó su primer café. null si todavía no es cliente. */

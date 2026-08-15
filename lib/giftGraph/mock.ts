@@ -254,6 +254,10 @@ function buildGraph(): GiftGraph {
       depth,
       rootId,
       state: spec.state,
+      // Los nombres de este mock son ficticios y siempre "conocidos" -a
+      // diferencia del grafo real, donde una invitación sin reclamar
+      // todavía no tiene identidad.
+      claimed: true,
       stamps: customer ? (spec.stamps ?? 0) : 0,
       redeemedAt: customer ? lastActivityAt : null,
       returnedAt: hasReturned(spec.state) ? lastActivityAt : null,

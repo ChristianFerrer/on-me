@@ -56,6 +56,7 @@ describe("layoutSphere", () => {
       {
         id: "solo",
         name: "Solo",
+        claimed: true,
         depth: 1,
         rootId: "solo",
         state: "billable",

@@ -14,7 +14,8 @@ const ESTABLISHMENT_ID = "shop";
  *
  * - Una invitación sin reclamar todavía no tiene nombre -createInvitation no
  *   pide el nombre de a quién se invita, eso llega en el claim-, así que ese
- *   nodo se etiqueta con el propio código de la invitación.
+ *   nodo va con `claimed: false` y sin nombre. El código de invitación es un
+ *   dato interno: no debe verse nunca en el mapa ni en la ficha.
  * - Un cliente sin padrino (alta directa por QR, no por invitación) no forma
  *   parte de ningún salto. Se enseña como raíz neutra SOLO si además ha
  *   invitado a alguien -si no, no aporta nada a un mapa de referidos y
@@ -101,6 +102,7 @@ export async function loadRealGiftGraph(shopId: string, establishmentName: strin
       return {
         id,
         name: names.get(id) ?? "—",
+        claimed: true,
         depth,
         rootId,
         state,
@@ -114,7 +116,8 @@ export async function loadRealGiftGraph(shopId: string, establishmentName: strin
       };
     }
 
-    // Invitación todavía sin reclamar: no hay nombre, solo el código.
+    // Invitación todavía sin reclamar: sin nombre -nunca el código, es un
+    // dato interno-. El sheet sustituye el nombre por un texto genérico.
     const inv = invByChildId.get(id);
     if (!inv) throw new Error(`nodo de saltos sin invitación ni cliente: ${id}`);
 
@@ -124,7 +127,8 @@ export async function loadRealGiftGraph(shopId: string, establishmentName: strin
 
     return {
       id,
-      name: inv.code,
+      name: "",
+      claimed: false,
       depth,
       rootId,
       state,

@@ -45,6 +45,7 @@ describe("bestPadrinoId", () => {
     return {
       id,
       name: id,
+      claimed: true,
       depth: 1,
       rootId: id,
       state,
