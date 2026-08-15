@@ -36,6 +36,22 @@ const PULSE_DOT_R = 1.9;
 const RECENT_REDEMPTION_MS = 30 * 24 * 60 * 60 * 1000;
 
 /**
+ * Efecto "escena espacial": el fondo de estrellas se desplaza con la
+ * inclinación del móvil -o con el cursor en escritorio, que no tiene
+ * giroscopio- dando sensación de profundidad, como el fondo animado del
+ * springboard de iOS. Solo toca la capa decorativa de estrellas, nunca la
+ * constelación interactiva: mover el grafo con el gesto habría interferido
+ * con el propio toque/pellizco que ya usa esos mismos dedos.
+ */
+const PARALLAX_MAX_SHIFT = 14;
+const PARALLAX_EASE = 0.08;
+const PARALLAX_TILT_RANGE_DEG = 20;
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
+}
+
+/**
  * Orden narrativo del arco perimetral, del peor al mejor en sentido horario:
  * enviada → caducada → abierta → en ventana → facturable. "discarded" no
  * aparece en la especificación -no tiene hueco en ese embudo de 5 estados-
@@ -52,6 +68,12 @@ const FUNNEL_ORDER: NodeState[] = ["sent", "expired", "opened", "window", "billa
  * de invitación propio) que la paleta del proyecto no tiene en morado o
  * lavanda. Overrides solo aquí; STATE_LINE_COLOR/STATE_BADGE_SKIN de
  * stateBadge.ts se quedan como están para no desincronizar el embudo real.
+ *
+ * "en ventana" y "descartada" compartían el mismo slate que "enviada" en
+ * STATE_LINE_COLOR -de un vistazo se confundían los tres-, así que aquí se
+ * separan en tres tonos bien distintos: enviada se queda en slate (neutro,
+ * "todavía nada"), en ventana pasa a azure (en curso) y descartada a teal
+ * (el tercer tono frío que quedaba libre, ya que abierta le quitó el suyo).
  */
 const SALTOS_OPENED_COLOR = "var(--color-amber)";
 /** Sustituye a --padrino (#cfcadd) de la especificación: no hay token morado/lavanda en el proyecto. */
@@ -60,6 +82,8 @@ const SALTOS_PADRINO_COLOR = "rgba(245, 247, 245, 0.55)";
 const SALTOS_STATE_COLOR: Record<NodeState, string> = {
   ...STATE_LINE_COLOR,
   opened: SALTOS_OPENED_COLOR,
+  window: "var(--color-azure)",
+  discarded: "var(--color-teal)",
 };
 
 function saltosNodeColor(node: Node): string {
@@ -309,6 +333,52 @@ export function SaltosMap({
   const pausedRef = useRef(false);
   const resumeTimer = useRef<number | null>(null);
 
+  // Paralaje del fondo de estrellas: objetivo -lo que dice el sensor/ratón
+  // ahora mismo- y valor ya suavizado -lo que de verdad se pinta-, para que
+  // el ruido del giroscopio no tiemble.
+  const starGroupRef = useRef<SVGGElement>(null);
+  const tiltTargetRef = useRef({ x: 0, y: 0 });
+  const tiltRef = useRef({ x: 0, y: 0 });
+  const orientationBaselineRef = useRef<{ beta: number; gamma: number } | null>(null);
+  const orientationAttachedRef = useRef(false);
+  const orientationRequestedRef = useRef(false);
+
+  function handleOrientation(event: DeviceOrientationEvent) {
+    if (event.beta == null || event.gamma == null) return;
+    // Calibra contra la primera lectura: da igual el ángulo con el que se
+    // sostenga el móvil al entrar, el paralaje parte siempre de cero.
+    orientationBaselineRef.current ??= { beta: event.beta, gamma: event.gamma };
+    const base = orientationBaselineRef.current;
+    const dGamma = clamp(event.gamma - base.gamma, -PARALLAX_TILT_RANGE_DEG, PARALLAX_TILT_RANGE_DEG);
+    const dBeta = clamp(event.beta - base.beta, -PARALLAX_TILT_RANGE_DEG, PARALLAX_TILT_RANGE_DEG);
+    tiltTargetRef.current = {
+      x: (dGamma / PARALLAX_TILT_RANGE_DEG) * PARALLAX_MAX_SHIFT,
+      y: (dBeta / PARALLAX_TILT_RANGE_DEG) * PARALLAX_MAX_SHIFT,
+    };
+  }
+
+  function attachOrientation() {
+    if (orientationAttachedRef.current) return;
+    orientationAttachedRef.current = true;
+    window.addEventListener("deviceorientation", handleOrientation);
+  }
+
+  /** iOS 13+ exige un gesto real del usuario para pedir permiso del giroscopio: se llama desde el primer toque. */
+  function requestOrientationIfNeeded() {
+    if (orientationRequestedRef.current) return;
+    orientationRequestedRef.current = true;
+    const RequestableDeviceOrientationEvent = window.DeviceOrientationEvent as unknown as {
+      requestPermission?: () => Promise<"granted" | "denied">;
+    };
+    if (typeof RequestableDeviceOrientationEvent?.requestPermission === "function") {
+      RequestableDeviceOrientationEvent.requestPermission()
+        .then((state) => {
+          if (state === "granted") attachOrientation();
+        })
+        .catch(() => {});
+    }
+  }
+
   function pauseMotion() {
     pausedRef.current = true;
     if (resumeTimer.current != null) window.clearTimeout(resumeTimer.current);
@@ -322,9 +392,29 @@ export function SaltosMap({
 
   useEffect(() => {
     const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    if (reduceMotion) return; // sin rotación, sin bamboleo, sin pulsos: el pintado estático ya es el resultado final
+    if (reduceMotion) return; // sin rotación, sin bamboleo, sin pulsos, sin paralaje: el pintado estático ya es el resultado final
     let raf = 0;
     let pulseT = 0;
+
+    // Giroscopio: si el navegador no exige permiso explícito -todo menos
+    // iOS 13+- se puede escuchar ya mismo. En iOS hace falta un toque real
+    // del usuario, así que ahí espera a requestOrientationIfNeeded().
+    const RequestableDeviceOrientationEvent = window.DeviceOrientationEvent as unknown as {
+      requestPermission?: () => Promise<string>;
+    } | undefined;
+    if (RequestableDeviceOrientationEvent && typeof RequestableDeviceOrientationEvent.requestPermission !== "function") {
+      attachOrientation();
+    }
+
+    // Ratón en escritorio -sin giroscopio-: mismo efecto, pero solo cuando
+    // no se está arrastrando o pellizcando, para no competir con el pan.
+    function onMouseMove(event: MouseEvent) {
+      if (pointers.current.size > 0) return;
+      const nx = clamp((event.clientX - window.innerWidth / 2) / (window.innerWidth / 2), -1, 1);
+      const ny = clamp((event.clientY - window.innerHeight / 2) / (window.innerHeight / 2), -1, 1);
+      tiltTargetRef.current = { x: nx * PARALLAX_MAX_SHIFT, y: ny * PARALLAX_MAX_SHIFT };
+    }
+    window.addEventListener("mousemove", onMouseMove);
 
     function tick() {
       raf = requestAnimationFrame(tick);
@@ -359,17 +449,28 @@ export function SaltosMap({
         dotEl.setAttribute("cy", point.y.toFixed(2));
         dotEl.setAttribute("fill-opacity", pulseOpacity.toFixed(3));
       }
+
+      const tilt = tiltRef.current;
+      const target = tiltTargetRef.current;
+      tilt.x += (target.x - tilt.x) * PARALLAX_EASE;
+      tilt.y += (target.y - tilt.y) * PARALLAX_EASE;
+      starGroupRef.current?.setAttribute("transform", `translate(${tilt.x.toFixed(2)},${tilt.y.toFixed(2)})`);
     }
 
     raf = requestAnimationFrame(tick);
     return () => {
       cancelAnimationFrame(raf);
       if (resumeTimer.current != null) window.clearTimeout(resumeTimer.current);
+      window.removeEventListener("mousemove", onMouseMove);
+      if (orientationAttachedRef.current) window.removeEventListener("deviceorientation", handleOrientation);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [layout]);
 
   function viewPoint(clientX: number, clientY: number) {
-    const rect = svgRef.current!.getBoundingClientRect();
+    const svg = svgRef.current;
+    if (!svg) return { x: 0, y: 0 };
+    const rect = svg.getBoundingClientRect();
     const base = Math.min(rect.width, rect.height);
     return {
       x: pixelsToUnits(clientX - rect.left - rect.width / 2, base, size),
@@ -377,16 +478,37 @@ export function SaltosMap({
     };
   }
   function deltaToView(dx: number, dy: number) {
-    const rect = svgRef.current!.getBoundingClientRect();
+    const svg = svgRef.current;
+    if (!svg) return { x: 0, y: 0 };
+    const rect = svg.getBoundingClientRect();
     const base = Math.min(rect.width, rect.height);
     return { x: pixelsToUnits(dx, base, size), y: pixelsToUnits(dy, base, size) };
   }
 
+  /** Punto medio y distancia entre los dos primeros punteros activos -siempre los mismos dos mientras no cambien-. */
+  function pinchAnchor(): { mid: PointerState; dist: number } {
+    const [a, b] = [...pointers.current.values()];
+    return { mid: { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }, dist: Math.hypot(a.x - b.x, a.y - b.y) };
+  }
+
   function onPointerDown(event: React.PointerEvent<SVGSVGElement>) {
-    event.currentTarget.setPointerCapture(event.pointerId);
+    try {
+      // El navegador puede haber invalidado ya este puntero -un
+      // tap/suelta muy rápidos, un gesto que el sistema interrumpió a
+      // media pulsación- justo antes de que este handler llegue a
+      // ejecutarse: setPointerCapture lanza NotFoundError en ese caso.
+      // Sin este try/catch, esa excepción abortaba el resto de la
+      // función y dejaba pointers.current a medio actualizar -la
+      // "gestión de dedos" empezaba a desincronizarse desde ahí.
+      event.currentTarget.setPointerCapture(event.pointerId);
+    } catch {
+      // Sigue sin captura: el pan/pellizco funciona igual mientras el
+      // dedo no salga del propio SVG, que es el caso normal.
+    }
     pointers.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
     setTouched(true);
     pauseMotion();
+    requestOrientationIfNeeded();
 
     if (pointers.current.size === 1) {
       dragOrigin.current = { pan, mid: { x: event.clientX, y: event.clientY }, dist: 0 };
@@ -397,14 +519,15 @@ export function SaltosMap({
         nodeId: nodeEl?.getAttribute("data-node-id") ?? null,
         down: { x: event.clientX, y: event.clientY, t: Date.now() },
       };
-    } else if (pointers.current.size === 2) {
+    } else {
+      // Dos dedos o más: siempre reancla al pan actual con los dos primeros
+      // punteros activos. Así, si aparece un tercer contacto -la palma
+      // apoyada, un dedo de más- el pellizco no se queda "colgado" con un
+      // ancla que ya no corresponde a los dedos que de verdad se mueven;
+      // cada dedo nuevo simplemente empieza un pellizco fresco desde donde
+      // está la vista ahora mismo.
       tapCandidate.current = null;
-      const [a, b] = [...pointers.current.values()];
-      dragOrigin.current = {
-        pan,
-        mid: { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 },
-        dist: Math.hypot(a.x - b.x, a.y - b.y),
-      };
+      dragOrigin.current = { pan, ...pinchAnchor() };
     }
   }
 
@@ -420,10 +543,8 @@ export function SaltosMap({
       return;
     }
 
-    if (pointers.current.size === 2) {
-      const [a, b] = [...pointers.current.values()];
-      const mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
-      const dist = Math.hypot(a.x - b.x, a.y - b.y);
+    if (pointers.current.size >= 2) {
+      const { mid, dist } = pinchAnchor();
       const { pan: startPan, mid: startMid, dist: startDist } = dragOrigin.current;
 
       const pivot = viewPoint(startMid.x, startMid.y);
@@ -451,7 +572,28 @@ export function SaltosMap({
     } else if (pointers.current.size === 1) {
       const [only] = [...pointers.current.entries()];
       dragOrigin.current = { pan, mid: { x: only[1].x, y: only[1].y }, dist: 0 };
+    } else {
+      // Quedan 2+ dedos -se soltó uno de tres o más-: reancla el pellizco a
+      // los que siguen tocando, por la misma razón que en onPointerDown.
+      dragOrigin.current = { pan, ...pinchAnchor() };
     }
+  }
+
+  /**
+   * Red de seguridad: si el navegador nunca llega a avisar de que un dedo
+   * se soltó -una interrupción del sistema a media gesto, el móvil se
+   * bloquea un instante, un pointercancel que no llega-, ese puntero se
+   * queda fantasma en `pointers.current` para siempre. Desde ahí, cada
+   * futuro toque cuenta uno de más: un solo dedo se lee como pellizco, y
+   * el gesto entero deja de responder bien -justo el "se bloquea" que
+   * reporta el problema. Se limpia entero ante cualquier señal de que la
+   * gestión normal de punteros pudo fallar.
+   */
+  function resetGesture() {
+    pointers.current.clear();
+    dragOrigin.current = null;
+    tapCandidate.current = null;
+    scheduleResumeMotion();
   }
 
   // React registra los listeners de wheel como pasivos: preventDefault() ahí no evita
@@ -467,6 +609,22 @@ export function SaltosMap({
     }
     svg.addEventListener("wheel", onWheel, { passive: false });
     return () => svg.removeEventListener("wheel", onWheel);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Otra parte de la misma red de seguridad: cambiar de app, recibir una
+  // llamada o que el sistema pida el foco a media pellizco puede interrumpir
+  // el gesto sin que el navegador llegue a avisar por pointerup/pointercancel.
+  useEffect(() => {
+    function onVisibilityChange() {
+      if (document.hidden) resetGesture();
+    }
+    window.addEventListener("blur", resetGesture);
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () => {
+      window.removeEventListener("blur", resetGesture);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -507,6 +665,7 @@ export function SaltosMap({
         onPointerUp={endPointer}
         onPointerCancel={endPointer}
         onPointerLeave={endPointer}
+        onLostPointerCapture={endPointer}
         onDoubleClick={resetView}
         role="img"
         aria-label={t.admin.referralMap}
@@ -522,10 +681,15 @@ export function SaltosMap({
           </filter>
         </defs>
 
-        {/* Fuera del grupo de zoom: no escala con el pellizco, como pide la especificación. */}
-        {stars.map((star, i) => (
-          <circle key={i} cx={star.x.toFixed(2)} cy={star.y.toFixed(2)} r={star.r.toFixed(2)} fill="var(--color-chalk)" fillOpacity={star.o.toFixed(2)} />
-        ))}
+        {/* Fuera del grupo de zoom: no escala con el pellizco, como pide la especificación.
+            El propio <g> sí se desplaza con la inclinación del móvil -paralaje-, pero por
+            ref en el bucle de rAF, nunca por React: no hace falta re-renderizar 60 veces
+            por segundo solo para mover el fondo decorativo. */}
+        <g ref={starGroupRef}>
+          {stars.map((star, i) => (
+            <circle key={i} cx={star.x.toFixed(2)} cy={star.y.toFixed(2)} r={star.r.toFixed(2)} fill="var(--color-chalk)" fillOpacity={star.o.toFixed(2)} />
+          ))}
+        </g>
 
         <g transform={`translate(${pan.x} ${pan.y}) scale(${pan.scale})`}>
           {Array.from(layout.ringRadiusByDepth.entries()).map(([depth, r]) => (
