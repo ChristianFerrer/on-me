@@ -4,13 +4,18 @@ import type { NodeState } from "@/lib/giftGraph/types";
 /**
  * Misma piel que ya usan los badges de /admin/atribuciones para los tres
  * estados que comparten (billable/window/discarded), extendida a los tres
- * que solo existen en el mapa. Una sola fuente para que el mapa, la ficha
- * y la leyenda no puedan desincronizarse entre sí ni se invente paleta.
+ * que solo existen en el mapa. Una sola fuente para que el embudo, la
+ * ficha y la leyenda del universo 3D no puedan desincronizarse entre sí.
  *
  * opened → azul del veredicto "redeem_invitation" del escáner (el
  * precedente más cercano: no tiene badge propio todavía). expired → coral
  * sólido, igual que la puerta "below" del embudo. sent → sin relleno,
  * a juego con el nodo wireframe del universo: todavía no es cliente.
+ *
+ * La constelación de /admin/atribuciones/mapa pinta "abierta" en ámbar por
+ * su propia especificación visual (SALTOS_STATE_COLOR en SaltosMap.tsx):
+ * ese override es solo de esa vista y no toca este mapa compartido, para
+ * no cambiar el color de "abierta" en el embudo real ni en el universo 3D.
  */
 export const STATE_BADGE_SKIN: Record<NodeState, string> = {
   billable: "bg-lime text-ink",

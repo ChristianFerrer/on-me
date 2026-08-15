@@ -3,12 +3,14 @@ import type { Edge, Node } from "@/lib/giftGraph/types";
 export type SaltosPoint = {
   id: string;
   depth: number;
-  /** Ángulo, en radianes. Estático: esta constelación no rota ni bambolea. */
+  /** Ángulo base, en radianes. La rotación global y el bamboleo se aplican encima, en el componente. */
   angle: number;
   /** Distancia radial desde el centro, ya resuelta por el anillo adaptativo de su profundidad. */
   ringRadius: number;
   /** Radio visual de la burbuja, por sellos. */
   nodeRadius: number;
+  /** Orden estable de aparición: semilla del bamboleo (freq/phase), no depende de un hash. */
+  index: number;
 };
 
 export type SaltosLink = { fromId: string; toId: string };
@@ -19,22 +21,24 @@ export type SaltosLayout = {
   maxDepth: number;
   /** Radio de anillo por profundidad (1..maxDepth), para dibujar las guías. */
   ringRadiusByDepth: Map<number, number>;
-  /** Cuánto ocupa el nodo más lejano -radio de anillo + su propia burbuja-, arco excluido. */
-  maxNodeReach: number;
+  /** Radio del arco del embudo: RING[maxDepth] * 1.18, nunca más lejos. */
+  arcRadius: number;
 };
 
-const MIN_NODE_R = 5;
-const MAX_NODE_R = 22;
-export const ESTABLISHMENT_RADIUS = 26;
+const NODE_R_BASE = 3.2;
+const MIN_NODE_R = 3.4;
+const MAX_NODE_R = 13;
+export const ESTABLISHMENT_RADIUS = 27;
 
 /** Cuánto arco de circunferencia (en unidades del viewBox) le hace falta a cada burbuja para no pisar a la de al lado. */
 const MIN_ARC_PER_NODE = 15;
 /** Separación mínima entre un anillo y el siguiente, aunque haya pocos nodos. */
-const MIN_RING_GAP = 48;
+const MIN_RING_GAP = 44;
+const ARC_RADIUS_FACTOR = 1.18;
 
 /** Radio de burbuja por sellos: crece en raíz, para que una tarjeta completa no aplaste al resto. */
 function nodeRadiusFor(stamps: number): number {
-  return Math.min(MAX_NODE_R, Math.max(MIN_NODE_R, MIN_NODE_R + 4.2 * Math.sqrt(Math.max(0, stamps))));
+  return Math.min(MAX_NODE_R, Math.max(MIN_NODE_R, NODE_R_BASE + 2.35 * Math.sqrt(Math.max(0, stamps))));
 }
 
 /**
@@ -109,20 +113,20 @@ export function layoutSaltos(nodes: Node[], edges: Edge[], establishmentId: stri
   }
 
   const points = new Map<string, SaltosPoint>();
-  points.set(establishmentId, { id: establishmentId, depth: 0, angle: 0, ringRadius: 0, nodeRadius: ESTABLISHMENT_RADIUS });
+  points.set(establishmentId, { id: establishmentId, depth: 0, angle: 0, ringRadius: 0, nodeRadius: ESTABLISHMENT_RADIUS, index: 0 });
 
-  let maxNodeReach = ESTABLISHMENT_RADIUS;
-  for (const p of placed) {
+  placed.forEach((p, i) => {
     const ringRadius = ringRadiusByDepth.get(p.depth) ?? 0;
     const nodeRadius = nodeRadiusFor(byId.get(p.id)?.stamps ?? 0);
-    maxNodeReach = Math.max(maxNodeReach, ringRadius + nodeRadius);
-    points.set(p.id, { id: p.id, depth: p.depth, angle: p.angle, ringRadius, nodeRadius });
-  }
+    points.set(p.id, { id: p.id, depth: p.depth, angle: p.angle, ringRadius, nodeRadius, index: i + 1 });
+  });
+
+  const arcRadius = maxDepth > 0 ? (ringRadiusByDepth.get(maxDepth) ?? 0) * ARC_RADIUS_FACTOR : ESTABLISHMENT_RADIUS * 2.4 * ARC_RADIUS_FACTOR;
 
   const links: SaltosLink[] = [];
   for (const [parentId, children] of childrenOf) {
     for (const childId of children) links.push({ fromId: parentId, toId: childId });
   }
 
-  return { points, links, maxDepth, ringRadiusByDepth, maxNodeReach };
+  return { points, links, maxDepth, ringRadiusByDepth, arcRadius };
 }

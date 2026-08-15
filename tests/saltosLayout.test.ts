@@ -68,7 +68,7 @@ describe("layoutSaltos", () => {
     expect(layout.points.size).toBe(1);
     expect(layout.links).toHaveLength(0);
     expect(layout.maxDepth).toBe(0);
-    expect(layout.maxNodeReach).toBe(ESTABLISHMENT_RADIUS);
+    expect(layout.arcRadius).toBeCloseTo(ESTABLISHMENT_RADIUS * 2.4 * 1.18, 5);
   });
 
   it("una rama con más descendencia recibe un arco angular mayor", () => {
@@ -125,9 +125,9 @@ describe("layoutSaltos", () => {
     expect(2 * Math.PI * r1).toBeGreaterThanOrEqual(50 * 15 - 1); // -1 por redondeo de coma flotante
   });
 
-  it("maxNodeReach incluye el radio de la propia burbuja, no solo el anillo", () => {
+  it("arcRadius es el anillo más lejano ensanchado por el factor del embudo, nunca más", () => {
     const layout = layoutSaltos([node("full", 20)], [edge(SHOP, "full")], SHOP);
     const full = point(layout, "full");
-    expect(layout.maxNodeReach).toBeGreaterThanOrEqual(full.ringRadius + full.nodeRadius);
+    expect(layout.arcRadius).toBeCloseTo(full.ringRadius * 1.18, 5);
   });
 });
