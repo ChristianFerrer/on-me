@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { ZoomSlider } from "@/components/admin/ZoomSlider";
 import { ArrowLeftIcon, CompassIcon } from "@/components/ui/Icons";
 import { SelectionSheet } from "@/components/universe/SelectionSheet";
 import { cn } from "@/lib/cn";
@@ -16,9 +17,16 @@ import type { Dict, Locale } from "@/lib/i18n";
 
 const LABEL_PAD = 64;
 const PAN_ROOM = 200;
-const MIN_SCALE = 0.5;
-const MAX_SCALE = 3.5;
+const MIN_SCALE = 0.35;
+const MAX_SCALE = 5;
 const LABEL_VISIBLE_SCALE = 1.3;
+/**
+ * El encuadre por defecto nunca intenta mostrar el grafo entero -con datos
+ * reales de muchas ramas eso deja todo diminuto-, solo el establecimiento y
+ * un par de anillos. El resto se explora a mano (pellizco, rueda o la barra
+ * de zoom); "centrar" vuelve aquí, no a un zoom que encoja todo lo demás.
+ */
+const DEFAULT_FIT_RINGS = 2.5;
 
 /** rad/s: una vuelta completa cada ~13 minutos, apenas perceptible. */
 const ROTATE_SPEED = 0.008;
@@ -155,7 +163,7 @@ export function SaltosMap({ graph, shopName, locale, t }: { graph: GiftGraph; sh
   const half = layout.extent + LABEL_PAD + PAN_ROOM;
   const size = half * 2;
   const funnelRadius = layout.extent + 34;
-  const fitScale = computeFitScale(layout.extent, half, MIN_SCALE, MAX_SCALE);
+  const fitScale = computeFitScale(Math.min(layout.extent, RING_STEP * DEFAULT_FIT_RINGS), half, MIN_SCALE, MAX_SCALE);
 
   const [pan, setPan] = useState<Pan>(() => ({ x: 0, y: 0, scale: fitScale }));
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -282,6 +290,14 @@ export function SaltosMap({ graph, shopName, locale, t }: { graph: GiftGraph; sh
       const [only] = [...pointers.current.entries()];
       dragOrigin.current = { pan, mid: { x: only[1].x, y: only[1].y }, dist: 0 };
     }
+  }
+
+  // Zoom anclado al centro de la pantalla: en las unidades de "vista" que usa
+  // zoomAtPoint, el centro de la pantalla siempre es (0,0) -no depende del pan
+  // actual-, así que esto sirve igual para la barra que para los botones +/-.
+  function setScaleAtCenter(nextScale: number) {
+    setPan((prev) => zoomAtPoint(prev, 0, 0, nextScale / prev.scale, MIN_SCALE, MAX_SCALE));
+    sinceInteractionRef.current = 0;
   }
 
   // React registra los listeners de wheel como pasivos: preventDefault() ahí no evita
@@ -625,6 +641,16 @@ export function SaltosMap({ graph, shopName, locale, t }: { graph: GiftGraph; sh
           <CountUpStat value={hud.maxHops} label={t.admin.maxHops} active={mounted} />
         </div>
       </header>
+
+      <ZoomSlider
+        scale={pan.scale}
+        min={MIN_SCALE}
+        max={MAX_SCALE}
+        onChange={setScaleAtCenter}
+        zoomInLabel={t.admin.zoomIn}
+        zoomOutLabel={t.admin.zoomOut}
+        levelLabel={t.admin.zoomLevel}
+      />
 
       {legendOpen ? (
         <div className="glass-dark pointer-events-none fixed bottom-[7.5rem] left-3 z-20 max-w-[13rem] rounded-[var(--radius-card)] p-3.5">
