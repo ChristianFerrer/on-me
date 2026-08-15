@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowLeftIcon, CompassIcon } from "@/components/ui/Icons";
+import { ArrowLeftIcon, CompassIcon, EyeIcon, EyeOffIcon, InfoIcon } from "@/components/ui/Icons";
 import { SaltosSheet } from "@/components/admin/SaltosSheet";
 import { cn } from "@/lib/cn";
 import { bestPadrinoId, isExpiringSoon } from "@/lib/giftGraph/insights";
@@ -30,9 +30,10 @@ const ROTATION_RESUME_DELAY_MS = 2600;
 /** Amplitud del bamboleo de cada nodo: radial (unidades del viewBox) y angular (radianes) -globo de helio en un hilo flojo, no un radio de rueda rígido. */
 const WOBBLE_AMPLITUDE = 6.5;
 const WOBBLE_ANGULAR_AMPLITUDE = 0.075;
-/** Avance por frame del punto que recorre las cadenas con canje reciente, y su radio. */
+/** Avance por frame del punto que recorre las cadenas con canje reciente, su radio y el de su halo resplandeciente. */
 const PULSE_STEP = 0.0035;
-const PULSE_DOT_R = 1.9;
+const PULSE_DOT_R = 0.95;
+const PULSE_GLOW_R = PULSE_DOT_R * 3.2;
 const DAY_MS = 24 * 60 * 60 * 1000;
 /** Ventana de "canje reciente" para disparar el pulso: la misma que usa el negocio para el retorno. */
 const RECENT_REDEMPTION_MS = 30 * DAY_MS;
@@ -80,25 +81,19 @@ const FUNNEL_ORDER: NodeState[] = ["sent", "expired", "opened", "claimed", "wind
  * esta vista pide valores exactos, propios de la constelación, que no
  * tienen por qué existir en la paleta del resto del panel.
  *
- * Progresión deliberada, pensada para leerse a un vistazo sobre el fondo
- * casi negro del mapa: blanco (prospecto, la señal más débil) → cian
- * vivo -38E1FF- (ya es cliente real, pero todavía provisional: se dio de
- * alta o está en ventana) → verde lima -E9FF72- (verificado: facturable
- * o alta directa, siempre en primera línea así que el color no necesita
- * distinguirlos más) → negro con borde blanco (descartada/caducada, sin
- * historia que seguir contando -el borde es el que las hace visibles
- * sobre un fondo igual de oscuro que su propio relleno-). Cian y lima
- * son a propósito de familias de matiz distintas -azul contra
- * amarillo-verde-, no solo de brillo distinto: se distinguen incluso en
- * los puntos más pequeños del mapa, donde una diferencia de saturación
- * dentro del mismo verde se pierde. "abierta" usa el mismo E9FF72 que el
- * estado verificado a propósito: aunque siga siendo un prospecto, ya
- * demostró interés real -abrió el enlace- y merece destacar sobre el
- * enviado.
+ * Blanco (prospecto) → cian vivo -38E1FF- (ya es cliente real, pero
+ * todavía provisional: se dio de alta o está en ventana) → ámbar -FBBF24-
+ * (abrió el enlace: ya demostró interés, pero sigue siendo un
+ * prospecto, no comparte color con nada verificado) → verde lima
+ * -E9FF72- (alta directa, siempre en primera línea) → negro con borde
+ * blanco (descartada/caducada, sin historia que seguir contando -el
+ * borde es el que las hace visibles sobre un fondo igual de oscuro que
+ * su propio relleno-). "Facturable" no es un color fijo: ver
+ * BILLABLE_FRESH_COLOR más abajo.
  */
 const SALTOS_PHASE_COLOR: Record<NodeState, string> = {
   sent: "#FFFFFF",
-  opened: "#E9FF72",
+  opened: "#FBBF24",
   claimed: "#38E1FF",
   window: "#38E1FF",
   billable: "#E9FF72",
@@ -106,6 +101,16 @@ const SALTOS_PHASE_COLOR: Record<NodeState, string> = {
   discarded: "#000000",
   expired: "#000000",
 };
+
+/**
+ * "Facturable" no siempre es lima: ese verde se gana, no se hereda solo
+ * por entrar en el estado. Recién resuelta la atribución -antes de su
+ * segunda compra en la tarjeta actual, `stamps < 2`- se pinta en un
+ * magenta llamativo; a partir de la segunda compra pasa a ser un
+ * facturable "hecho y derecho" y se une al lima de siempre.
+ */
+const BILLABLE_FRESH_COLOR = "#FF00F9";
+const BILLABLE_PROVEN_STAMPS = 2;
 
 /** Borde de cada punto: el mismo casi invisible de siempre, salvo en los dos negros -sin él, se funden con el fondo. */
 const SALTOS_STROKE_COLOR: Record<NodeState, string> = {
@@ -132,10 +137,6 @@ const SALTOS_ARC_COLOR: Record<NodeState, string> = {
   expired: "rgba(255,255,255,.55)",
 };
 
-function saltosNodeColor(node: Node): string {
-  return SALTOS_PHASE_COLOR[node.state];
-}
-
 /**
  * Jerarquía visual, no solo de color: este es el mapa que el dueño del
  * local quiere dejar abierto en un monitor y ver crecer día a día, así
@@ -146,6 +147,17 @@ function saltosNodeColor(node: Node): string {
  */
 const SALTOS_POSITIVE_STATES = new Set<NodeState>(["billable", "direct"]);
 const SALTOS_MUTED_STATES = new Set<NodeState>(["expired", "discarded"]);
+
+/** Color real de un nodo -con la excepción de "facturable" recién estrenado-, para el propio punto, sus enlaces y su ficha. */
+function saltosNodeColor(node: Node): string {
+  if (node.state === "billable" && node.stamps < BILLABLE_PROVEN_STAMPS) return BILLABLE_FRESH_COLOR;
+  return SALTOS_PHASE_COLOR[node.state];
+}
+
+/** Igual que saltosNodeColor, pero segura para trazo/texto: el negro de descartada/caducada no se ve sobre un fondo igual de oscuro. */
+function safeLineColor(node: Node): string {
+  return SALTOS_MUTED_STATES.has(node.state) ? SALTOS_ARC_COLOR[node.state] : saltosNodeColor(node);
+}
 
 /**
  * "En ventana" no es un tamaño fijo: arranca en SALTOS_PHASE_SIZE.window
@@ -247,8 +259,19 @@ function arcPath(a0: number, a1: number, r: number): string {
   return `M${x0.toFixed(2)},${y0.toFixed(2)} A${r.toFixed(2)},${r.toFixed(2)} 0 ${largeArc} 1 ${x1.toFixed(2)},${y1.toFixed(2)}`;
 }
 
-/** Puntos deterministas -sin Math.random(), igual que el resto del repo- fuera del grupo de zoom. */
-const STAR_COUNT = 320;
+/**
+ * Puntos deterministas -sin Math.random(), igual que el resto del repo-
+ * fuera del grupo de zoom, y en su propio viewBox fijo -STAR_FIELD_VB-,
+ * independiente del arco del embudo (arcRadius/half): antes el radio de
+ * las estrellas salía de ese valor, así que en un grafo pequeño el campo
+ * de estrellas no llegaba a las esquinas del viewBox cuadrado, y "meet"
+ * las deja vacías -sin recortar, solo encoge- en cualquier pantalla que
+ * no sea también cuadrada. Con un viewBox propio y "slice" en vez de
+ * "meet" (ver más abajo, en el JSX), el campo cubre la pantalla entera
+ * pase lo que pase con el tamaño real de la constelación.
+ */
+const STAR_COUNT = 480;
+const STAR_FIELD_VB = 100;
 
 function starfield(vb: number): { x: number; y: number; r: number; o: number }[] {
   const stars = [];
@@ -325,7 +348,6 @@ export function SaltosMap({
   const byId = useMemo(() => new Map(graph.nodes.map((n) => [n.id, n])), [graph.nodes]);
   const parentOf = useMemo(() => new Map(graph.edges.map((e) => [e.to, e.from])), [graph.edges]);
   const bestPadrino = useMemo(() => bestPadrinoId(graph.nodes, graph.edges), [graph.nodes, graph.edges]);
-  const bestPadrinoNode = bestPadrino ? (byId.get(bestPadrino) ?? null) : null;
 
   const positions = useMemo(() => {
     const map = new Map<string, XY>();
@@ -398,11 +420,12 @@ export function SaltosMap({
   const arcRadius = layout.arcRadius;
   const half = arcRadius + VIEWBOX_PADDING;
   const size = half * 2;
-  const stars = useMemo(() => starfield(half), [half]);
+  const stars = useMemo(() => starfield(STAR_FIELD_VB), []);
 
   const [pan, setPan] = useState<Pan>({ x: 0, y: 0, scale: 1 });
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [legendOpen, setLegendOpen] = useState(true);
+  const [hudVisible, setHudVisible] = useState(true);
   const [touched, setTouched] = useState(false);
 
   const ancestors = useMemo(() => {
@@ -435,7 +458,7 @@ export function SaltosMap({
   // renderizar React 60 veces por segundo.
   const nodeRefs = useRef(new Map<string, SVGGElement>());
   const linkRefs = useRef(new Map<string, SVGPathElement>());
-  const pulseDotRefs = useRef(new Map<string, SVGCircleElement>());
+  const pulseDotRefs = useRef(new Map<string, SVGGElement>());
   const rotationRef = useRef(0);
   const pausedRef = useRef(false);
   const resumeTimer = useRef<number | null>(null);
@@ -549,14 +572,13 @@ export function SaltosMap({
 
       pulseT = (pulseT + PULSE_STEP) % 1;
       const pulseOpacity = Math.sin(pulseT * Math.PI) * 0.85;
-      for (const [key, dotEl] of pulseDotRefs.current) {
+      for (const [key, groupEl] of pulseDotRefs.current) {
         const pathEl = linkRefs.current.get(key);
-        if (!pathEl || !dotEl) continue;
+        if (!pathEl || !groupEl) continue;
         const length = pathEl.getTotalLength();
         const point = pathEl.getPointAtLength(length * pulseT);
-        dotEl.setAttribute("cx", point.x.toFixed(2));
-        dotEl.setAttribute("cy", point.y.toFixed(2));
-        dotEl.setAttribute("fill-opacity", pulseOpacity.toFixed(3));
+        groupEl.setAttribute("transform", `translate(${point.x.toFixed(2)},${point.y.toFixed(2)})`);
+        groupEl.setAttribute("opacity", pulseOpacity.toFixed(3));
       }
 
       const tilt = tiltRef.current;
@@ -744,6 +766,25 @@ export function SaltosMap({
 
   return (
     <div className="fixed inset-0 aurora-night text-chalk">
+      {/* Campo de estrellas en su propio SVG a pantalla completa, con "slice" en vez
+          de "meet": cubre el viewport entero -recortando lo que sobre, nunca dejando
+          hueco- pase lo que pase con la proporción real de la pantalla. Separado del
+          SVG interactivo a propósito: ese usa "meet" sobre un viewBox que depende del
+          tamaño del grafo, así que el campo de estrellas se quedaba corto en las
+          esquinas en cualquier proporción que no fuera cuadrada. */}
+      <svg
+        className="pointer-events-none fixed inset-0 z-0 h-full w-full"
+        viewBox={`${-STAR_FIELD_VB} ${-STAR_FIELD_VB} ${STAR_FIELD_VB * 2} ${STAR_FIELD_VB * 2}`}
+        preserveAspectRatio="xMidYMid slice"
+        aria-hidden="true"
+      >
+        <g ref={starGroupRef}>
+          {stars.map((star, i) => (
+            <circle key={i} cx={star.x.toFixed(2)} cy={star.y.toFixed(2)} r={star.r.toFixed(2)} fill="var(--color-chalk)" fillOpacity={star.o.toFixed(2)} />
+          ))}
+        </g>
+      </svg>
+
       {/* Capa de grano: sin ella el degradado nocturno se bandea en pantallas OLED. */}
       <svg className="pointer-events-none fixed inset-0 z-10 h-full w-full opacity-[0.15]" aria-hidden="true">
         <filter id="saltos-grain">
@@ -756,11 +797,18 @@ export function SaltosMap({
         @keyframes saltos-alert-pulse { 0%, 100% { transform: scale(1); opacity: 0.12; } 50% { transform: scale(1.2); opacity: 0.4; } }
         @keyframes saltos-billable-glow { 0%, 100% { transform: scale(1); opacity: 0.22; } 50% { transform: scale(1.08); opacity: 0.32; } }
         @keyframes saltos-window-blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.42; } }
+        @keyframes saltos-sun-aura-a { 0%, 100% { transform: scale(1) translate(0, 0); opacity: 0.14; } 50% { transform: scale(1.14) translate(1.5%, -1%); opacity: 0.22; } }
+        @keyframes saltos-sun-aura-b { 0%, 100% { transform: scale(1.06) translate(-1%, 1%); opacity: 0.1; } 50% { transform: scale(0.94) translate(1%, 1.5%); opacity: 0.18; } }
+        @keyframes saltos-sun-aura-c { 0%, 100% { transform: scale(0.96) translate(1%, -1.5%); opacity: 0.07; } 50% { transform: scale(1.1) translate(-1.5%, 1%); opacity: 0.15; } }
         .saltos-alert-ring { transform-origin: center; transform-box: fill-box; animation: saltos-alert-pulse 2.6s ease-in-out infinite; }
         .saltos-billable-glow { transform-origin: center; transform-box: fill-box; animation: saltos-billable-glow 5s ease-in-out infinite; }
         .saltos-window-blink { animation: saltos-window-blink 3s ease-in-out infinite; }
+        .saltos-sun-aura-a { transform-origin: center; transform-box: fill-box; animation: saltos-sun-aura-a 4.6s ease-in-out infinite; }
+        .saltos-sun-aura-b { transform-origin: center; transform-box: fill-box; animation: saltos-sun-aura-b 6.3s ease-in-out infinite 0.6s; }
+        .saltos-sun-aura-c { transform-origin: center; transform-box: fill-box; animation: saltos-sun-aura-c 7.9s ease-in-out infinite 1.3s; }
         @media (prefers-reduced-motion: reduce) {
-          .saltos-alert-ring, .saltos-billable-glow, .saltos-window-blink { animation: none; }
+          .saltos-alert-ring, .saltos-billable-glow, .saltos-window-blink,
+          .saltos-sun-aura-a, .saltos-sun-aura-b, .saltos-sun-aura-c { animation: none; }
         }
       `}</style>
 
@@ -789,16 +837,6 @@ export function SaltosMap({
             <feGaussianBlur stdDeviation="2.2" />
           </filter>
         </defs>
-
-        {/* Fuera del grupo de zoom: no escala con el pellizco, como pide la especificación.
-            El propio <g> sí se desplaza con la inclinación del móvil -paralaje-, pero por
-            ref en el bucle de rAF, nunca por React: no hace falta re-renderizar 60 veces
-            por segundo solo para mover el fondo decorativo. */}
-        <g ref={starGroupRef}>
-          {stars.map((star, i) => (
-            <circle key={i} cx={star.x.toFixed(2)} cy={star.y.toFixed(2)} r={star.r.toFixed(2)} fill="var(--color-chalk)" fillOpacity={star.o.toFixed(2)} />
-          ))}
-        </g>
 
         <g transform={`translate(${pan.x} ${pan.y}) scale(${pan.scale})`}>
           {funnelTotal > 0
@@ -871,7 +909,7 @@ export function SaltosMap({
                 }}
                 d={d}
                 fill="none"
-                stroke={toNode ? SALTOS_ARC_COLOR[toNode.state] : "rgba(245,247,245,0.22)"}
+                stroke={toNode ? safeLineColor(toNode) : "rgba(245,247,245,0.22)"}
                 strokeOpacity={opacity}
                 strokeWidth={width}
                 strokeLinecap="round"
@@ -880,21 +918,35 @@ export function SaltosMap({
             );
           })}
 
-          {[...pulseLinkKeys].map((key) => (
-            <circle
-              key={key}
-              ref={(el) => {
-                if (el) pulseDotRefs.current.set(key, el);
-                else pulseDotRefs.current.delete(key);
-              }}
-              r={PULSE_DOT_R}
-              fill="var(--color-chalk)"
-              fillOpacity={0}
-              className="pointer-events-none"
-            />
-          ))}
+          {[...pulseLinkKeys].map((key) => {
+            // Del mismo color que la cuerda por la que viaja, no de uno fijo:
+            // el color de la propia rama, ya calculado para el enlace.
+            const childId = key.split(">")[1];
+            const childNode = childId ? byId.get(childId) : undefined;
+            const pulseColor = childNode ? safeLineColor(childNode) : "var(--color-chalk)";
+            return (
+              <g
+                key={key}
+                ref={(el) => {
+                  if (el) pulseDotRefs.current.set(key, el);
+                  else pulseDotRefs.current.delete(key);
+                }}
+                opacity={0}
+                className="pointer-events-none"
+              >
+                <circle r={PULSE_GLOW_R} fill={pulseColor} fillOpacity={0.5} filter="url(#saltos-soft)" />
+                <circle r={PULSE_DOT_R} fill={pulseColor} />
+              </g>
+            );
+          })}
 
           <g data-node-id={graph.establishment.id} className="cursor-pointer">
+            {/* Aura de sol: tres círculos difuminados, cada uno con su propio período y
+                retraso -no laten a la vez-, para que el borde de la corona ondule en vez
+                de simplemente "respirar" en bloque, como el resto de los halos del mapa. */}
+            <circle className="saltos-sun-aura-a" r={ESTABLISHMENT_RADIUS * 3.4} fill="var(--color-lime)" fillOpacity={0.14} filter="url(#saltos-soft)" />
+            <circle className="saltos-sun-aura-b" r={ESTABLISHMENT_RADIUS * 3.9} fill="var(--color-lime)" fillOpacity={0.1} filter="url(#saltos-soft)" />
+            <circle className="saltos-sun-aura-c" r={ESTABLISHMENT_RADIUS * 4.5} fill="var(--color-lime)" fillOpacity={0.07} filter="url(#saltos-soft)" />
             <circle cx={0} cy={0} r={ESTABLISHMENT_RADIUS * 2.5} fill="url(#saltos-hub-glow)" />
             <circle cx={0} cy={0} r={ESTABLISHMENT_RADIUS} fill="var(--color-lime)" />
             <text y={-1} textAnchor="middle" dominantBaseline="middle" fontSize={8} fontWeight={800} fill="#15150f">
@@ -930,8 +982,13 @@ export function SaltosMap({
             // de SALTOS_POSITIVE_STATES/SALTOS_MUTED_STATES más arriba.
             const isPositive = SALTOS_POSITIVE_STATES.has(node.state);
             const isMuted = SALTOS_MUTED_STATES.has(node.state);
-            const haloFillOpacity = isPositive ? 0.24 : 0.13;
-            const haloScale = isPositive ? 2.15 : 1.85;
+            // Más visitas -sellos en la tarjeta actual, hasta completarla-,
+            // aura más fuerte: un cliente que vuelve mucho se nota en el
+            // mapa aunque su estado no cambie. Solo clientes reales, una
+            // invitación pendiente no tiene visitas que contar.
+            const visitBoost = node.claimed ? clamp(node.stamps / Math.max(1, stampsGoal), 0, 1) : 0;
+            const haloFillOpacity = Math.min(0.6, (isPositive ? 0.24 : 0.13) * (1 + visitBoost * 0.9));
+            const haloScale = (isPositive ? 2.15 : 1.85) * (1 + visitBoost * 0.35);
             const restOpacity = isMuted ? 0.55 : 1;
 
             // "En ventana" se encoge y parpadea cada vez más rápido cuantos
@@ -991,8 +1048,8 @@ export function SaltosMap({
         </g>
       </svg>
 
-      {/* z-30, por encima de la leyenda y el footer (z-20): en viewports bajos
-          -móvil en horizontal- la leyenda puede crecer hasta solaparse con la
+      {/* z-30, por encima de la leyenda y la columna de iconos (z-20): en viewports
+          bajos -móvil en horizontal- la leyenda puede crecer hasta solaparse con la
           cabecera, y el botón de volver tiene que seguir pudiéndose tocar. */}
       <header className="pointer-events-none fixed inset-x-0 top-0 z-30 flex items-start justify-between gap-3 px-5 pt-[max(1rem,env(safe-area-inset-top))]">
         <Link
@@ -1004,69 +1061,99 @@ export function SaltosMap({
           {t.common.back}
         </Link>
 
-        <div className="pointer-events-none flex flex-col items-end gap-0.5 pt-1">
-          <CountUpStat value={hud.sent} label={t.admin.sent} active={mounted} delayMs={0} />
-          <CountUpStat value={hud.opened} label={t.admin.opened} active={mounted} delayMs={85} />
-          <CountUpStat value={hud.redeemed} label={t.admin.redeemed} active={mounted} delayMs={170} />
-          <CountUpStat value={hud.billable} label={t.admin.attrBillable} active={mounted} delayMs={255} />
-          <CountUpStat value={hud.maxHops} label={t.admin.maxHops} active={mounted} delayMs={340} />
-        </div>
-      </header>
-
-      <div
-        className="glass-dark pointer-events-auto fixed bottom-[7.5rem] left-3 z-20 max-h-[min(72dvh,25rem)] max-w-[16rem] overflow-y-auto p-3.5 transition-transform duration-300 ease-[var(--ease-out-soft)]"
-        style={{
-          transform: legendOpen ? "translateX(0)" : "translateX(-120%)",
-          // Más transparente que el glass-dark de siempre -0.62 de opacidad-:
-          // esta caja tapa buena parte de la constelación, así que deja
-          // pasar más del mapa de detrás sin perder legibilidad -el blur
-          // y el borde de glass-dark se quedan igual.
-          background: "rgba(10,14,13,0.32)",
-        }}
-      >
-        <p className="eyebrow text-chalk/40">{t.admin.saltosLegendTitle}</p>
-        <p className="mt-0.5 text-[0.6875rem] leading-snug text-chalk/30">{t.admin.saltosLegendDesc}</p>
-        <div className="mt-2 flex flex-col gap-1.5">
-          {FUNNEL_ORDER.map((state) => {
-            const isMutedRow = SALTOS_MUTED_STATES.has(state);
-            // El propio punto de la leyenda ya es la burbuja a escala -mismo
-            // multiplicador que dibuja el mapa-, así que enseña de un
-            // vistazo que el tamaño también cuenta la fase del cliente.
-            const swatchPx = 5 + SALTOS_PHASE_SIZE[state] * 6.5;
-            return (
-              <div key={state} className={cn("flex items-center gap-2 text-[0.75rem]", isMutedRow ? "text-chalk/45" : "text-chalk/75")}>
-                <span
-                  className="flex shrink-0 items-center justify-center"
-                  style={{ width: 21, height: 21 }}
-                >
-                  <span
-                    className="block rounded-full"
-                    style={{
-                      width: swatchPx,
-                      height: swatchPx,
-                      background: SALTOS_PHASE_COLOR[state],
-                      opacity: isMutedRow ? 0.55 : 1,
-                      border: isMutedRow ? `1px solid ${SALTOS_STROKE_COLOR[state]}` : undefined,
-                    }}
-                  />
-                </span>
-                <span className="min-w-0 flex-1 truncate">{stateBadgeLabel(state, t)}</span>
-                <span className="numeral text-[0.6875rem] text-chalk/40">{funnelCounts.get(state) ?? 0}</span>
-              </div>
-            );
-          })}
-        </div>
-        <p className="mt-2.5 border-t border-white/8 pt-2.5 text-[0.625rem] leading-tight text-chalk/40">{t.admin.saltosSizeLegend}</p>
-        <p className="mt-1.5 text-[0.625rem] leading-tight text-chalk/40">{t.admin.saltosBrightnessLegend}</p>
-        {bestPadrinoNode ? (
-          <div className="mt-3 flex items-center gap-2 border-t border-white/8 pt-2.5 text-[0.75rem]">
-            <span className="size-2.5 shrink-0 rounded-full bg-amber" />
-            <span className="min-w-0 flex-1 truncate text-chalk/75">
-              {t.admin.saltosTopReferrerLabel} · {bestPadrinoNode.name}
-            </span>
-            <span className="numeral text-[0.6875rem] text-chalk/40">{bestPadrinoNode.childCount}</span>
+        {/* Misma caja que la leyenda -mismo glass-dark translúcido, mismo tamaño
+            de letra-, y ocultable con su propio icono en la columna de la derecha. */}
+        {hudVisible ? (
+          <div className="glass-dark pointer-events-none flex flex-col items-end gap-0.5 p-2.5" style={{ background: "rgba(10,14,13,0.32)" }}>
+            <CountUpStat value={hud.sent} label={t.admin.sent} active={mounted} delayMs={0} />
+            <CountUpStat value={hud.opened} label={t.admin.opened} active={mounted} delayMs={85} />
+            <CountUpStat value={hud.redeemed} label={t.admin.redeemed} active={mounted} delayMs={170} />
+            <CountUpStat value={hud.billable} label={t.admin.attrBillable} active={mounted} delayMs={255} />
+            <CountUpStat value={hud.maxHops} label={t.admin.maxHops} active={mounted} delayMs={340} />
           </div>
         ) : null}
+      </header>
+
+      {/* Leyenda + columna de iconos, apiladas -leyenda encima, iconos debajo- en
+          el lateral derecho: un único contenedor de toda la altura con
+          justify-end hace que la leyenda "empuje" hacia arriba desde donde
+          terminan los iconos, sea cual sea su alto real -ya no hace falta
+          calcular a mano cuánto sitio deja la columna de iconos debajo. */}
+      <div className="pointer-events-none fixed inset-y-0 right-3 z-20 flex flex-col items-end justify-end gap-3 py-[max(1.25rem,env(safe-area-inset-bottom))]">
+        <div
+          className="glass-dark pointer-events-auto max-w-[16rem] p-3.5 transition-transform duration-300 ease-[var(--ease-out-soft)]"
+          style={{
+            transform: legendOpen ? "translateX(0)" : "translateX(120%)",
+            // Más transparente que el glass-dark de siempre -0.62 de opacidad-:
+            // esta caja tapa buena parte de la constelación, así que deja
+            // pasar más del mapa de detrás sin perder legibilidad -el blur
+            // y el borde de glass-dark se quedan igual.
+            background: "rgba(10,14,13,0.32)",
+          }}
+        >
+          <p className="eyebrow text-chalk/40">{t.admin.saltosLegendTitle}</p>
+          <p className="mt-0.5 text-[0.6875rem] leading-snug text-chalk/30">{t.admin.saltosLegendDesc}</p>
+          <div className="mt-2 flex flex-col gap-1.5">
+            {FUNNEL_ORDER.map((state) => {
+              const isMutedRow = SALTOS_MUTED_STATES.has(state);
+              // El propio punto de la leyenda ya es la burbuja a escala -mismo
+              // multiplicador que dibuja el mapa-, así que enseña de un
+              // vistazo que el tamaño también cuenta la fase del cliente.
+              const swatchPx = 5 + SALTOS_PHASE_SIZE[state] * 6.5;
+              return (
+                <div key={state} className={cn("flex items-center gap-2 text-[0.75rem]", isMutedRow ? "text-chalk/45" : "text-chalk/75")}>
+                  <span
+                    className="flex shrink-0 items-center justify-center"
+                    style={{ width: 21, height: 21 }}
+                  >
+                    <span
+                      className="block rounded-full"
+                      style={{
+                        width: swatchPx,
+                        height: swatchPx,
+                        background: SALTOS_PHASE_COLOR[state],
+                        opacity: isMutedRow ? 0.55 : 1,
+                        border: isMutedRow ? `1px solid ${SALTOS_STROKE_COLOR[state]}` : undefined,
+                      }}
+                    />
+                  </span>
+                  <span className="min-w-0 flex-1 truncate">{stateBadgeLabel(state, t)}</span>
+                  <span className="numeral text-[0.6875rem] text-chalk/40">{funnelCounts.get(state) ?? 0}</span>
+                </div>
+              );
+            })}
+          </div>
+          <p className="mt-2.5 border-t border-white/8 pt-2.5 text-[0.625rem] leading-tight text-chalk/40">{t.admin.saltosSizeLegend}</p>
+          <p className="mt-1.5 text-[0.625rem] leading-tight text-chalk/40">{t.admin.saltosBrightnessLegend}</p>
+        </div>
+
+        {/* La ficha (z-30, opaca, ancho completo) se pinta encima de esta columna
+            (z-20) en cuanto hay un nodo seleccionado: sin ocultarla aquí, los tres
+            botones quedaban tapados y sin forma de tocarlos hasta cerrar la ficha
+            con su propio botón. */}
+        <div className={cn("pointer-events-auto flex flex-col items-center gap-2", selectedNode ? "invisible" : "visible")}>
+          <button
+            type="button"
+            onClick={() => setLegendOpen((v) => !v)}
+            aria-pressed={legendOpen}
+            aria-label={t.admin.legend}
+            className={cn("btn size-11", legendOpen ? "bg-lime text-ink" : "glass-dark text-chalk")}
+          >
+            <InfoIcon className="size-5" />
+          </button>
+          <button type="button" onClick={resetView} aria-label={t.admin.resetView} className="btn glass-dark size-11 text-chalk">
+            <CompassIcon className="size-5" />
+          </button>
+          <button
+            type="button"
+            onClick={() => setHudVisible((v) => !v)}
+            aria-pressed={hudVisible}
+            aria-label={t.admin.saltosToggleHud}
+            className={cn("btn size-11", hudVisible ? "bg-lime text-ink" : "glass-dark text-chalk")}
+          >
+            {hudVisible ? <EyeIcon className="size-5" /> : <EyeOffIcon className="size-5" />}
+          </button>
+        </div>
       </div>
 
       <footer className="pointer-events-none fixed inset-x-0 bottom-0 z-20 flex flex-col items-center gap-3 px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
@@ -1075,33 +1162,13 @@ export function SaltosMap({
             {funnelTotal === 0 ? t.admin.referralMapEmpty : t.admin.referralMapHint}
           </p>
         ) : null}
-        {/* La ficha (z-30, opaca, ancho completo) se pinta encima de este footer
-            (z-20) en cuanto hay un nodo seleccionado: sin ocultarlos aquí, estos
-            dos botones quedaban tapados y sin forma de tocarlos hasta cerrar la
-            ficha con su propio botón. */}
-        <div className={cn("pointer-events-auto flex items-center gap-2", selectedNode ? "invisible" : "visible")}>
-          <button
-            type="button"
-            onClick={() => setLegendOpen((v) => !v)}
-            aria-pressed={legendOpen}
-            className={cn(
-              "btn px-4 py-2.5 text-[0.8125rem]",
-              legendOpen ? "bg-lime text-ink" : "glass-dark text-chalk",
-            )}
-          >
-            {t.admin.legend}
-          </button>
-          <button type="button" onClick={resetView} aria-label={t.admin.resetView} className="btn glass-dark size-11 text-chalk">
-            <CompassIcon className="size-5" />
-          </button>
-        </div>
       </footer>
 
       <SaltosSheet
         node={selectedNode}
         giftedByName={giftedByName}
         invitedCount={selectedNode?.childCount ?? 0}
-        color={selectedNode ? SALTOS_ARC_COLOR[selectedNode.state] : "var(--color-slate)"}
+        color={selectedNode ? safeLineColor(selectedNode) : "var(--color-slate)"}
         stampsGoal={stampsGoal}
         locale={locale}
         t={t}
