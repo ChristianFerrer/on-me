@@ -4,10 +4,16 @@
  * `InvitationState` ("sent" | "opened" | ...) — aquí unificadas para poder
  * pintar en el mismo mapa tanto a quien ya es cliente como a quien todavía
  * no ha canjeado su invitación.
+ *
+ * "direct" es la séptima: un cliente que se dio de alta por QR en el
+ * mostrador, sin invitación de nadie. No pasa por `attributions` -esa
+ * tabla solo existe para pares padrino/ahijado-, así que no puede ser
+ * "billable" ni ningún otro estado del embudo de invitación; es, sin más,
+ * un cliente real que también cuenta para el negocio.
  */
-export type NodeState = "billable" | "window" | "discarded" | "opened" | "sent" | "expired";
+export type NodeState = "billable" | "window" | "discarded" | "opened" | "sent" | "expired" | "direct";
 
-export const ALL_NODE_STATES: NodeState[] = ["billable", "window", "opened", "sent", "expired", "discarded"];
+export const ALL_NODE_STATES: NodeState[] = ["billable", "direct", "window", "opened", "sent", "expired", "discarded"];
 
 export type Node = {
   id: string;

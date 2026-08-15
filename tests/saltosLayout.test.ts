@@ -106,7 +106,10 @@ describe("layoutSaltos", () => {
   });
 
   it("un anillo con muchos nodos crece para darles sitio, uno con pocos no", () => {
-    const crowdedNodes = Array.from({ length: 30 }, (_, i) => node(`c${i}`));
+    // 60, no 30: con el arco mínimo por nodo más ajustado -para que quepan
+    // muchos más clientes en el mapa, no solo referidos-, un anillo de 30
+    // ya no basta para superar el radio mínimo del anillo 1 por sí solo.
+    const crowdedNodes = Array.from({ length: 60 }, (_, i) => node(`c${i}`));
     const crowdedEdges = crowdedNodes.map((n) => edge(SHOP, n.id));
     const crowded = layoutSaltos(crowdedNodes, crowdedEdges, SHOP);
 
@@ -121,8 +124,8 @@ describe("layoutSaltos", () => {
     const edges = nodes.map((n) => edge(SHOP, n.id));
     const layout = layoutSaltos(nodes, edges, SHOP);
     const r1 = layout.ringRadiusByDepth.get(1)!;
-    // Circunferencia del anillo >= 15 unidades por nodo (el mínimo que pide el layout).
-    expect(2 * Math.PI * r1).toBeGreaterThanOrEqual(50 * 15 - 1); // -1 por redondeo de coma flotante
+    // Circunferencia del anillo >= 11 unidades por nodo (el mínimo que pide el layout).
+    expect(2 * Math.PI * r1).toBeGreaterThanOrEqual(50 * 11 - 1); // -1 por redondeo de coma flotante
   });
 
   it("arcRadius es el anillo más lejano ensanchado por el factor del embudo, nunca más", () => {

@@ -126,6 +126,7 @@ export function SaltosSheet({
 function stateBadgeText(node: Node, t: Dict): string {
   const label: Record<Node["state"], string> = {
     billable: t.admin.attrBillable,
+    direct: t.admin.attrDirect,
     window: t.admin.attrWindow,
     discarded: t.admin.attrDiscarded,
     opened: t.admin.attrOpened,

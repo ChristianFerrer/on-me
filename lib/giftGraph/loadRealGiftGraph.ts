@@ -16,10 +16,13 @@ const ESTABLISHMENT_ID = "shop";
  *   pide el nombre de a quién se invita, eso llega en el claim-, así que ese
  *   nodo va con `claimed: false` y sin nombre. El código de invitación es un
  *   dato interno: no debe verse nunca en el mapa ni en la ficha.
- * - Un cliente sin padrino (alta directa por QR, no por invitación) no forma
- *   parte de ningún salto. Se enseña como raíz neutra SOLO si además ha
- *   invitado a alguien -si no, no aporta nada a un mapa de referidos y
- *   ensuciaría el centro con puntos sueltos que no cuentan ninguna historia.
+ * - Todo cliente sin padrino (alta directa por QR, no por invitación) es
+ *   raíz de su propia cadena, tenga o no descendencia: este mapa es el
+ *   sitio donde el dueño cuenta cuántos clientes tiene, no solo cuántas
+ *   historias de referidos existen, así que un cliente que entró solo,
+ *   con su tarjeta virtual, también tiene que aparecer como un punto.
+ *   Va en estado "direct" -no pasa por `attributions`, esa tabla solo
+ *   existe para pares padrino/ahijado-.
  */
 export async function loadRealGiftGraph(shopId: string, establishmentName: string): Promise<GiftGraph> {
   const [
@@ -64,7 +67,7 @@ export async function loadRealGiftGraph(shopId: string, establishmentName: strin
   }
 
   const hasPadrino = new Set(invs.filter((inv) => inv.claimed_by).map((inv) => inv.claimed_by as string));
-  const chainRoots = customerIds.filter((id) => !hasPadrino.has(id) && (childrenOf.get(id) ?? []).length > 0);
+  const chainRoots = customerIds.filter((id) => !hasPadrino.has(id));
   for (const rootId of chainRoots) {
     edges.push({ from: ESTABLISHMENT_ID, to: rootId, giftedAt: createdAtOf.get(rootId) ?? new Date(0).toISOString() });
   }
@@ -94,8 +97,9 @@ export async function loadRealGiftGraph(shopId: string, establishmentName: strin
         state = "opened";
         lastActivityAt = pass?.updated_at ?? inv.claimed_at ?? inv.opened_at ?? inv.sent_at ?? inv.created_at;
       } else {
-        // Raíz de cadena propia: alta por QR, sin invitación que la traiga.
-        state = "window";
+        // Alta directa por QR, sin invitación que la traiga: cliente real,
+        // pero fuera de cualquier cadena de referidos.
+        state = "direct";
         lastActivityAt = pass?.updated_at ?? createdAtOf.get(id) ?? new Date(0).toISOString();
       }
 

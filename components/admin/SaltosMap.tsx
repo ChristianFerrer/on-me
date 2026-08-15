@@ -5,7 +5,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeftIcon, CompassIcon } from "@/components/ui/Icons";
 import { SaltosSheet } from "@/components/admin/SaltosSheet";
 import { cn } from "@/lib/cn";
-import { bestPadrinoId, isExpiringSoon } from "@/lib/giftGraph/insights";
+import { bestPadrinoId, isExpiringSoon, recencyFactor } from "@/lib/giftGraph/insights";
 import { type Pan, panBy, pixelsToUnits, zoomAtPoint } from "@/lib/panZoom";
 import { ESTABLISHMENT_RADIUS, layoutSaltos, type SaltosLayout, type SaltosPoint } from "@/lib/giftGraph/saltosLayout";
 import { STATE_LINE_COLOR, stateBadgeLabel } from "@/lib/giftGraph/stateBadge";
@@ -61,12 +61,16 @@ function clamp(value: number, min: number, max: number): number {
 
 /**
  * Orden narrativo del arco perimetral, del peor al mejor en sentido horario:
- * enviada → caducada → abierta → en ventana → facturable. "discarded" no
- * aparece en la especificación -no tiene hueco en ese embudo de 5 estados-
- * pero los nodos descartados existen de verdad, así que se enseñan igual,
- * al final del arco, en vez de desaparecer en silencio.
+ * enviada → caducada → abierta → en ventana → facturable → directo.
+ * "discarded" no aparece en la especificación -no tiene hueco en ese embudo
+ * de 5 estados- pero los nodos descartados existen de verdad, así que se
+ * enseñan igual, al final del arco, en vez de desaparecer en silencio.
+ * "direct" tampoco viene del embudo de invitación -es alta directa por
+ * QR-, pero este mapa ya no es solo "el embudo de invitación": es donde el
+ * dueño cuenta cuántos clientes tiene en total, así que se enseña justo
+ * junto a "facturable", el otro estado que también es dinero de verdad.
  */
-const FUNNEL_ORDER: NodeState[] = ["sent", "expired", "opened", "window", "billable", "discarded"];
+const FUNNEL_ORDER: NodeState[] = ["sent", "expired", "opened", "window", "billable", "direct", "discarded"];
 
 /**
  * Colores propios de esta vista, no del embudo compartido
@@ -91,6 +95,7 @@ const SALTOS_STATE_COLOR: Record<NodeState, string> = {
   opened: "var(--color-amber)",
   window: "var(--color-azure)",
   discarded: "var(--color-slate)",
+  direct: "var(--color-teal)",
 };
 
 function saltosNodeColor(node: Node): string {
@@ -100,14 +105,36 @@ function saltosNodeColor(node: Node): string {
 /**
  * Jerarquía visual, no solo de color: este es el mapa que el dueño del
  * local quiere dejar abierto en un monitor y ver crecer día a día, así
- * que "facturable" -dinero ganado de verdad- tiene que ganar peso visual
- * a medida que hay más, y las dos salidas negativas (caducada,
+ * que los dos estados que son dinero de verdad -"facturable" y "directo",
+ * el cliente que se dio de alta solo, sin invitación- tienen que ganar
+ * peso visual a medida que hay más, y las dos salidas negativas (caducada,
  * descartada) tienen que retirarse en vez de competir por la atención:
  * si compiten con el mismo peso que lo bueno, el conjunto se siente como
  * ruido de seis colores en vez de como progreso.
  */
-const SALTOS_POSITIVE_STATE: NodeState = "billable";
+const SALTOS_POSITIVE_STATES = new Set<NodeState>(["billable", "direct"]);
 const SALTOS_MUTED_STATES = new Set<NodeState>(["expired", "discarded"]);
+
+/**
+ * Brillo por recencia, encima del color por estado: el mismo
+ * `recencyFactor()` que usa el universo 3D (1 = actividad hoy, 0 = un mes
+ * o más sin moverse), aplicado aquí a la opacidad y al glow del punto.
+ * Nunca llega a apagarse del todo -mínimo 0.4- porque la especificación
+ * pide "estrellas apagadas", no puntos que desaparecen. Por encima de
+ * SUN_THRESHOLD el punto es un cliente frecuente/fiel y se enseña como un
+ * sol -glow extra, pulso propio-; por debajo de FLICKER_THRESHOLD lleva ya
+ * bastante sin volver y parpadea de forma errática, como aviso suave de
+ * que se está apagando. Solo se aplica a clientes reales (`claimed`): una
+ * invitación pendiente no tiene "última visita" que enseñar, tiene su
+ * propio aviso de caducidad (el anillo coral de `isExpiringSoon`).
+ */
+const MIN_STAR_OPACITY = 0.4;
+const SUN_THRESHOLD = 0.78;
+const FLICKER_THRESHOLD = 0.22;
+
+function starOpacity(recency: number): number {
+  return MIN_STAR_OPACITY + (1 - MIN_STAR_OPACITY) * recency;
+}
 
 type PointerState = { x: number; y: number };
 type XY = { x: number; y: number };
@@ -241,6 +268,7 @@ export function SaltosMap({
   const byId = useMemo(() => new Map(graph.nodes.map((n) => [n.id, n])), [graph.nodes]);
   const parentOf = useMemo(() => new Map(graph.edges.map((e) => [e.to, e.from])), [graph.edges]);
   const bestPadrino = useMemo(() => bestPadrinoId(graph.nodes, graph.edges), [graph.nodes, graph.edges]);
+  const bestPadrinoNode = bestPadrino ? (byId.get(bestPadrino) ?? null) : null;
 
   const positions = useMemo(() => {
     const map = new Map<string, XY>();
@@ -672,12 +700,16 @@ export function SaltosMap({
         @keyframes saltos-flow { to { stroke-dashoffset: -24; } }
         @keyframes saltos-alert-pulse { 0%, 100% { transform: scale(1); opacity: 0.12; } 50% { transform: scale(1.2); opacity: 0.4; } }
         @keyframes saltos-billable-glow { 0%, 100% { transform: scale(1); opacity: 0.22; } 50% { transform: scale(1.08); opacity: 0.32; } }
+        @keyframes saltos-sun-glow { 0%, 100% { transform: scale(1); opacity: 0.3; } 50% { transform: scale(1.24); opacity: 0.5; } }
+        @keyframes saltos-star-flicker { 0%, 76% { opacity: 1; } 80% { opacity: 0.4; } 84% { opacity: 0.92; } 88% { opacity: 0.3; } 93% { opacity: 1; } 100% { opacity: 1; } }
         .saltos-hub-pulse { transform-origin: center; transform-box: fill-box; animation: saltos-hub-pulse 3.6s cubic-bezier(0.2,0.6,0.4,1) infinite; }
         .saltos-dashed { stroke-dasharray: 3 3; animation: saltos-flow 9s linear infinite; }
         .saltos-alert-ring { transform-origin: center; transform-box: fill-box; animation: saltos-alert-pulse 2.6s ease-in-out infinite; }
         .saltos-billable-glow { transform-origin: center; transform-box: fill-box; animation: saltos-billable-glow 5s ease-in-out infinite; }
+        .saltos-sun-glow { transform-origin: center; transform-box: fill-box; animation: saltos-sun-glow 4.2s ease-in-out infinite; }
+        .saltos-star-flicker { animation: saltos-star-flicker 5s ease-in-out infinite; }
         @media (prefers-reduced-motion: reduce) {
-          .saltos-hub-pulse, .saltos-dashed, .saltos-alert-ring, .saltos-billable-glow { animation: none; }
+          .saltos-hub-pulse, .saltos-dashed, .saltos-alert-ring, .saltos-billable-glow, .saltos-sun-glow, .saltos-star-flicker { animation: none; }
         }
       `}</style>
 
@@ -749,7 +781,7 @@ export function SaltosMap({
                   const mid = (cursor + a1) / 2;
                   const labelR = arcRadius + 12;
                   const isMutedArc = SALTOS_MUTED_STATES.has(state);
-                  const isPositiveArc = state === SALTOS_POSITIVE_STATE;
+                  const isPositiveArc = SALTOS_POSITIVE_STATES.has(state);
                   const arcWidth = isPositiveArc ? 5.5 : isMutedArc ? 3 : 4.5;
                   const arcOpacity = isPositiveArc ? 0.95 : isMutedArc ? 0.4 : 0.85;
                   arcs.push(
@@ -877,12 +909,26 @@ export function SaltosMap({
             const pendingStrokeOpacity = node.state === "expired" ? 0.6 : 0.75;
             // Jerarquía visual: lo bueno pesa más, lo perdido se retira -no
             // compiten por la atención a partes iguales-. Ver el comentario
-            // de SALTOS_POSITIVE_STATE/SALTOS_MUTED_STATES más arriba.
-            const isPositive = node.state === SALTOS_POSITIVE_STATE;
+            // de SALTOS_POSITIVE_STATES/SALTOS_MUTED_STATES más arriba.
+            const isPositive = SALTOS_POSITIVE_STATES.has(node.state);
             const isMuted = SALTOS_MUTED_STATES.has(node.state);
             const haloFillOpacity = isPositive ? 0.24 : isMuted ? 0.07 : 0.13;
             const haloScale = isPositive ? 2.15 : 1.85;
             const restOpacity = isMuted ? 0.55 : 1;
+
+            // Brillo por recencia: solo clientes reales, no invitaciones
+            // pendientes. Ver el comentario de starOpacity/SUN_THRESHOLD/
+            // FLICKER_THRESHOLD más arriba.
+            const recency = node.claimed ? recencyFactor(node.lastActivityAt, nowMs) : 1;
+            const isSun = node.claimed && recency >= SUN_THRESHOLD;
+            const isFlickering = node.claimed && recency < FLICKER_THRESHOLD;
+            const bodyFillOpacity = node.claimed ? starOpacity(recency) : 1;
+            const flickerStyle = isFlickering
+              ? { animationDuration: `${(3.4 + wobbleFreq(pt.index) * 2.6).toFixed(2)}s`, animationDelay: `${(wobblePhase(pt.index) % 4.2).toFixed(2)}s` }
+              : undefined;
+            const sunGlowStyle = isSun
+              ? { animationDuration: `${(3.8 + wobbleFreq(pt.index) * 1.4).toFixed(2)}s`, animationDelay: `${(wobblePhase(pt.index) % 3).toFixed(2)}s` }
+              : undefined;
 
             return (
               <g
@@ -913,14 +959,15 @@ export function SaltosMap({
                 ) : (
                   <>
                     <circle
-                      className={isPositive ? "saltos-billable-glow" : undefined}
-                      r={pt.nodeRadius * haloScale}
+                      className={isSun ? "saltos-sun-glow" : isPositive ? "saltos-billable-glow" : undefined}
+                      style={sunGlowStyle}
+                      r={pt.nodeRadius * (isSun ? haloScale * 1.15 : haloScale)}
                       fill={color}
-                      fillOpacity={haloFillOpacity}
+                      fillOpacity={isSun ? Math.min(0.4, haloFillOpacity + 0.12) : haloFillOpacity}
                       filter="url(#saltos-soft)"
                     />
-                    <circle r={pt.nodeRadius} fill={color} />
-                    <circle r={pt.nodeRadius} fill="none" stroke="rgba(255,255,255,.16)" strokeWidth={0.55} />
+                    <circle className={isFlickering ? "saltos-star-flicker" : undefined} style={flickerStyle} r={pt.nodeRadius} fill={color} fillOpacity={bodyFillOpacity} />
+                    <circle r={pt.nodeRadius} fill="none" stroke="rgba(255,255,255,.16)" strokeWidth={0.55} strokeOpacity={bodyFillOpacity} />
                   </>
                 )}
                 <circle r={Math.max(pt.nodeRadius + 7, 12)} fill="transparent" />
@@ -993,6 +1040,16 @@ export function SaltosMap({
           <span className="block size-[21px] rounded-full bg-chalk/25" />
           <p className="text-[0.625rem] leading-tight text-chalk/40">{t.admin.saltosSizeLegend}</p>
         </div>
+        <p className="mt-2 text-[0.625rem] leading-tight text-chalk/40">{t.admin.saltosBrightnessLegend}</p>
+        {bestPadrinoNode ? (
+          <div className="mt-3 flex items-center gap-2 border-t border-white/8 pt-2.5 text-[0.75rem]">
+            <span className="size-2.5 shrink-0 rounded-full bg-amber" />
+            <span className="min-w-0 flex-1 truncate text-chalk/75">
+              {t.admin.saltosTopReferrerLabel} · {bestPadrinoNode.name}
+            </span>
+            <span className="numeral text-[0.6875rem] text-chalk/40">{bestPadrinoNode.childCount}</span>
+          </div>
+        ) : null}
       </div>
 
       <footer className="pointer-events-none fixed inset-x-0 bottom-0 z-20 flex flex-col items-center gap-3 px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))]">

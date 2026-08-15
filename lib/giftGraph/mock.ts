@@ -218,6 +218,20 @@ const CHAINS: TreeSpec[] = [
       },
     ],
   },
+  // Clientes directos: alta por QR en el mostrador, sin invitación de
+  // nadie. Tres recencias distintas a propósito, para poder ver los tres
+  // regímenes de brillo del mapa en la misma vista -sol, parpadeo, apagada.
+  { name: "Noel", state: "direct", stamps: 6, lastActivityDaysAgo: 1 }, // sol: visitó ayer
+  {
+    name: "Uxue",
+    state: "direct",
+    stamps: 10,
+    lastActivityDaysAgo: 3,
+    // Un cliente directo también puede invitar: no tiene padrino, pero sí puede ser uno.
+    children: [{ name: "Kike", state: "opened", lastActivityDaysAgo: 1, expiresInHours: 90 }],
+  },
+  { name: "Vale", state: "direct", stamps: 9, lastActivityDaysAgo: 26 }, // parpadeo: entrando en el mes sin volver
+  { name: "Bea", state: "direct", stamps: 10, lastActivityDaysAgo: 55 }, // apagada: hace casi dos meses
 ];
 
 function slug(name: string): string {

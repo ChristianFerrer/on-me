@@ -25,15 +25,19 @@ export type SaltosLayout = {
   arcRadius: number;
 };
 
-const NODE_R_BASE = 3.2;
-const MIN_NODE_R = 3.4;
-const MAX_NODE_R = 13;
+// Más pequeños que antes a propósito: con "direct" el mapa ya no enseña
+// solo cadenas de referidos, sino a todos los clientes -de docenas a
+// cientos de puntos-, así que cada burbuja tiene que pesar menos para que
+// quepan sin que el conjunto se vuelva ruido ilegible.
+const NODE_R_BASE = 2.5;
+const MIN_NODE_R = 2.7;
+const MAX_NODE_R = 11;
 export const ESTABLISHMENT_RADIUS = 27;
 
 /** Cuánto arco de circunferencia (en unidades del viewBox) le hace falta a cada burbuja para no pisar a la de al lado. */
-const MIN_ARC_PER_NODE = 15;
+const MIN_ARC_PER_NODE = 11;
 /** Separación mínima entre un anillo y el siguiente, aunque haya pocos nodos. */
-const MIN_RING_GAP = 44;
+const MIN_RING_GAP = 36;
 const ARC_RADIUS_FACTOR = 1.18;
 
 /** Radio de burbuja por gente invitada: crece en raíz, para que un padrino con muchas invitaciones no aplaste al resto. */
