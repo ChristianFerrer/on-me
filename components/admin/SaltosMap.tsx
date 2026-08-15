@@ -1014,8 +1014,15 @@ export function SaltosMap({
       </header>
 
       <div
-        className="glass-dark pointer-events-auto fixed bottom-[7.5rem] left-3 z-20 max-h-[min(60dvh,19rem)] max-w-[13rem] overflow-y-auto p-3.5 transition-transform duration-300 ease-[var(--ease-out-soft)]"
-        style={{ transform: legendOpen ? "translateX(0)" : "translateX(-120%)" }}
+        className="glass-dark pointer-events-auto fixed bottom-[7.5rem] left-3 z-20 max-h-[min(72dvh,25rem)] max-w-[16rem] overflow-y-auto p-3.5 transition-transform duration-300 ease-[var(--ease-out-soft)]"
+        style={{
+          transform: legendOpen ? "translateX(0)" : "translateX(-120%)",
+          // Más transparente que el glass-dark de siempre -0.62 de opacidad-:
+          // esta caja tapa buena parte de la constelación, así que deja
+          // pasar más del mapa de detrás sin perder legibilidad -el blur
+          // y el borde de glass-dark se quedan igual.
+          background: "rgba(10,14,13,0.32)",
+        }}
       >
         <p className="eyebrow text-chalk/40">{t.admin.saltosLegendTitle}</p>
         <p className="mt-0.5 text-[0.6875rem] leading-snug text-chalk/30">{t.admin.saltosLegendDesc}</p>
