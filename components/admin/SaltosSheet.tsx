@@ -2,8 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/cn";
-import { formatDateTime, type Dict, type Locale } from "@/lib/i18n";
+import { fill, formatDateTime, type Dict, type Locale } from "@/lib/i18n";
 import type { Node } from "@/lib/giftGraph/types";
+
+const DAY_MS = 24 * 60 * 60 * 1000;
 
 /**
  * Ficha propia de la constelación de saltos -no la del universo 3D-: la
@@ -21,6 +23,8 @@ export function SaltosSheet({
   invitedCount,
   color,
   stampsGoal,
+  returnWindowDays,
+  nowMs,
   locale,
   t,
   onClose,
@@ -30,6 +34,8 @@ export function SaltosSheet({
   invitedCount: number;
   color: string;
   stampsGoal: number;
+  returnWindowDays: number;
+  nowMs: number;
   locale: Locale;
   t: Dict;
   onClose: () => void;
@@ -49,6 +55,29 @@ export function SaltosSheet({
   const shown = snapshot.node;
   const isPending = !shown.claimed;
   const progress = stampsGoal > 0 ? Math.min(1, Math.max(0, shown.stamps / stampsGoal)) : 0;
+
+  const daysSinceLastVisit = Math.max(0, Math.floor((nowMs - new Date(shown.lastActivityAt).getTime()) / DAY_MS));
+  const lastVisitText =
+    daysSinceLastVisit === 0
+      ? t.admin.saltosToday
+      : daysSinceLastVisit === 1
+        ? t.admin.saltosDaysAgoOne
+        : fill(t.admin.saltosDaysAgoMany, { n: daysSinceLastVisit });
+
+  // La cuenta atrás solo tiene sentido mientras la ventana sigue abierta -"window"-:
+  // en cualquier otro estado (facturable, descartada...) ya se resolvió.
+  const windowDaysLeft =
+    shown.state === "window" && shown.redeemedAt
+      ? Math.max(0, returnWindowDays - Math.floor((nowMs - new Date(shown.redeemedAt).getTime()) / DAY_MS))
+      : null;
+  const windowText =
+    windowDaysLeft == null
+      ? "—"
+      : windowDaysLeft === 0
+        ? t.admin.saltosWindowClosed
+        : windowDaysLeft === 1
+          ? t.admin.saltosWindowDaysLeftOne
+          : fill(t.admin.saltosWindowDaysLeftMany, { n: windowDaysLeft });
 
   return (
     <div
@@ -101,6 +130,23 @@ export function SaltosSheet({
             <dd className="mt-0.5 text-[0.9375rem] font-semibold text-chalk/90">{snapshot.invitedCount}</dd>
           </div>
         </dl>
+
+        {isPending ? null : (
+          <dl className="numeral mt-3 grid grid-cols-3 gap-3 text-[0.6875rem]">
+            <div>
+              <dt className="text-chalk/34">{t.admin.saltosConsumptionsLabel}</dt>
+              <dd className="mt-0.5 text-[0.9375rem] font-semibold text-chalk/90">{shown.stamps}</dd>
+            </div>
+            <div>
+              <dt className="text-chalk/34">{t.admin.saltosLastVisitLabel}</dt>
+              <dd className="mt-0.5 text-[0.9375rem] font-semibold text-chalk/90">{lastVisitText}</dd>
+            </div>
+            <div>
+              <dt className="text-chalk/34">{t.admin.saltosWindowLabel}</dt>
+              <dd className="mt-0.5 text-[0.9375rem] font-semibold text-chalk/90">{windowText}</dd>
+            </div>
+          </dl>
+        )}
 
         {isPending ? null : (
           <div className="mt-4 h-[5px] w-full overflow-hidden rounded-full bg-white/9">

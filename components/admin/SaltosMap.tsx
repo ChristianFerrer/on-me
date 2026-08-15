@@ -259,19 +259,8 @@ function arcPath(a0: number, a1: number, r: number): string {
   return `M${x0.toFixed(2)},${y0.toFixed(2)} A${r.toFixed(2)},${r.toFixed(2)} 0 ${largeArc} 1 ${x1.toFixed(2)},${y1.toFixed(2)}`;
 }
 
-/**
- * Puntos deterministas -sin Math.random(), igual que el resto del repo-
- * fuera del grupo de zoom, y en su propio viewBox fijo -STAR_FIELD_VB-,
- * independiente del arco del embudo (arcRadius/half): antes el radio de
- * las estrellas salía de ese valor, así que en un grafo pequeño el campo
- * de estrellas no llegaba a las esquinas del viewBox cuadrado, y "meet"
- * las deja vacías -sin recortar, solo encoge- en cualquier pantalla que
- * no sea también cuadrada. Con un viewBox propio y "slice" en vez de
- * "meet" (ver más abajo, en el JSX), el campo cubre la pantalla entera
- * pase lo que pase con el tamaño real de la constelación.
- */
-const STAR_COUNT = 480;
-const STAR_FIELD_VB = 100;
+/** Puntos deterministas -sin Math.random(), igual que el resto del repo- fuera del grupo de zoom. */
+const STAR_COUNT = 320;
 
 function starfield(vb: number): { x: number; y: number; r: number; o: number }[] {
   const stars = [];
@@ -420,7 +409,7 @@ export function SaltosMap({
   const arcRadius = layout.arcRadius;
   const half = arcRadius + VIEWBOX_PADDING;
   const size = half * 2;
-  const stars = useMemo(() => starfield(STAR_FIELD_VB), []);
+  const stars = useMemo(() => starfield(half), [half]);
 
   const [pan, setPan] = useState<Pan>({ x: 0, y: 0, scale: 1 });
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -766,25 +755,6 @@ export function SaltosMap({
 
   return (
     <div className="fixed inset-0 aurora-night text-chalk">
-      {/* Campo de estrellas en su propio SVG a pantalla completa, con "slice" en vez
-          de "meet": cubre el viewport entero -recortando lo que sobre, nunca dejando
-          hueco- pase lo que pase con la proporción real de la pantalla. Separado del
-          SVG interactivo a propósito: ese usa "meet" sobre un viewBox que depende del
-          tamaño del grafo, así que el campo de estrellas se quedaba corto en las
-          esquinas en cualquier proporción que no fuera cuadrada. */}
-      <svg
-        className="pointer-events-none fixed inset-0 z-0 h-full w-full"
-        viewBox={`${-STAR_FIELD_VB} ${-STAR_FIELD_VB} ${STAR_FIELD_VB * 2} ${STAR_FIELD_VB * 2}`}
-        preserveAspectRatio="xMidYMid slice"
-        aria-hidden="true"
-      >
-        <g ref={starGroupRef}>
-          {stars.map((star, i) => (
-            <circle key={i} cx={star.x.toFixed(2)} cy={star.y.toFixed(2)} r={star.r.toFixed(2)} fill="var(--color-chalk)" fillOpacity={star.o.toFixed(2)} />
-          ))}
-        </g>
-      </svg>
-
       {/* Capa de grano: sin ella el degradado nocturno se bandea en pantallas OLED. */}
       <svg className="pointer-events-none fixed inset-0 z-10 h-full w-full opacity-[0.15]" aria-hidden="true">
         <filter id="saltos-grain">
@@ -837,6 +807,16 @@ export function SaltosMap({
             <feGaussianBlur stdDeviation="2.2" />
           </filter>
         </defs>
+
+        {/* Fuera del grupo de zoom: no escala con el pellizco, como pide la especificación.
+            El propio <g> sí se desplaza con la inclinación del móvil -paralaje-, pero por
+            ref en el bucle de rAF, nunca por React: no hace falta re-renderizar 60 veces
+            por segundo solo para mover el fondo decorativo. */}
+        <g ref={starGroupRef}>
+          {stars.map((star, i) => (
+            <circle key={i} cx={star.x.toFixed(2)} cy={star.y.toFixed(2)} r={star.r.toFixed(2)} fill="var(--color-chalk)" fillOpacity={star.o.toFixed(2)} />
+          ))}
+        </g>
 
         <g transform={`translate(${pan.x} ${pan.y}) scale(${pan.scale})`}>
           {funnelTotal > 0
@@ -1074,16 +1054,14 @@ export function SaltosMap({
         ) : null}
       </header>
 
-      {/* Leyenda + columna de iconos, apiladas -leyenda encima, iconos debajo- en
-          el lateral derecho: un único contenedor de toda la altura con
-          justify-end hace que la leyenda "empuje" hacia arriba desde donde
-          terminan los iconos, sea cual sea su alto real -ya no hace falta
-          calcular a mano cuánto sitio deja la columna de iconos debajo. */}
-      <div className="pointer-events-none fixed inset-y-0 right-3 z-20 flex flex-col items-end justify-end gap-3 py-[max(1.25rem,env(safe-area-inset-bottom))]">
+      {/* La leyenda vive en el lateral izquierdo, suelta de la columna de iconos
+          -que se queda a la derecha, junto al resto de controles-: son dos
+          contenedores fixed independientes, no un único bloque apilado. */}
+      <div className="pointer-events-none fixed inset-y-0 left-3 z-20 flex flex-col justify-end py-[max(1.25rem,env(safe-area-inset-bottom))]">
         <div
           className="glass-dark pointer-events-auto max-w-[16rem] p-3.5 transition-transform duration-300 ease-[var(--ease-out-soft)]"
           style={{
-            transform: legendOpen ? "translateX(0)" : "translateX(120%)",
+            transform: legendOpen ? "translateX(0)" : "translateX(-120%)",
             // Más transparente que el glass-dark de siempre -0.62 de opacidad-:
             // esta caja tapa buena parte de la constelación, así que deja
             // pasar más del mapa de detrás sin perder legibilidad -el blur
@@ -1126,11 +1104,13 @@ export function SaltosMap({
           <p className="mt-2.5 border-t border-white/8 pt-2.5 text-[0.625rem] leading-tight text-chalk/40">{t.admin.saltosSizeLegend}</p>
           <p className="mt-1.5 text-[0.625rem] leading-tight text-chalk/40">{t.admin.saltosBrightnessLegend}</p>
         </div>
+      </div>
 
-        {/* La ficha (z-30, opaca, ancho completo) se pinta encima de esta columna
-            (z-20) en cuanto hay un nodo seleccionado: sin ocultarla aquí, los tres
-            botones quedaban tapados y sin forma de tocarlos hasta cerrar la ficha
-            con su propio botón. */}
+      {/* La ficha (z-30, opaca, ancho completo) se pinta encima de esta columna
+          (z-20) en cuanto hay un nodo seleccionado: sin ocultarla aquí, los tres
+          botones quedaban tapados y sin forma de tocarlos hasta cerrar la ficha
+          con su propio botón. */}
+      <div className="pointer-events-none fixed inset-y-0 right-3 z-20 flex flex-col items-center justify-end gap-2 py-[max(1.25rem,env(safe-area-inset-bottom))]">
         <div className={cn("pointer-events-auto flex flex-col items-center gap-2", selectedNode ? "invisible" : "visible")}>
           <button
             type="button"
@@ -1170,6 +1150,8 @@ export function SaltosMap({
         invitedCount={selectedNode?.childCount ?? 0}
         color={selectedNode ? safeLineColor(selectedNode) : "var(--color-slate)"}
         stampsGoal={stampsGoal}
+        returnWindowDays={returnWindowDays}
+        nowMs={nowMs}
         locale={locale}
         t={t}
         onClose={() => setSelectedId(null)}

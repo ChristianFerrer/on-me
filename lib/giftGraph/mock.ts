@@ -59,7 +59,8 @@ const CHAINS: TreeSpec[] = [
                   { name: "Iker", state: "opened", lastActivityDaysAgo: 1, expiresInHours: 20 },
                 ],
               },
-              { name: "Vega", state: "billable", stamps: 4, lastActivityDaysAgo: 3 },
+              // Facturable recién estrenado -stamps < 2-, para poder ver el magenta de saltosNodeColor().
+              { name: "Vega", state: "billable", stamps: 1, lastActivityDaysAgo: 1 },
             ],
           },
           // Cadena cortada: descartada, hace dos meses, sin nadie después.
@@ -144,7 +145,8 @@ const CHAINS: TreeSpec[] = [
         state: "window",
         stamps: 3,
         lastActivityDaysAgo: 20,
-        children: [{ name: "Adam", state: "billable", stamps: 5, lastActivityDaysAgo: 5 }],
+        // El otro caso límite del magenta: facturable con 0 sellos todavía.
+        children: [{ name: "Adam", state: "billable", stamps: 0, lastActivityDaysAgo: 5 }],
       },
       { name: "Mia", state: "discarded", stamps: 1, lastActivityDaysAgo: 70 },
     ],
