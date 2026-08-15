@@ -143,6 +143,12 @@ export function GiftUniverse({ t, locale }: { t: Dict; locale: Locale }) {
         onSelect={handleSelect}
         t={t}
       />
+      {/* Viñeteado barato: un degradado en CSS por encima del canvas, no un
+          paso de postprocesado en WebGL. */}
+      <div
+        className="pointer-events-none fixed inset-0 z-[5]"
+        style={{ background: "radial-gradient(ellipse at center, transparent 45%, rgba(0,0,0,0.65) 100%)" }}
+      />
 
       <RecenterButton t={t} onClick={handleRecenter} />
 

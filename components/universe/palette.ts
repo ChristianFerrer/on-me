@@ -2,12 +2,15 @@ import { Color } from "three";
 
 /** Mismos tokens que app/globals.css, en hex: three.js no puede leer var(--...). */
 export const VOID = "#070908";
+/** Fondo del universo 3D: casi negro, pero no negro puro, para dar profundidad. */
+export const DEEP_VOID = "#05060A";
 export const INK = "#0e1211";
 export const INK_2 = "#171c1a";
 export const CHALK = "#f5f7f5";
 export const LIME = "#d2fb4f";
 
-const LIME_COLOR = new Color(LIME);
+export const LIME_COLOR = new Color(LIME);
+export const CHALK_COLOR = new Color(CHALK);
 
 /** Un tono ligeramente distinto del acento por cadena, sin salirse de la paleta. */
 export function chainColor(chainIndex: number, chainCount: number): Color {

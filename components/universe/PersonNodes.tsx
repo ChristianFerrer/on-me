@@ -2,16 +2,21 @@
 
 import { useFrame } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
-import { Color, InstancedMesh, Object3D } from "three";
+import { Color, InstancedMesh, MathUtils, Object3D, Vector3 } from "three";
+import { organicOffset } from "@/components/universe/organicOffset";
 import { chainColor, dimColor, LIME } from "@/components/universe/palette";
+import { SPHERE_GEOMETRY } from "@/components/universe/sphereGeometry";
+import { breathingScale, computeRadius } from "@/lib/giftGraph/organicMotion";
 import { isTap, type PointerPoint } from "@/lib/giftGraph/tapGesture";
+import type { LiveNodesRef } from "@/components/universe/liveNodes";
 import type { Node } from "@/lib/giftGraph/types";
 import type { Vec3 } from "@/lib/giftGraph/sphereLayout";
 
-const NODE_RADIUS = 0.55;
-const HALO_RADIUS = NODE_RADIUS * 1.7;
-const ENTRY_DURATION_MS = 500;
-const ENTRY_STAGGER_MS = 90;
+/** Cuánto tarda en converger el radio hacia su objetivo: mayor = más rápido. */
+const RADIUS_DAMP_LAMBDA = 4;
+/** Deriva orgánica como fracción del radio del propio nodo. */
+const OFFSET_AMPLITUDE_FACTOR = 0.18;
+const ENTRY_STAGGER_SEC = 0.09;
 
 type PendingTap = { pointerId: number; nodeId: string; down: PointerPoint };
 
@@ -23,6 +28,7 @@ export function PersonNodes({
   selectedId,
   directlyConnected,
   reducedMotion,
+  liveRef,
   onSelect,
 }: {
   nodes: Node[];
@@ -32,18 +38,17 @@ export function PersonNodes({
   selectedId: string | null;
   directlyConnected: Set<string>;
   reducedMotion: boolean;
+  liveRef: LiveNodesRef;
   onSelect: (id: string) => void;
 }) {
   const meshRef = useRef<InstancedMesh>(null);
-  const haloMeshRef = useRef<InstancedMesh>(null);
   const pendingTap = useRef<PendingTap | null>(null);
   const entryStartRef = useRef(new Map<string, number>());
   const clockRef = useRef(0);
 
   const rootIndex = useMemo(() => new Map(roots.map((id, index) => [id, index])), [roots]);
   const dummy = useMemo(() => new Object3D(), []);
-
-  const haloIds = useMemo(() => nodes.filter((n) => n.childCount > n.loadedChildCount).map((n) => n.id), [nodes]);
+  const offsetVec = useMemo(() => new Vector3(), []);
 
   useEffect(() => {
     const now = clockRef.current;
@@ -53,23 +58,45 @@ export function PersonNodes({
   }, [nodes]);
 
   useFrame((_, delta) => {
-    clockRef.current += delta * 1000;
+    clockRef.current += delta;
+    const elapsed = clockRef.current;
     const mesh = meshRef.current;
-    const halo = haloMeshRef.current;
     if (!mesh) return;
 
     nodes.forEach((node, index) => {
-      const pos = positions.get(node.id);
-      if (!pos) return;
+      const basePos = positions.get(node.id);
+      if (!basePos) return;
 
-      const startedAt = entryStartRef.current.get(node.id) ?? clockRef.current;
-      const elapsed = clockRef.current - startedAt - node.depth * ENTRY_STAGGER_MS;
-      const entryT = reducedMotion ? 1 : Math.max(0, Math.min(1, elapsed / ENTRY_DURATION_MS));
-      const eased = 1 - (1 - entryT) * (1 - entryT);
-      const scale = eased * NODE_RADIUS;
+      let live = liveRef.current.get(node.id);
+      if (!live) {
+        live = { position: new Vector3(), radius: 0 };
+        liveRef.current.set(node.id, live);
+      }
 
-      dummy.position.set(pos.x, pos.y, pos.z);
-      dummy.scale.setScalar(scale);
+      const startedAt = entryStartRef.current.get(node.id) ?? elapsed;
+      const sinceStart = elapsed - startedAt - node.depth * ENTRY_STAGGER_SEC;
+      const targetRadius = sinceStart > 0 ? computeRadius(node.childCount) : 0;
+      const dampedRadius = reducedMotion
+        ? targetRadius
+        : MathUtils.damp(live.radius, targetRadius, RADIUS_DAMP_LAMBDA, delta);
+      const breathe = reducedMotion ? 1 : breathingScale(elapsed * 1000, node.id);
+      const renderedRadius = dampedRadius * breathe;
+
+      let px = basePos.x;
+      let py = basePos.y;
+      let pz = basePos.z;
+      if (!reducedMotion && dampedRadius > 0.01) {
+        organicOffset(node.id, elapsed, OFFSET_AMPLITUDE_FACTOR * dampedRadius, offsetVec);
+        px += offsetVec.x;
+        py += offsetVec.y;
+        pz += offsetVec.z;
+      }
+
+      live.position.set(px, py, pz);
+      live.radius = dampedRadius;
+
+      dummy.position.set(px, py, pz);
+      dummy.scale.setScalar(renderedRadius);
       dummy.updateMatrix();
       mesh.setMatrixAt(index, dummy.matrix);
 
@@ -78,21 +105,10 @@ export function PersonNodes({
       const base = chainColor(rootIndex.get(node.rootId) ?? 0, roots.length);
       const color = isDim ? dimColor(base, 0.75) : isFocused ? new Color(LIME) : base;
       mesh.setColorAt(index, color);
-
-      if (halo) {
-        const haloIndex = haloIds.indexOf(node.id);
-        if (haloIndex >= 0) {
-          const pulse = reducedMotion ? 1 : 1 + Math.sin(clockRef.current / 450 + index) * 0.08;
-          dummy.scale.setScalar(scale > 0 ? HALO_RADIUS * pulse * (scale / NODE_RADIUS) : 0);
-          dummy.updateMatrix();
-          halo.setMatrixAt(haloIndex, dummy.matrix);
-        }
-      }
     });
 
     mesh.instanceMatrix.needsUpdate = true;
     if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
-    if (halo) halo.instanceMatrix.needsUpdate = true;
   });
 
   function handlePointerDown(event: {
@@ -122,28 +138,24 @@ export function PersonNodes({
   }
 
   return (
-    <>
-      <instancedMesh
-        ref={meshRef}
-        args={[undefined, undefined, Math.max(nodes.length, 1)]}
-        onPointerDown={handlePointerDown}
-        onPointerUp={handlePointerUp}
-        onPointerCancel={() => {
-          pendingTap.current = null;
-        }}
-      >
-        <sphereGeometry args={[1, 20, 20]} />
-        <meshStandardMaterial roughness={0.4} metalness={0.1} />
-      </instancedMesh>
-      {haloIds.length > 0 ? (
-        // Esfera de brillo en vez de un anillo plano: un InstancedMesh no
-        // puede orientar cada instancia hacia la cámara, así que un anillo
-        // se vería de canto y "desaparecería" al girar el universo.
-        <instancedMesh ref={haloMeshRef} args={[undefined, undefined, haloIds.length]}>
-          <sphereGeometry args={[1, 16, 16]} />
-          <meshBasicMaterial color={LIME} transparent opacity={0.18} depthWrite={false} />
-        </instancedMesh>
-      ) : null}
-    </>
+    <instancedMesh
+      ref={meshRef}
+      args={[undefined, undefined, Math.max(nodes.length, 1)]}
+      geometry={SPHERE_GEOMETRY}
+      onPointerDown={handlePointerDown}
+      onPointerUp={handlePointerUp}
+      onPointerCancel={() => {
+        pendingTap.current = null;
+      }}
+    >
+      <meshPhysicalMaterial
+        roughness={0.28}
+        metalness={0.05}
+        clearcoat={0.6}
+        clearcoatRoughness={0.25}
+        emissive={LIME}
+        emissiveIntensity={0.12}
+      />
+    </instancedMesh>
   );
 }
