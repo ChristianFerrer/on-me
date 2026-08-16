@@ -34,6 +34,27 @@ const MIN_RING_GAP = 36;
 const FRAME_RADIUS_FACTOR = 1.18;
 
 /**
+ * Una raíz -depth 1, siempre "direct": alta por QR, sin padrino- que a su vez
+ * ha invitado a mucha gente merece más espacio propio que una raíz suelta o
+ * con un único invitado: por eso se aleja del núcleo un poco más por cada
+ * invitado directo que tenga -más allá del primero-, y arrastra con ella a
+ * toda su descendencia -el mismo desplazamiento se suma a cada nodo de su
+ * subárbol, no solo a la propia raíz-, así la rama entera respira como su
+ * propia constelación pequeña en vez de apretarse contra el resto del
+ * anillo 1. Con 0 o 1 invitados el desplazamiento es 0 -sigue oscilando
+ * pegada al núcleo, como pide la especificación-; a partir de ahí crece un
+ * paso por invitado, hasta un tope -ROOT_FANOUT_MAX_STEPS- para que un caso
+ * extremo no dispare el radio sin límite.
+ */
+const ROOT_FANOUT_STEP = 9;
+const ROOT_FANOUT_MAX_STEPS = 9;
+
+function rootFanoutOffset(childCount: number): number {
+  const steps = Math.min(Math.max(childCount - 1, 0), ROOT_FANOUT_MAX_STEPS);
+  return steps * ROOT_FANOUT_STEP;
+}
+
+/**
  * Radio de burbuja por fase del camino del cliente, no por cuánta gente ha
  * invitado: este mapa cuenta el journey -prospecto, cliente, verificado-,
  * así que el tamaño tiene que contar esa misma historia. "sent" es la
@@ -90,11 +111,14 @@ export function layoutConstelacion(nodes: Node[], edges: Edge[], establishmentId
 
   // Primera pasada: profundidad y ángulo de cada nodo. El radio se resuelve
   // aparte, porque depende de cuántos nodos comparten cada anillo entero, no
-  // solo de la propia rama.
-  const placed: { id: string; depth: number; angle: number }[] = [];
+  // solo de la propia rama. `rootOffset` viaja fijo con cada nodo -se decide
+  // una sola vez por raíz, según su propio número de invitados directos, y
+  // se hereda sin cambios a lo largo de toda su descendencia-, así la
+  // subrama entera se desplaza en bloque, nunca solo su primer nodo.
+  const placed: { id: string; depth: number; angle: number; rootOffset: number }[] = [];
 
-  function place(id: string, depth: number, angleStart: number, angleEnd: number) {
-    placed.push({ id, depth, angle: (angleStart + angleEnd) / 2 });
+  function place(id: string, depth: number, angleStart: number, angleEnd: number, rootOffset: number) {
+    placed.push({ id, depth, angle: (angleStart + angleEnd) / 2, rootOffset });
 
     const children = childrenOf.get(id) ?? [];
     if (children.length === 0) return;
@@ -102,7 +126,7 @@ export function layoutConstelacion(nodes: Node[], edges: Edge[], establishmentId
     let cursor = angleStart;
     for (const childId of children) {
       const span = ((angleEnd - angleStart) * countLeaves(childId)) / total;
-      place(childId, depth + 1, cursor, cursor + span);
+      place(childId, depth + 1, cursor, cursor + span, rootOffset);
       cursor += span;
     }
   }
@@ -112,7 +136,8 @@ export function layoutConstelacion(nodes: Node[], edges: Edge[], establishmentId
   let cursor = -Math.PI / 2; // arranca arriba, como las agujas de un reloj
   for (const rootId of roots) {
     const span = (2 * Math.PI * countLeaves(rootId)) / total;
-    place(rootId, 1, cursor, cursor + span);
+    const rootOffset = rootFanoutOffset((childrenOf.get(rootId) ?? []).length);
+    place(rootId, 1, cursor, cursor + span, rootOffset);
     cursor += span;
   }
 
@@ -135,13 +160,21 @@ export function layoutConstelacion(nodes: Node[], edges: Edge[], establishmentId
   const points = new Map<string, ConstelacionPoint>();
   points.set(establishmentId, { id: establishmentId, depth: 0, angle: 0, ringRadius: 0, nodeRadius: ESTABLISHMENT_RADIUS, index: 0 });
 
+  // El radio real de cada punto es el de su anillo de profundidad MÁS el
+  // desplazamiento de su raíz -0 para la inmensa mayoría, algo más para las
+  // pocas ramas con mucho fan-out-, así que frameRadius -el borde que hay
+  // que encuadrar- tiene que mirar ese radio ya desplazado, no solo el
+  // anillo más lejano a secas: una rama empujada hacia fuera puede acabar
+  // siendo el punto más lejano del mapa aunque no sea la de más profundidad.
+  let maxPointRadius = 0;
   placed.forEach((p, i) => {
-    const ringRadius = ringRadiusByDepth.get(p.depth) ?? 0;
+    const ringRadius = (ringRadiusByDepth.get(p.depth) ?? 0) + p.rootOffset;
+    maxPointRadius = Math.max(maxPointRadius, ringRadius);
     const nodeRadius = nodeRadiusFor(byId.get(p.id));
     points.set(p.id, { id: p.id, depth: p.depth, angle: p.angle, ringRadius, nodeRadius, index: i + 1 });
   });
 
-  const frameRadius = maxDepth > 0 ? (ringRadiusByDepth.get(maxDepth) ?? 0) * FRAME_RADIUS_FACTOR : ESTABLISHMENT_RADIUS * 2.4 * FRAME_RADIUS_FACTOR;
+  const frameRadius = maxDepth > 0 ? maxPointRadius * FRAME_RADIUS_FACTOR : ESTABLISHMENT_RADIUS * 2.4 * FRAME_RADIUS_FACTOR;
 
   const links: ConstelacionLink[] = [];
   for (const [parentId, children] of childrenOf) {

@@ -248,6 +248,53 @@ const CHAINS: TreeSpec[] = [
   },
   { name: "Vale", state: "direct", stamps: 9, lastActivityDaysAgo: 26 },
   { name: "Bea", state: "direct", stamps: 10, lastActivityDaysAgo: 55 },
+  // Un solo invitado: sigue oscilando pegada al núcleo -sin desplazamiento
+  // de radio ni de brillo, el mismo trato que un directo sin descendencia.
+  {
+    name: "Ona",
+    state: "direct",
+    stamps: 7,
+    lastActivityDaysAgo: 4,
+    children: [{ name: "Pol", state: "billable", stamps: 3, lastActivityDaysAgo: 4 }],
+  },
+  // Seis invitados directos, dos de ellos con su propia descendencia: se
+  // aleja del núcleo y brilla más que el resto de raíces directas, para
+  // leerse como su propia pequeña constelación.
+  {
+    name: "Roc",
+    state: "direct",
+    stamps: 10,
+    cardsCompleted: 1,
+    lastActivityDaysAgo: 1,
+    children: [
+      {
+        name: "Aina",
+        state: "billable",
+        stamps: 6,
+        lastActivityDaysAgo: 1,
+        children: [
+          { name: "Biel", state: "window", stamps: 1, lastActivityDaysAgo: 1 },
+          { name: "Cata", state: "claimed", lastActivityDaysAgo: 2 },
+        ],
+      },
+      {
+        name: "Dani",
+        state: "opened",
+        lastActivityDaysAgo: 3,
+        expiresInHours: 200,
+      },
+      { name: "Erin", state: "billable", stamps: 4, lastActivityDaysAgo: 2 },
+      { name: "Fran", state: "window", stamps: 3, lastActivityDaysAgo: 10 },
+      { name: "Gina", state: "sent", lastActivityDaysAgo: 1, expiresInHours: 500 },
+      {
+        name: "Ivo",
+        state: "billable",
+        stamps: 9,
+        lastActivityDaysAgo: 1,
+        children: [{ name: "Ines", state: "window", stamps: 2, lastActivityDaysAgo: 3 }],
+      },
+    ],
+  },
 ];
 
 function slug(name: string): string {

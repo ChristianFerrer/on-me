@@ -134,4 +134,46 @@ describe("layoutConstelacion", () => {
     const full = point(layout, "full");
     expect(layout.frameRadius).toBeCloseTo(full.ringRadius * 1.18, 5);
   });
+
+  it("una raíz directa con muchos invitados se aleja del núcleo más que una con uno solo, y arrastra a su descendencia", () => {
+    const layout = layoutConstelacion(
+      [
+        node("popular"),
+        node("p1"),
+        node("p2"),
+        node("p3"),
+        node("p4"),
+        node("p5"),
+        node("nieta"),
+        node("solitaria"),
+        node("unico"),
+        node("hijounico"),
+      ],
+      [
+        edge(SHOP, "popular"),
+        edge("popular", "p1"),
+        edge("popular", "p2"),
+        edge("popular", "p3"),
+        edge("popular", "p4"),
+        edge("popular", "p5"),
+        edge("p1", "nieta"),
+        edge(SHOP, "solitaria"),
+        edge(SHOP, "unico"),
+        edge("unico", "hijounico"),
+      ],
+      SHOP,
+    );
+    const popular = point(layout, "popular");
+    const solitaria = point(layout, "solitaria");
+    const unico = point(layout, "unico");
+    const p1 = point(layout, "p1"); // profundidad 2, bajo "popular"
+
+    // Sin invitados, o con uno solo: mismo radio que cualquier otra raíz, sin desplazamiento.
+    expect(solitaria.ringRadius).toBe(unico.ringRadius);
+    // Con 5 invitados directos, la raíz -y su rama entera- se aleja del anillo 1 base.
+    expect(popular.ringRadius).toBeGreaterThan(solitaria.ringRadius);
+    // El desplazamiento de "popular" viaja con toda su descendencia: su hijo
+    // sigue en el anillo 2 -más lejos que la propia raíz-, no se queda atrás.
+    expect(p1.ringRadius).toBeGreaterThan(popular.ringRadius);
+  });
 });

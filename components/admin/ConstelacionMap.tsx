@@ -1431,8 +1431,14 @@ export function ConstelacionMap({
             // mapa aunque su estado no cambie. Solo clientes reales, una
             // invitación pendiente no tiene visitas que contar.
             const visitBoost = node.claimed ? clamp(node.stamps / Math.max(1, stampsGoal), 0, 1) : 0;
-            const haloFillOpacity = Math.min(0.6, (isPositive ? 0.24 : 0.13) * (1 + visitBoost * 0.9));
-            const haloScale = (isPositive ? 2.15 : 1.85) * (1 + visitBoost * 0.35);
+            // Mismo criterio que rootFanoutOffset en constelacionLayout.ts -a
+            // partir del segundo invitado directo, hasta un tope de 6-, pero
+            // aquí en intensidad, no en radio: una raíz directa (depth 1) con
+            // mucho fan-out brilla más, así su pequeña constelación se nota
+            // también de lejos, no solo por estar más separada del núcleo.
+            const fanoutBoost = node.depth === 1 ? clamp((node.childCount - 1) / 5, 0, 1) : 0;
+            const haloFillOpacity = Math.min(0.6, (isPositive ? 0.24 : 0.13) * (1 + visitBoost * 0.9 + fanoutBoost * 0.8));
+            const haloScale = (isPositive ? 2.15 : 1.85) * (1 + visitBoost * 0.35 + fanoutBoost * 0.4);
             const restOpacity = isMuted ? 0.55 : 1;
 
             // "En ventana" se encoge y parpadea cada vez más rápido cuantos
