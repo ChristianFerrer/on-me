@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowLeftIcon, CompassIcon, EyeIcon, EyeOffIcon, InfoIcon, PulseIcon } from "@/components/ui/Icons";
+import { ArrowLeftIcon, CompassIcon, EyeIcon, EyeOffIcon, InfoIcon, PulseIcon, SettingsIcon } from "@/components/ui/Icons";
 import { ConstelacionSheet } from "@/components/admin/ConstelacionSheet";
 import { cn } from "@/lib/cn";
 import { bestPadrinoId, isExpiringSoon } from "@/lib/giftGraph/insights";
@@ -722,6 +722,8 @@ export function ConstelacionSolMap({
   }, [nodeRadiusById]);
   const [legendOpen, setLegendOpen] = useState(true);
   const [hudVisible, setHudVisible] = useState(true);
+  /** Ajuste propio de esta vista -no existe en ConstelacionMap-: oculta las líneas que van del sol a un cliente sin padrino (alta directa por QR), que en un local con muchas suelen ser la mayoría del ruido visual alrededor del núcleo. */
+  const [hideDirectLinks, setHideDirectLinks] = useState(false);
   const [touched, setTouched] = useState(false);
 
   const ancestors = useMemo(() => {
@@ -1163,23 +1165,43 @@ export function ConstelacionSolMap({
         @keyframes constelacion-alert-pulse { 0%, 100% { transform: scale(1); opacity: 0.12; } 50% { transform: scale(1.2); opacity: 0.4; } }
         @keyframes constelacion-billable-glow { 0%, 100% { transform: scale(1); opacity: 0.22; } 50% { transform: scale(1.08); opacity: 0.32; } }
         @keyframes constelacion-window-blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.42; } }
-        @keyframes constelacion-sun-aura-a { 0%, 100% { transform: scale(1) translate(0, 0); opacity: 0.14; } 50% { transform: scale(1.14) translate(1.5%, -1%); opacity: 0.22; } }
-        @keyframes constelacion-sun-aura-b { 0%, 100% { transform: scale(1.06) translate(-1%, 1%); opacity: 0.1; } 50% { transform: scale(0.94) translate(1%, 1.5%); opacity: 0.18; } }
-        @keyframes constelacion-sun-aura-c { 0%, 100% { transform: scale(0.96) translate(1%, -1.5%); opacity: 0.07; } 50% { transform: scale(1.1) translate(-1.5%, 1%); opacity: 0.15; } }
+        /* Aura de sol tenue: picos a porcentajes irregulares -no 0/50/100%- para que
+           el vaivén parezca aleatorio en vez de un "respirar" simétrico en bloque;
+           cada capa además dura un número de segundos no múltiplo de las otras
+           -ver más abajo-, así las tres nunca laten a la vez. */
+        @keyframes constelacion-sun-aura-a {
+          0%, 100% { transform: scale(1) translate(0, 0); opacity: 0.09; }
+          22% { transform: scale(1.07) translate(1.1%, -0.6%); opacity: 0.13; }
+          41% { transform: scale(0.97) translate(-0.7%, 0.9%); opacity: 0.07; }
+          63% { transform: scale(1.1) translate(0.5%, 1.2%); opacity: 0.14; }
+          78% { transform: scale(1.02) translate(-1%, -0.4%); opacity: 0.08; }
+        }
+        @keyframes constelacion-sun-aura-b {
+          0%, 100% { transform: scale(1.03) translate(-0.6%, 0.5%); opacity: 0.07; }
+          18% { transform: scale(0.96) translate(0.8%, -1%); opacity: 0.05; }
+          47% { transform: scale(1.09) translate(-1%, -0.5%); opacity: 0.1; }
+          69% { transform: scale(0.99) translate(1%, 0.8%); opacity: 0.06; }
+          86% { transform: scale(1.05) translate(0.4%, -0.9%); opacity: 0.09; }
+        }
+        @keyframes constelacion-sun-aura-c {
+          0%, 100% { transform: scale(0.98) translate(0.5%, -0.4%); opacity: 0.05; }
+          27% { transform: scale(1.06) translate(-0.9%, 0.7%); opacity: 0.08; }
+          52% { transform: scale(0.95) translate(0.6%, 1%); opacity: 0.04; }
+          74% { transform: scale(1.04) translate(-0.5%, -0.8%); opacity: 0.07; }
+          91% { transform: scale(1) translate(0.9%, 0.3%); opacity: 0.05; }
+        }
         .constelacion-alert-ring { transform-origin: center; transform-box: fill-box; animation: constelacion-alert-pulse 2.6s ease-in-out infinite; }
         .constelacion-billable-glow { transform-origin: center; transform-box: fill-box; animation: constelacion-billable-glow 5s ease-in-out infinite; }
         .constelacion-window-blink { animation: constelacion-window-blink 3s ease-in-out infinite; }
-        .constelacion-sun-aura-a { transform-origin: center; transform-box: fill-box; animation: constelacion-sun-aura-a 4.6s ease-in-out infinite; }
-        .constelacion-sun-aura-b { transform-origin: center; transform-box: fill-box; animation: constelacion-sun-aura-b 6.3s ease-in-out infinite 0.6s; }
-        .constelacion-sun-aura-c { transform-origin: center; transform-box: fill-box; animation: constelacion-sun-aura-c 7.9s ease-in-out infinite 1.3s; }
-        @keyframes constelacion-sun-rays { to { transform: rotate(360deg); } }
+        .constelacion-sun-aura-a { transform-origin: center; transform-box: fill-box; animation: constelacion-sun-aura-a 11.3s ease-in-out infinite; }
+        .constelacion-sun-aura-b { transform-origin: center; transform-box: fill-box; animation: constelacion-sun-aura-b 8.7s ease-in-out infinite 0.6s; }
+        .constelacion-sun-aura-c { transform-origin: center; transform-box: fill-box; animation: constelacion-sun-aura-c 14.1s ease-in-out infinite 1.3s; }
         @keyframes constelacion-star-twinkle { 0%, 100% { opacity: 1; } 50% { opacity: var(--twinkle-min, 0.55); } }
-        .constelacion-sun-rays { transform-origin: center; transform-box: fill-box; animation: constelacion-sun-rays 90s linear infinite; }
         .constelacion-star-twinkle { animation: constelacion-star-twinkle var(--twinkle-s, 4s) ease-in-out infinite; animation-delay: var(--twinkle-delay, 0s); }
         @media (prefers-reduced-motion: reduce) {
           .constelacion-alert-ring, .constelacion-billable-glow, .constelacion-window-blink,
           .constelacion-sun-aura-a, .constelacion-sun-aura-b, .constelacion-sun-aura-c,
-          .constelacion-sun-rays, .constelacion-star-twinkle { animation: none; }
+          .constelacion-star-twinkle { animation: none; }
         }
       `}</style>
 
@@ -1198,20 +1220,19 @@ export function ConstelacionSolMap({
         aria-label={t.admin.referralMap}
       >
         <defs>
-          {/* El núcleo ya no es la esfera lima plana de ConstelacionMap: es un sol de
-              verdad, con su propio degradado radial -blanco casi puro en el centro,
-              hacia ámbar y naranja quemado en el borde-, el mismo tipo de gradiente
-              que cualquier ilustración de un sol real, no un color plano. */}
+          {/* El núcleo es un sol de verdad -degradado radial, no un color plano-,
+              pero en el lima de siempre de la marca: casi blanco en el centro,
+              hacia el lima vivo y un lima más oscuro y verdoso en el borde. */}
           <radialGradient id="constelacion-sun-core">
-            <stop offset="0%" stopColor="#FFFDF2" />
-            <stop offset="45%" stopColor="#FFE8A3" />
-            <stop offset="80%" stopColor="#FFB238" />
-            <stop offset="100%" stopColor="#F2790A" />
+            <stop offset="0%" stopColor="#FBFFE8" />
+            <stop offset="45%" stopColor="#E9FF72" />
+            <stop offset="80%" stopColor="#B9E23A" />
+            <stop offset="100%" stopColor="#7FA820" />
           </radialGradient>
           <radialGradient id="constelacion-hub-glow">
-            <stop offset="0%" stopColor="#FFC24D" stopOpacity={0.5} />
-            <stop offset="60%" stopColor="#FF8A1E" stopOpacity={0.1} />
-            <stop offset="100%" stopColor="#FF8A1E" stopOpacity={0} />
+            <stop offset="0%" stopColor="var(--color-lime)" stopOpacity={0.45} />
+            <stop offset="60%" stopColor="var(--color-lime)" stopOpacity={0.08} />
+            <stop offset="100%" stopColor="var(--color-lime)" stopOpacity={0} />
           </radialGradient>
           {/*
             Aura reutilizable por color -"currentColor" hereda del `color` en
@@ -1291,7 +1312,15 @@ export function ConstelacionSolMap({
             const isMutedLink = toNode != null && CONSTELACION_MUTED_STATES.has(toNode.state);
             const restOpacity = isMutedLink ? 0.14 : 0.3;
             const restWidth = isMutedLink ? 0.9 : 1.3;
-            const opacity = selectedId ? (isPathLink ? 0.95 : 0.04) : restOpacity;
+            // Alta directa por QR, sin padrino real: el ajuste de la columna de
+            // iconos puede apagar del todo estas líneas -son puro ruido alrededor
+            // del sol en un local con muchas-, y da igual qué más esté pasando.
+            const isDirectLink = toNode?.state === "direct";
+            // Al tocar una sección del anillo, las líneas desaparecen del todo
+            // -no solo se atenúan- mientras las esferas convergen: así se ve con
+            // claridad quién va hacia dónde, sin cuerdas cruzándose por encima.
+            const hiddenByCategory = selectedCategory != null;
+            const opacity = hiddenByCategory || (hideDirectLinks && isDirectLink) ? 0 : selectedId ? (isPathLink ? 0.95 : 0.04) : restOpacity;
             const width = selectedId && isPathLink ? 2.2 : selectedId ? 1.1 : restWidth;
             return (
               <path
@@ -1307,11 +1336,21 @@ export function ConstelacionSolMap({
                 strokeWidth={width}
                 strokeLinecap="round"
                 vectorEffect="non-scaling-stroke"
+                style={{ transition: "stroke-opacity 260ms var(--ease-out-soft)" }}
               />
             );
           })}
 
-          {[...pulseLinkKeys].map((key) => {
+          {[...pulseLinkKeys]
+            .filter((key) => {
+              // Ningún pulso viajero flotando sobre una cuerda que ya no se ve:
+              // mismo criterio de ocultación que la propia línea, arriba.
+              if (selectedCategory != null) return false;
+              if (!hideDirectLinks) return true;
+              const childId = key.split(">")[1];
+              return byId.get(childId ?? "")?.state !== "direct";
+            })
+            .map((key) => {
             // Del mismo color que la cuerda por la que viaja, no de uno fijo:
             // el color de la propia rama, ya calculado para el enlace.
             const childId = key.split(">")[1];
@@ -1334,35 +1373,17 @@ export function ConstelacionSolMap({
           })}
 
           <g data-node-id={graph.establishment.id} className="cursor-pointer">
-            {/* Aura de sol: tres círculos difuminados, cada uno con su propio período y
-                retraso -no laten a la vez-, para que el borde de la corona ondule en vez
-                de simplemente "respirar" en bloque, como el resto de los halos del mapa. */}
-            <circle className="constelacion-sun-aura-a" r={ESTABLISHMENT_RADIUS * 3.4} fill="url(#constelacion-glow)" fillOpacity={0.14} style={{ color: "#FF8A1E" }} />
-            <circle className="constelacion-sun-aura-b" r={ESTABLISHMENT_RADIUS * 3.9} fill="url(#constelacion-glow)" fillOpacity={0.1} style={{ color: "#FF8A1E" }} />
-            <circle className="constelacion-sun-aura-c" r={ESTABLISHMENT_RADIUS * 4.5} fill="url(#constelacion-glow)" fillOpacity={0.07} style={{ color: "#FF8A1E" }} />
+            {/* Aura de sol, tenue y sin rayos: tres círculos difuminados en el mismo
+                lima del núcleo, cada uno con su propio período -no múltiplo del de
+                los otros, para que nunca se sincronicen- y su propia secuencia de
+                picos a porcentajes irregulares -22/41/63/78%, no 0/50/100%-, así el
+                borde ondula con un vaivén de aspecto aleatorio en vez de "respirar"
+                de forma pareja en bloque. Movimiento e intensidad deliberadamente
+                sutiles: es un aura, no un foco. */}
+            <circle className="constelacion-sun-aura-a" r={ESTABLISHMENT_RADIUS * 3.1} fill="url(#constelacion-glow)" fillOpacity={0.1} style={{ color: "var(--color-lime)" }} />
+            <circle className="constelacion-sun-aura-b" r={ESTABLISHMENT_RADIUS * 3.6} fill="url(#constelacion-glow)" fillOpacity={0.07} style={{ color: "var(--color-lime)" }} />
+            <circle className="constelacion-sun-aura-c" r={ESTABLISHMENT_RADIUS * 4.1} fill="url(#constelacion-glow)" fillOpacity={0.05} style={{ color: "var(--color-lime)" }} />
             <circle cx={0} cy={0} r={ESTABLISHMENT_RADIUS * 2.5} fill="url(#constelacion-hub-glow)" />
-            {/* Rayos de la corona: giran solos por CSS -sin tocar el bucle de rAF-, un
-                adorno puramente decorativo del sol, nunca un dato que haga falta leer. */}
-            <g className="constelacion-sun-rays" aria-hidden="true">
-              {Array.from({ length: 10 }, (_, i) => {
-                const a = (i / 10) * Math.PI * 2;
-                const r0 = ESTABLISHMENT_RADIUS * 1.05;
-                const r1 = ESTABLISHMENT_RADIUS * (i % 2 === 0 ? 1.85 : 1.5);
-                return (
-                  <line
-                    key={i}
-                    x1={r0 * Math.cos(a)}
-                    y1={r0 * Math.sin(a)}
-                    x2={r1 * Math.cos(a)}
-                    y2={r1 * Math.sin(a)}
-                    stroke="#FFC24D"
-                    strokeOpacity={0.4}
-                    strokeWidth={1}
-                    strokeLinecap="round"
-                  />
-                );
-              })}
-            </g>
             {/* Sin nombre del local escrito encima -eso es justo lo que este mapa cambia
                 respecto a ConstelacionMap-: el núcleo es solo el sol, el nombre vive
                 fuera, en la esquina -ver la placa fija más abajo en el JSX. */}
@@ -1442,13 +1463,16 @@ export function ConstelacionSolMap({
                   fillOpacity={haloFillOpacity}
                   style={{ color }}
                 />
-                <circle
-                  className={cn("constelacion-star-twinkle", isWindow && "constelacion-window-blink")}
-                  style={{ ...twinkleStyle, ...windowBlinkStyle }}
-                  r={starCoreR}
-                  fill={color}
-                />
-                <circle r={starCoreR} fill="none" stroke={CONSTELACION_STROKE_COLOR[node.state]} strokeWidth={isMuted ? 0.7 : 0.4} />
+                {/* El titileo y el parpadeo de "en ventana" son dos animaciones de
+                    `opacity` distintas: en un mismo elemento, la última declarada en
+                    la hoja de estilos se comía a la otra -CSS solo aplica una por
+                    propiedad-, así que el titileo vive en el <g> que envuelve, y el
+                    parpadeo en el propio círculo de dentro; sus opacidades se
+                    multiplican al componerse, así que ambas se ven a la vez. */}
+                <g className="constelacion-star-twinkle" style={twinkleStyle}>
+                  <circle className={isWindow ? "constelacion-window-blink" : undefined} style={windowBlinkStyle} r={starCoreR} fill={color} />
+                  <circle r={starCoreR} fill="none" stroke={CONSTELACION_STROKE_COLOR[node.state]} strokeWidth={isMuted ? 0.7 : 0.4} />
+                </g>
                 <circle r={Math.max(displayRadius + 7, 12)} fill="transparent" />
 
                 {node.claimed ? (
@@ -1493,7 +1517,7 @@ export function ConstelacionSolMap({
           <div className="pointer-events-none flex flex-col gap-0.5 pl-1">
             <p className="text-[0.9375rem] font-semibold leading-tight text-chalk/90">{shopName}</p>
             <p className="eyebrow text-chalk/40">
-              {t.admin.referralMap} · {customerCount} {t.admin.attributions}
+              {t.admin.referralMap} · {customerCount} {t.admin.constelacionCustomersLabel}
             </p>
           </div>
         </div>
@@ -1614,6 +1638,19 @@ export function ConstelacionSolMap({
             className={cn("btn size-11", hudVisible ? "bg-lime text-ink" : "glass-dark text-chalk")}
           >
             {hudVisible ? <EyeIcon className="size-5" /> : <EyeOffIcon className="size-5" />}
+          </button>
+          {/* Propio de esta vista -no existe en ConstelacionMap-: apaga las
+              líneas que van del sol a un cliente de alta directa por QR, el
+              ruido visual más habitual alrededor del núcleo. */}
+          <button
+            type="button"
+            onClick={() => setHideDirectLinks((v) => !v)}
+            aria-pressed={hideDirectLinks}
+            aria-label={t.admin.constelacionHideDirectLinks}
+            title={t.admin.constelacionSettings}
+            className={cn("btn size-11", hideDirectLinks ? "bg-lime text-ink" : "glass-dark text-chalk")}
+          >
+            <SettingsIcon className="size-5" />
           </button>
           {/* Como en ConstelacionMap: esta vista tampoco lleva su propia barra
               inferior -es igualmente "una exploración a pantalla completa, no
