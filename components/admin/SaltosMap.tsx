@@ -219,15 +219,24 @@ function animatedXY(point: SaltosPoint, rotation: number, nowMs: number): XY {
   return { x: r * Math.cos(angle), y: r * Math.sin(angle) };
 }
 
+type Bezier = { p0: XY; c1: XY; c2: XY; p1: XY };
+
 /**
- * Curva Bézier cúbica: los puntos de control van al radio medio entre el
- * anillo del padre y el del hijo, cada uno en su propio ángulo, para que la
- * rama gire suave hacia su hijo en vez de salir en línea recta desde el
- * centro. `rotation` es 0 para el primer pintado estático -la base que
- * siempre es correcta, se mueva o no el JS- y el ángulo de fondo real
- * cuando la anima el bucle de rAF.
+ * Puntos de control de la curva Bézier cúbica de un enlace: van al radio
+ * medio entre el anillo del padre y el del hijo, cada uno en su propio
+ * ángulo, para que la rama gire suave hacia su hijo en vez de salir en
+ * línea recta desde el centro. `rotation` es 0 para el primer pintado
+ * estático -la base que siempre es correcta, se mueva o no el JS- y el
+ * ángulo de fondo real cuando la anima el bucle de rAF.
+ *
+ * Factorizado aparte de linkPath() para que el pulso viajero (más abajo,
+ * en el bucle de rAF) pueda evaluar un punto sobre la misma curva sin
+ * tener que ir al DOM -path.getTotalLength()/getPointAtLength()-, que es
+ * muchísimo más caro que la aritmética directa y, con muchos pulsos
+ * activos a la vez, es la diferencia entre una página fluida y una que
+ * se nota pesada.
  */
-function linkPath(layout: SaltosLayout, rotation: number, nowMs: number, fromId: string, toId: string): string | null {
+function linkBezier(layout: SaltosLayout, rotation: number, nowMs: number, fromId: string, toId: string): Bezier | null {
   const from = layout.points.get(fromId);
   const to = layout.points.get(toId);
   if (!from || !to) return null;
@@ -241,7 +250,26 @@ function linkPath(layout: SaltosLayout, rotation: number, nowMs: number, fromId:
   const a1 = to.angle + rotation;
   const c1 = { x: midR * Math.cos(a0), y: midR * Math.sin(a0) };
   const c2 = { x: midR * Math.cos(a1), y: midR * Math.sin(a1) };
-  return `M${p0.x.toFixed(2)},${p0.y.toFixed(2)} C${c1.x.toFixed(2)},${c1.y.toFixed(2)} ${c2.x.toFixed(2)},${c2.y.toFixed(2)} ${p1.x.toFixed(2)},${p1.y.toFixed(2)}`;
+  return { p0, c1, c2, p1 };
+}
+
+function linkPath(layout: SaltosLayout, rotation: number, nowMs: number, fromId: string, toId: string): string | null {
+  const b = linkBezier(layout, rotation, nowMs, fromId, toId);
+  if (!b) return null;
+  return `M${b.p0.x.toFixed(2)},${b.p0.y.toFixed(2)} C${b.c1.x.toFixed(2)},${b.c1.y.toFixed(2)} ${b.c2.x.toFixed(2)},${b.c2.y.toFixed(2)} ${b.p1.x.toFixed(2)},${b.p1.y.toFixed(2)}`;
+}
+
+/** Punto sobre la curva en el parámetro t -no proporcional a longitud de arco, pero para un pulso pequeño sobre una curva corta la diferencia no se nota, y evita tocar el DOM. */
+function bezierPointAt(b: Bezier, t: number): XY {
+  const mt = 1 - t;
+  const a = mt * mt * mt,
+    bb = 3 * mt * mt * t,
+    c = 3 * mt * t * t,
+    d = t * t * t;
+  return {
+    x: a * b.p0.x + bb * b.c1.x + c * b.c2.x + d * b.p1.x,
+    y: a * b.p0.y + bb * b.c1.y + c * b.c2.y + d * b.p1.y,
+  };
 }
 
 function arcPath(a0: number, a1: number, r: number): string {
@@ -556,10 +584,11 @@ export function SaltosMap({
       pulseT = (pulseT + PULSE_STEP) % 1;
       const pulseOpacity = Math.sin(pulseT * Math.PI) * 0.85;
       for (const [key, groupEl] of pulseDotRefs.current) {
-        const pathEl = linkRefs.current.get(key);
-        if (!pathEl || !groupEl) continue;
-        const length = pathEl.getTotalLength();
-        const point = pathEl.getPointAtLength(length * pulseT);
+        if (!groupEl) continue;
+        const [fromId, toId] = key.split(">");
+        const bezier = linkBezier(layout, rotation, now, fromId, toId);
+        if (!bezier) continue;
+        const point = bezierPointAt(bezier, pulseT);
         groupEl.setAttribute("transform", `translate(${point.x.toFixed(2)},${point.y.toFixed(2)})`);
         groupEl.setAttribute("opacity", pulseOpacity.toFixed(3));
       }
@@ -797,9 +826,21 @@ export function SaltosMap({
             <stop offset="60%" stopColor="var(--color-lime)" stopOpacity={0.08} />
             <stop offset="100%" stopColor="var(--color-lime)" stopOpacity={0} />
           </radialGradient>
-          <filter id="saltos-soft" x="-70%" y="-70%" width="240%" height="240%">
-            <feGaussianBlur stdDeviation="2.2" />
-          </filter>
+          {/*
+            Aura reutilizable por color -"currentColor" hereda del `color` en
+            línea del propio elemento-, en vez del `filter="url(#saltos-soft)"`
+            -un feGaussianBlur- que llevaba antes cada halo. Con un grafo real
+            (70-90 nodos, ~30 con el glow que respira) un blur SVG animado en
+            cada uno obliga al navegador a re-rasterizar ese halo entero en
+            cada frame -software, sin acelerar por GPU en la mayoría de
+            navegadores-, y era la causa principal de que el mapa se notara
+            pesado. Un degradado radial da el mismo aspecto de resplandor
+            suave sin ese coste: es una malla que la GPU compone directamente.
+          */}
+          <radialGradient id="saltos-glow">
+            <stop offset="0%" stopColor="currentColor" stopOpacity={1} />
+            <stop offset="100%" stopColor="currentColor" stopOpacity={0} />
+          </radialGradient>
         </defs>
 
         {/* Fuera del grupo de zoom: no escala con el pellizco, como pide la especificación.
@@ -908,7 +949,7 @@ export function SaltosMap({
                 opacity={0}
                 className="pointer-events-none"
               >
-                <circle r={PULSE_GLOW_R} fill={pulseColor} fillOpacity={0.5} filter="url(#saltos-soft)" />
+                <circle r={PULSE_GLOW_R} fill="url(#saltos-glow)" fillOpacity={0.5} style={{ color: pulseColor }} />
                 <circle r={PULSE_DOT_R} fill={pulseColor} />
               </g>
             );
@@ -918,9 +959,9 @@ export function SaltosMap({
             {/* Aura de sol: tres círculos difuminados, cada uno con su propio período y
                 retraso -no laten a la vez-, para que el borde de la corona ondule en vez
                 de simplemente "respirar" en bloque, como el resto de los halos del mapa. */}
-            <circle className="saltos-sun-aura-a" r={ESTABLISHMENT_RADIUS * 3.4} fill="var(--color-lime)" fillOpacity={0.14} filter="url(#saltos-soft)" />
-            <circle className="saltos-sun-aura-b" r={ESTABLISHMENT_RADIUS * 3.9} fill="var(--color-lime)" fillOpacity={0.1} filter="url(#saltos-soft)" />
-            <circle className="saltos-sun-aura-c" r={ESTABLISHMENT_RADIUS * 4.5} fill="var(--color-lime)" fillOpacity={0.07} filter="url(#saltos-soft)" />
+            <circle className="saltos-sun-aura-a" r={ESTABLISHMENT_RADIUS * 3.4} fill="url(#saltos-glow)" fillOpacity={0.14} style={{ color: "var(--color-lime)" }} />
+            <circle className="saltos-sun-aura-b" r={ESTABLISHMENT_RADIUS * 3.9} fill="url(#saltos-glow)" fillOpacity={0.1} style={{ color: "var(--color-lime)" }} />
+            <circle className="saltos-sun-aura-c" r={ESTABLISHMENT_RADIUS * 4.5} fill="url(#saltos-glow)" fillOpacity={0.07} style={{ color: "var(--color-lime)" }} />
             <circle cx={0} cy={0} r={ESTABLISHMENT_RADIUS * 2.5} fill="url(#saltos-hub-glow)" />
             <circle cx={0} cy={0} r={ESTABLISHMENT_RADIUS} fill="var(--color-lime)" />
             <text y={-1} textAnchor="middle" dominantBaseline="middle" fontSize={8} fontWeight={800} fill="#15150f">
@@ -990,14 +1031,16 @@ export function SaltosMap({
                 {isExpiringNode ? (
                   <circle className="saltos-alert-ring" r={displayRadius + 6} fill="none" stroke="var(--color-coral)" strokeWidth={1} />
                 ) : null}
-                {isBest ? <circle r={displayRadius * 2.1} fill="var(--color-amber)" fillOpacity={0.16} filter="url(#saltos-soft)" /> : null}
+                {isBest ? (
+                  <circle r={displayRadius * 2.1} fill="url(#saltos-glow)" fillOpacity={0.16} style={{ color: "var(--color-amber)" }} />
+                ) : null}
 
                 <circle
                   className={isPositive ? "saltos-billable-glow" : undefined}
                   r={displayRadius * haloScale}
-                  fill={color}
+                  fill="url(#saltos-glow)"
                   fillOpacity={haloFillOpacity}
-                  filter="url(#saltos-soft)"
+                  style={{ color }}
                 />
                 <circle className={isWindow ? "saltos-window-blink" : undefined} style={windowBlinkStyle} r={displayRadius} fill={color} />
                 <circle r={displayRadius} fill="none" stroke={SALTOS_STROKE_COLOR[node.state]} strokeWidth={isMuted ? 0.9 : 0.55} />
