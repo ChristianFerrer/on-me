@@ -32,6 +32,16 @@ export function QrIcon(props: IconProps) {
   );
 }
 
+export function CardIcon(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <rect x="2.5" y="5.5" width="19" height="13" rx="2" />
+      <path d="M2.5 9.5h19" />
+      <path d="M6 14.5h5" />
+    </svg>
+  );
+}
+
 export function ScanIcon(props: IconProps) {
   return (
     <svg {...base(props)}>

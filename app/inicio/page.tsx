@@ -1,15 +1,16 @@
 import Link from "next/link";
-import { InfoIcon, PanelIcon, QrIcon, ScanIcon } from "@/components/ui/Icons";
+import { CardIcon, InfoIcon, PanelIcon, QrIcon, ScanIcon } from "@/components/ui/Icons";
 import { Logo } from "@/components/ui/Logo";
 import { assertNoQueryError, db } from "@/lib/db/client";
 import { getI18n } from "@/lib/i18n/server";
 
 /**
- * Portal del equipo: los tres sitios a los que alguien del local necesita
- * llegar sin memorizar ni teclear una ruta — el cartel del QR, el escáner
- * de barra y el panel. Pública a propósito: cada destino ya tiene su propia
- * puerta (sesión de dispositivo, login de Supabase), así que enseñar el
- * enlace no abre nada que no estuviera ya protegido donde importa.
+ * Portal de todos: los sitios a los que alguien -del equipo o cliente-
+ * necesita llegar sin memorizar ni teclear una ruta — la tarjeta propia,
+ * el cartel del QR, el escáner de barra y el panel. Pública a propósito:
+ * cada destino ya tiene su propia puerta (sesión de cliente, de
+ * dispositivo, login de Supabase), así que enseñar el enlace no abre nada
+ * que no estuviera ya protegido donde importa.
  *
  * Asume un solo local, como el resto del piloto: el primero que haya.
  */
@@ -35,7 +36,13 @@ export default async function InicioPage() {
           <p className="eyebrow text-chalk/40">{t.home.subtitle}</p>
         </div>
 
-        <nav className="grid min-h-0 flex-1 grid-cols-2 grid-rows-2 gap-3 sm:flex-none sm:gap-4">
+        <nav className="grid min-h-0 flex-1 grid-cols-2 auto-rows-fr gap-2 sm:flex-none sm:gap-3">
+          <Tile
+            href="/c"
+            icon={<CardIcon className="size-6 sm:size-7" />}
+            title={t.home.myCard}
+            body={t.home.myCardBody}
+          />
           {shop ? (
             <Tile
               href={`/j/${shop.slug}/qr`}
