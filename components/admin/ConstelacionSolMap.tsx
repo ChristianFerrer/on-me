@@ -41,6 +41,82 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 const RECENT_REDEMPTION_MS = 30 * DAY_MS;
 
 /**
+ * "Magnitud" de cada estrella -tamaño, distancia al núcleo, grosor de su
+ * cuerda y a qué zoom se le ve el nombre-, por consumo histórico real
+ * -tarjetas completadas más la fracción de la que lleva en curso, no la
+ * fase de su camino-: dos clientes "billable" pueden llevar consumos muy
+ * distintos, y aquí es donde por fin se nota la diferencia. Propio de esta
+ * vista -la que se parece a un cielo de verdad-, nunca de ConstelacionMap.
+ *
+ * Cinco clases discretas, como la magnitud aparente de una carta estelar
+ * real -1ª a 5ª magnitud-, no una fórmula continua: dos consumos parecidos
+ * caen en la misma clase en vez de temblar el layout por diferencias
+ * mínimas entre vecinos. A más magnitud, más grande Y más lejos del
+ * núcleo -pero dentro de su mismo anillo de profundidad, nunca cruzando
+ * al siguiente: el tope (24) se queda bien por debajo de MIN_RING_GAP en
+ * constelacionLayout.ts (36)-, así una estrella brillante se lee como su
+ * propio punto de referencia en el cielo. Es justo lo contrario de un
+ * cielo real -ahí, más lejos suele ser más tenue, no más grande-, a
+ * propósito: aquí el radio tiene que contar quién es tu mejor cliente, no
+ * imitar la física.
+ */
+const STAR_MAGNITUDE_CARD_THRESHOLDS = [0, 1, 2, 4, 7];
+const STAR_MAGNITUDE_SIZE_MULTIPLIER = [0.82, 1, 1.22, 1.48, 1.8];
+const STAR_MAGNITUDE_RADIUS_OFFSET = [0, 4, 9, 15, 24];
+/** A más magnitud, el nombre se enseña ya a menos zoom -en una carta real solo las estrellas brillantes se etiquetan a simple vista, las tenues piden acercarse-. */
+const STAR_MAGNITUDE_LABEL_SCALE = [LABEL_VISIBLE_SCALE, LABEL_VISIBLE_SCALE, 1.3, 1.15, 1.0];
+/** A más magnitud, la cuerda hacia esa estrella es un poco más gruesa: en una carta real el trazo de la constelación se marca más hacia la estrella brillante. */
+const STAR_MAGNITUDE_LINK_WIDTH_MULTIPLIER = [0.85, 0.92, 1, 1.15, 1.35];
+
+function starMagnitudeTier(node: Node | undefined, stampsGoal: number): number {
+  if (!node) return 0;
+  const cardsWorth = node.cardsCompleted + node.stamps / Math.max(1, stampsGoal);
+  let tier = 0;
+  for (let i = 0; i < STAR_MAGNITUDE_CARD_THRESHOLDS.length; i++) {
+    if (cardsWorth >= STAR_MAGNITUDE_CARD_THRESHOLDS[i]) tier = i;
+  }
+  return tier;
+}
+
+/**
+ * Pasada de ajuste sobre el layout compartido -constelacionLayout.ts sigue
+ * siendo exactamente el mismo para las dos vistas, sin tocar-: aquí, y
+ * solo aquí, se reescriben el radio y el tamaño de cada punto según su
+ * magnitud. El establecimiento (depth 0, el sol) no se toca. frameRadius
+ * se reescala en la misma proporción que el punto más lejano, para que el
+ * encuadre siga abarcando exactamente lo que hay que ver, ni más ni menos.
+ */
+function applyStarMagnitude(layout: ConstelacionLayout, nodes: Node[], stampsGoal: number): ConstelacionLayout {
+  const byId = new Map(nodes.map((n) => [n.id, n]));
+  const points = new Map<string, ConstelacionPoint>();
+  let maxBefore = 0;
+  let maxAfter = 0;
+  for (const [id, pt] of layout.points) {
+    if (pt.depth === 0) {
+      points.set(id, pt);
+      continue;
+    }
+    maxBefore = Math.max(maxBefore, pt.ringRadius);
+    const tier = starMagnitudeTier(byId.get(id), stampsGoal);
+    const nodeRadius = pt.nodeRadius * STAR_MAGNITUDE_SIZE_MULTIPLIER[tier];
+    const ringRadius = pt.ringRadius + STAR_MAGNITUDE_RADIUS_OFFSET[tier];
+    maxAfter = Math.max(maxAfter, ringRadius);
+    points.set(id, { ...pt, nodeRadius, ringRadius });
+  }
+  const scale = maxBefore > 0 ? maxAfter / maxBefore : 1;
+  return { ...layout, points, frameRadius: layout.frameRadius * scale };
+}
+
+/** Ventana de recencia para el titileo -no la de "canje reciente" del pulso, una propia: hoy mismo es lo más vivo posible, 60 días o más sin actividad es lo más apagado. */
+const RECENT_LIVELINESS_WINDOW_DAYS = 60;
+
+function livelinessFor(node: Node | undefined, nowMs: number): number {
+  if (!node) return 0;
+  const daysSince = Math.max(0, (nowMs - new Date(node.lastActivityAt).getTime()) / DAY_MS);
+  return clamp(1 - daysSince / RECENT_LIVELINESS_WINDOW_DAYS, 0, 1);
+}
+
+/**
  * Efecto imán al tocar una sección del anillo: los nodos de esa misma
  * categoría son atraídos a lo largo de TODA la sección elegida -repartidos
  * por su propio rango angular, a MAGNET_TARGET_RADIUS_FACTOR del radio de
@@ -249,13 +325,18 @@ function wobblePhaseAngular(index: number): number {
 /**
  * Titileo de cada estrella: una animación CSS pura -constelacion-star-twinkle,
  * ver el <style> más abajo- que cada punto arranca con su propia duración y
- * retraso, por índice de aparición -mismo criterio determinista que el
- * bamboleo (wobbleFreq/wobblePhase), no Math.random()-, así que ninguna
- * estrella titila a la vez que su vecina. Es CSS, no otro cálculo dentro
- * del bucle de rAF: el navegador la anima solo, sin coste por fotograma.
+ * retraso. El retraso sigue siendo puro índice de aparición -mismo criterio
+ * determinista que el bamboleo (wobbleFreq/wobblePhase), no Math.random()-,
+ * así que ninguna estrella titila a la vez que su vecina; pero la duración
+ * base ya no es solo eso: `liveliness` (ver livelinessFor) la acelera para
+ * un cliente con actividad reciente -titila vivo- y la alarga para uno
+ * apagado -titila despacio, casi dormido-, como el centelleo real cambia
+ * con la turbulencia. Es CSS, no otro cálculo dentro del bucle de rAF: el
+ * navegador la anima solo, sin coste por fotograma.
  */
-function twinkleDurationS(index: number): number {
-  return 2.6 + ((index * 29) % 11) / 3.1;
+function twinkleDurationS(index: number, liveliness: number): number {
+  const base = 2.6 + ((index * 29) % 11) / 3.1;
+  return base * (1.6 - liveliness);
 }
 function twinkleDelayS(index: number): number {
   return ((index * 47) % 23) / 6.2;
@@ -464,6 +545,41 @@ function arcPath(a0: number, a1: number, r: number): string {
 /** Puntos deterministas -sin Math.random(), igual que el resto del repo- fuera del grupo de zoom. */
 const STAR_COUNT = 320;
 
+/**
+ * Banda tipo Vía Láctea: una franja diagonal fija con más densidad de
+ * puntos de fondo que el resto del cielo, como la propia galaxia se ve
+ * más poblada en una noche despejada de verdad. Puramente decorativa -no
+ * lee ningún dato del negocio-, y determinista igual que el resto del
+ * fondo: `along` recorre la banda de punta a punta y `across` es la suma
+ * de dos desplazamientos deterministas distintos, no uno solo, para que
+ * la densidad caiga hacia los bordes de la franja en vez de cortar en
+ * seco, el mismo efecto que un solo dado no puede dar pero la suma de dos
+ * sí -la misma idea que un dado doble se agrupa más hacia el centro que
+ * uno solo.
+ */
+const MILKY_WAY_ANGLE = 0.62;
+const MILKY_WAY_COUNT = 220;
+const MILKY_WAY_WIDTH_FRACTION = 0.22;
+
+function milkyWayBand(vb: number): { x: number; y: number; r: number; o: number }[] {
+  const stars = [];
+  const dirX = Math.cos(MILKY_WAY_ANGLE);
+  const dirY = Math.sin(MILKY_WAY_ANGLE);
+  const perpX = -dirY;
+  const perpY = dirX;
+  const halfWidth = vb * MILKY_WAY_WIDTH_FRACTION;
+  for (let i = 0; i < MILKY_WAY_COUNT; i++) {
+    const along = (((i * 137) % 1000) / 1000) * (vb * 2.1) - vb * 1.05;
+    const spread1 = (((i * 71) % 97) / 96) * 2 - 1;
+    const spread2 = (((i * 53 + 19) % 89) / 88) * 2 - 1;
+    const across = ((spread1 + spread2) / 2) * halfWidth;
+    const r = 0.15 + ((i * 31) % 13) / 12 * 0.55;
+    const o = 0.03 + ((i * 17) % 19) / 18 * 0.16;
+    stars.push({ x: dirX * along + perpX * across, y: dirY * along + perpY * across, r, o });
+  }
+  return stars;
+}
+
 function starfield(vb: number): { x: number; y: number; r: number; o: number }[] {
   const stars = [];
   for (let i = 0; i < STAR_COUNT; i++) {
@@ -473,7 +589,7 @@ function starfield(vb: number): { x: number; y: number; r: number; o: number }[]
     const o = 0.04 + ((i * 19) % 23) / 22 * 0.28;
     stars.push({ x: Math.cos(angle) * radius, y: Math.sin(angle) * radius, r, o });
   }
-  return stars;
+  return stars.concat(milkyWayBand(vb));
 }
 
 function CountUpStat({ value, label, active, delayMs = 0 }: { value: number; label: string; active: boolean; delayMs?: number }) {
@@ -537,7 +653,13 @@ export function ConstelacionSolMap({
   locale: Locale;
   t: Dict;
 }) {
-  const layout = useMemo(() => layoutConstelacion(graph.nodes, graph.edges, graph.establishment.id), [graph]);
+  // El layout radial en sí -profundidad, ángulo- sigue siendo el mismo que
+  // ConstelacionMap; applyStarMagnitude es la pasada propia de esta vista,
+  // la que reescribe radio y tamaño según el consumo de cada estrella.
+  const layout = useMemo(
+    () => applyStarMagnitude(layoutConstelacion(graph.nodes, graph.edges, graph.establishment.id), graph.nodes, stampsGoal),
+    [graph, stampsGoal],
+  );
   const byId = useMemo(() => new Map(graph.nodes.map((n) => [n.id, n])), [graph.nodes]);
   const parentOf = useMemo(() => new Map(graph.edges.map((e) => [e.to, e.from])), [graph.edges]);
   // giftedAt del propio enlace entrante: cuándo se envió la invitación que trajo
@@ -1321,7 +1443,11 @@ export function ConstelacionSolMap({
             // claridad quién va hacia dónde, sin cuerdas cruzándose por encima.
             const hiddenByCategory = selectedCategory != null;
             const opacity = hiddenByCategory || (hideDirectLinks && isDirectLink) ? 0 : selectedId ? (isPathLink ? 0.95 : 0.04) : restOpacity;
-            const width = selectedId && isPathLink ? 2.2 : selectedId ? 1.1 : restWidth;
+            // La cuerda hacia una estrella de más magnitud se marca un poco
+            // más gruesa -en una carta real, el trazo de la constelación
+            // pesa más hacia la estrella brillante que hacia la tenue-.
+            const linkWidthMul = STAR_MAGNITUDE_LINK_WIDTH_MULTIPLIER[starMagnitudeTier(toNode, stampsGoal)];
+            const width = (selectedId && isPathLink ? 2.2 : selectedId ? 1.1 : restWidth) * linkWidthMul;
             return (
               <path
                 key={key}
@@ -1400,7 +1526,13 @@ export function ConstelacionSolMap({
             const isBest = node.id === bestPadrino;
             const isExpiringNode = expiringIds.has(node.id);
             const color = constelacionNodeColor(node);
-            const showLabel = node.claimed && (pan.scale >= LABEL_VISIBLE_SCALE || isSelected || isAncestor);
+            // Magnitud de esta estrella -tamaño y distancia ya resueltos en
+            // el layout vía applyStarMagnitude-, aquí para lo que todavía
+            // depende del propio render: a qué zoom se le ve el nombre y
+            // qué tan viva titila.
+            const magnitudeTier = starMagnitudeTier(node, stampsGoal);
+            const labelScale = STAR_MAGNITUDE_LABEL_SCALE[magnitudeTier];
+            const showLabel = node.claimed && (pan.scale >= labelScale || isSelected || isAncestor);
             // Jerarquía visual: lo bueno pesa más, lo perdido se retira -no
             // compiten por la atención a partes iguales-. Ver el comentario
             // de CONSTELACION_POSITIVE_STATES/CONSTELACION_MUTED_STATES más arriba.
@@ -1439,7 +1571,7 @@ export function ConstelacionSolMap({
               ? { animationDuration: `${windowBlinkDurationS(returnWindowDays - daysElapsed, returnWindowDays).toFixed(2)}s` }
               : undefined;
             const twinkleStyle = {
-              "--twinkle-s": `${twinkleDurationS(pt.index).toFixed(2)}s`,
+              "--twinkle-s": `${twinkleDurationS(pt.index, livelinessFor(node, nowMs)).toFixed(2)}s`,
               "--twinkle-delay": `${twinkleDelayS(pt.index).toFixed(2)}s`,
             } as React.CSSProperties;
 
