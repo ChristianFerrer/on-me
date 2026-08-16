@@ -2,8 +2,8 @@ import { GiftUniverse } from "@/components/universe/GiftUniverse";
 import { getI18n } from "@/lib/i18n/server";
 
 /**
- * Revisión del universo 3D del mapa de saltos contra datos de ejemplo, antes
- * de conectarlo a /admin/atribuciones/mapa. A diferencia del resto de
+ * Revisión del universo 3D de la constelación contra datos de ejemplo, antes
+ * de conectarlo a /admin. A diferencia del resto de
  * /preview, esta sí queda accesible en producción a propósito —Vercel
  * compila esta rama entera con NODE_ENV=production, así que el guardián
  * habitual (`if (NODE_ENV === "production") notFound()`) la escondía en

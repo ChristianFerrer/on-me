@@ -9,7 +9,7 @@ import type { Node } from "@/lib/giftGraph/types";
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 /**
- * Ficha propia de la constelación de saltos -no la del universo 3D-: la
+ * Ficha propia de la constelación -no la del universo 3D-: la
  * especificación pide una línea de invitación, canjeado/consumos/ventana y
  * la propia tarjeta de sellos -en vez de una barra de progreso genérica-,
  * que la ficha compartida no tiene. Se mantiene montada siempre -solo se
@@ -18,7 +18,7 @@ const DAY_MS = 24 * 60 * 60 * 1000;
  * ref, que no se puede leer durante el render- para que el contenido no
  * parpadee a vacío durante esa transición.
  */
-export function SaltosSheet({
+export function ConstelacionSheet({
   node,
   giftedByName,
   invitedCount,
@@ -47,7 +47,7 @@ export function SaltosSheet({
   const initialSnapshot = node ? { node, giftedByName, invitedCount, sentAt, color } : null;
   const [snapshot, setSnapshot] = useState(initialSnapshot);
   useEffect(() => {
-    // Diferido a un microtask -como el flag `mounted` de SaltosMap-: evita
+    // Diferido a un microtask -como el flag `mounted` de ConstelacionMap-: evita
     // el aviso de "cascading renders" sin retrasar visualmente el cambio,
     // porque los microtasks corren antes de que el navegador pinte el frame.
     if (node) queueMicrotask(() => setSnapshot({ node, giftedByName, invitedCount, sentAt, color }));
@@ -65,10 +65,10 @@ export function SaltosSheet({
   const daysSinceLastVisit = Math.max(0, Math.floor((nowMs - new Date(shown.lastActivityAt).getTime()) / DAY_MS));
   const lastVisitText =
     daysSinceLastVisit === 0
-      ? t.admin.saltosToday
+      ? t.admin.constelacionToday
       : daysSinceLastVisit === 1
-        ? t.admin.saltosDaysAgoOne
-        : fill(t.admin.saltosDaysAgoMany, { n: daysSinceLastVisit });
+        ? t.admin.constelacionDaysAgoOne
+        : fill(t.admin.constelacionDaysAgoMany, { n: daysSinceLastVisit });
 
   // La cuenta atrás de la ventana solo tiene sentido mientras el cliente
   // TODAVÍA no es nuevo verificado -sigue en "window", esperando su
@@ -78,22 +78,22 @@ export function SaltosSheet({
   const windowDaysLeft = isWaitingOnWindow
     ? Math.max(0, returnWindowDays - Math.floor((nowMs - new Date(shown.redeemedAt as string).getTime()) / DAY_MS))
     : null;
-  const windowOrLastVisitLabel = isWaitingOnWindow ? t.admin.saltosWindowLabel : t.admin.saltosLastVisitLabel;
+  const windowOrLastVisitLabel = isWaitingOnWindow ? t.admin.constelacionWindowLabel : t.admin.constelacionLastVisitLabel;
   const windowOrLastVisitValue = !isWaitingOnWindow
     ? lastVisitText
     : windowDaysLeft === 0
-      ? t.admin.saltosWindowClosed
+      ? t.admin.constelacionWindowClosed
       : windowDaysLeft === 1
-        ? t.admin.saltosWindowDaysLeftOne
-        : fill(t.admin.saltosWindowDaysLeftMany, { n: windowDaysLeft as number });
+        ? t.admin.constelacionWindowDaysLeftOne
+        : fill(t.admin.constelacionWindowDaysLeftMany, { n: windowDaysLeft as number });
 
   // Enviada + invitados en una sola frase legible, no dos celdas sueltas sin
   // contexto: un cliente directo (alta por QR) nunca recibió invitación, así
   // que para ellos solo tiene sentido la parte de a cuántos han invitado.
   const sentInvitedLine =
     snapshot.sentAt && shown.state !== "direct"
-      ? fill(t.admin.saltosSentInvitedLine, { date: formatDateTime(snapshot.sentAt, locale), n: snapshot.invitedCount })
-      : fill(t.admin.saltosInvitedOnlyLine, { n: snapshot.invitedCount });
+      ? fill(t.admin.constelacionSentInvitedLine, { date: formatDateTime(snapshot.sentAt, locale), n: snapshot.invitedCount })
+      : fill(t.admin.constelacionInvitedOnlyLine, { n: snapshot.invitedCount });
 
   return (
     <div
@@ -112,7 +112,7 @@ export function SaltosSheet({
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <p className="truncate text-[1.5rem] font-extrabold tracking-[-0.025em]">
-              {isPending ? t.admin.saltosPendingInvite : shown.name}
+              {isPending ? t.admin.constelacionPendingInvite : shown.name}
             </p>
             <p className="mt-1.5 text-[0.6875rem] font-semibold uppercase tracking-[0.15em] text-chalk/34">
               {t.admin.attrPadrino} · {snapshot.giftedByName || "—"}
@@ -137,7 +137,7 @@ export function SaltosSheet({
               </dd>
             </div>
             <div>
-              <dt className="text-chalk/34">{t.admin.saltosConsumptionsLabel}</dt>
+              <dt className="text-chalk/34">{t.admin.constelacionConsumptionsLabel}</dt>
               <dd className="mt-0.5 text-[0.9375rem] font-semibold text-chalk/90">{shown.stamps}</dd>
             </div>
             <div>
@@ -150,7 +150,7 @@ export function SaltosSheet({
         {isPending ? null : (
           <div className="mt-4">
             <StampCard stamps={shown.stamps} goal={stampsGoal} tone="dark" />
-            <p className="numeral mt-2 text-[0.6875rem] text-chalk/40">{fill(t.admin.saltosTotalConsumedLine, { n: totalConsumed })}</p>
+            <p className="numeral mt-2 text-[0.6875rem] text-chalk/40">{fill(t.admin.constelacionTotalConsumedLine, { n: totalConsumed })}</p>
           </div>
         )}
 

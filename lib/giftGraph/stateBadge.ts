@@ -19,8 +19,8 @@ import type { NodeState } from "@/lib/giftGraph/types";
  * tiene equivalente en /admin/atribuciones. Distinto de "opened", que
  * sigue siendo solo un prospecto sin ficha propia.
  *
- * La constelación de /admin/atribuciones/mapa pinta "abierta" en ámbar por
- * su propia especificación visual (SALTOS_STATE_COLOR en SaltosMap.tsx):
+ * La constelación de /admin pinta "abierta" en ámbar por su propia
+ * especificación visual (CONSTELACION_PHASE_COLOR en ConstelacionMap.tsx):
  * ese override es solo de esa vista y no toca este mapa compartido, para
  * no cambiar el color de "abierta" en el embudo real ni en el universo 3D.
  */

@@ -37,7 +37,7 @@ export function SelectionSheet({
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <p className="truncate text-[1.0625rem] font-semibold">
-              {isPending ? t.admin.saltosPendingInvite : node.name}
+              {isPending ? t.admin.constelacionPendingInvite : node.name}
             </p>
             <p className="eyebrow mt-1.5 text-chalk/35">
               {t.admin.attrPadrino} · {giftedByName || "—"}
@@ -60,7 +60,7 @@ export function SelectionSheet({
 
         {isPending ? (
           <div className="numeral mt-4 text-[0.75rem] text-chalk/45">
-            <dt className="text-chalk/30">{t.admin.saltosSentAt}</dt>
+            <dt className="text-chalk/30">{t.admin.constelacionSentAt}</dt>
             <dd className="mt-0.5">{formatDateTime(node.lastActivityAt, locale)}</dd>
           </div>
         ) : (

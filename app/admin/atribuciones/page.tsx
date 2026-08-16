@@ -18,7 +18,7 @@ import { firstName } from "@/lib/scan-service";
  * Es append-only. Si algo está mal, se marca `disputed`, no se borra — la
  * defensa de una factura es poder enseñar la fila y el escaneo que la generó.
  *
- * El mapa de saltos vive aparte, en /admin/atribuciones/mapa: es una
+ * La constelación vive aparte, en /admin -la portada del panel-: es una
  * exploración a pantalla completa, no una tarjeta más de esta lista.
  */
 export default async function AttributionsPage() {
@@ -69,7 +69,7 @@ export default async function AttributionsPage() {
       </header>
 
       <Link
-        href="/admin/atribuciones/mapa"
+        href="/admin"
         prefetch={false}
         className="btn items-center gap-2 bg-lime px-6 py-4 text-[1rem] text-ink"
       >

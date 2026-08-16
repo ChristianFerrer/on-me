@@ -2,12 +2,12 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowLeftIcon, CompassIcon, EyeIcon, EyeOffIcon, InfoIcon } from "@/components/ui/Icons";
-import { SaltosSheet } from "@/components/admin/SaltosSheet";
+import { CompassIcon, EyeIcon, EyeOffIcon, HomeIcon, InfoIcon, PulseIcon } from "@/components/ui/Icons";
+import { ConstelacionSheet } from "@/components/admin/ConstelacionSheet";
 import { cn } from "@/lib/cn";
 import { bestPadrinoId, isExpiringSoon } from "@/lib/giftGraph/insights";
 import { type Pan, panBy, pixelsToUnits, zoomAtPoint } from "@/lib/panZoom";
-import { ESTABLISHMENT_RADIUS, layoutSaltos, SALTOS_PHASE_SIZE, type SaltosLayout, type SaltosPoint } from "@/lib/giftGraph/saltosLayout";
+import { ESTABLISHMENT_RADIUS, layoutConstelacion, CONSTELACION_PHASE_SIZE, type ConstelacionLayout, type ConstelacionPoint } from "@/lib/giftGraph/constelacionLayout";
 import { stateBadgeLabel } from "@/lib/giftGraph/stateBadge";
 import { isTap, type PointerPoint } from "@/lib/giftGraph/tapGesture";
 import type { GiftGraph, Node, NodeState } from "@/lib/giftGraph/types";
@@ -39,36 +39,29 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 const RECENT_REDEMPTION_MS = 30 * DAY_MS;
 
 /**
- * Efecto imán al tocar una sección del anillo: los nodos de esa misma
- * categoría son atraídos a lo largo de TODA la sección elegida -repartidos
- * por su propio rango angular, a MAGNET_TARGET_RADIUS_FACTOR del radio del
- * arco-, no apilados en un único punto medio ni empujados hacia fuera en
- * su propio ángulo; el resto -que sigue siendo parte de una rama real, no
- * ruido- es atraído hacia el núcleo, encogiendo su radio a MAGNET_IN_FACTOR
- * del que tenía. `value` va de -1 (atraído al núcleo) a +1 (atraído a la
- * sección) pasando por 0 (sin categoría elegida), y se suaviza cuadro a
- * cuadro -MAGNET_EASE- para que el imán tire, no teletransporte. El reparto
- * a lo largo de la sección usa el puesto de cada nodo entre los de su
- * misma categoría -categoryMemberRank, calculado una vez por selección, no
- * cada fotograma- para espaciarlos en orden, con un margen a cada lado
- * -MAGNET_ARC_MARGIN- para no pegarlos justo al borde del arco.
+ * Efecto imán al tocar una sección de la barra: los nodos de esa misma
+ * categoría son atraídos hacia un punto sobre la barra -repartidos a lo
+ * largo de todo el tramo de esa sección, no apilados en su punto medio-;
+ * el resto se queda tal cual, orbitando en su sitio de siempre, sin verse
+ * atraído a ninguna parte. `value` va de 0 (sin atracción: en su órbita
+ * natural) a 1 (atraído del todo a su punto en la barra), suavizado
+ * cuadro a cuadro -MAGNET_EASE- para que el imán tire, no teletransporte.
+ * El reparto a lo largo de la sección usa el puesto de cada nodo entre
+ * los de su misma categoría -categoryMemberRank, calculado una vez por
+ * selección, no cada fotograma- con un margen a cada lado -BAR_MEMBER_MARGIN-
+ * para no pegarlos justo al borde del tramo.
  */
-const MAGNET_TARGET_RADIUS_FACTOR = 0.9;
-const MAGNET_ARC_MARGIN = 0.08;
-const MAGNET_IN_FACTOR = 0.45;
 const MAGNET_EASE = 0.07;
+/** La barra objetivo -en coordenadas del mundo, no de pantalla- ocupa esta fracción del radio de encuadre en alto, centrada verticalmente, y se sitúa a esta misma fracción hacia la izquierda en el eje X. */
+const BAR_TARGET_HALF_HEIGHT_FACTOR = 0.85;
+const BAR_TARGET_X_FACTOR = 0.85;
+/** Margen a cada lado del tramo de una sección, para no pegar ninguna esfera justo a su borde. */
+const BAR_MEMBER_MARGIN = 0.08;
 
-/** Ángulo objetivo + radio objetivo cuando un nodo es atraído a una sección; `null` cuando no hay atracción -imán neutro o hacia el núcleo-. */
-type MagnetTarget = { angle: number; radius: number } | null;
+/** Punto objetivo -en coordenadas del mundo del SVG- cuando un nodo es atraído a su sección de la barra; `null` cuando no hay atracción. */
+type MagnetTarget = XY | null;
 type Magnet = { value: number; target: MagnetTarget };
 const NO_MAGNET: Magnet = { value: 0, target: null };
-
-/** Interpola un ángulo por el camino más corto -nunca dando la vuelta larga solo porque el valor en bruto sea menor/mayor. */
-function angleLerp(from: number, to: number, t: number): number {
-  const twoPi = 2 * Math.PI;
-  const diff = ((to - from + Math.PI) % twoPi + twoPi) % twoPi - Math.PI;
-  return from + diff * t;
-}
 
 /**
  * Cuerdas más flexibles: además del vaivén que ya traen sus dos extremos
@@ -160,7 +153,7 @@ const FUNNEL_ORDER: NodeState[] = ["sent", "expired", "opened", "claimed", "wind
  * borde es el que las hace visibles sobre un fondo igual de oscuro que
  * su propio relleno-).
  */
-const SALTOS_PHASE_COLOR: Record<NodeState, string> = {
+const CONSTELACION_PHASE_COLOR: Record<NodeState, string> = {
   sent: "#FFFFFF",
   opened: "#FBBF24",
   claimed: "#38E1FF",
@@ -172,7 +165,7 @@ const SALTOS_PHASE_COLOR: Record<NodeState, string> = {
 };
 
 /** Borde de cada punto: el mismo casi invisible de siempre, salvo en los dos negros -sin él, se funden con el fondo. */
-const SALTOS_STROKE_COLOR: Record<NodeState, string> = {
+const CONSTELACION_STROKE_COLOR: Record<NodeState, string> = {
   sent: "rgba(255,255,255,.16)",
   opened: "rgba(255,255,255,.16)",
   claimed: "rgba(255,255,255,.16)",
@@ -190,8 +183,8 @@ const SALTOS_STROKE_COLOR: Record<NodeState, string> = {
  * borde como al punto-. Gris claro en su lugar: sigue leyéndose "menos
  * importante" que los colores vivos, pero sin desaparecer.
  */
-const SALTOS_ARC_COLOR: Record<NodeState, string> = {
-  ...SALTOS_PHASE_COLOR,
+const CONSTELACION_ACCENT_COLOR: Record<NodeState, string> = {
+  ...CONSTELACION_PHASE_COLOR,
   discarded: "rgba(255,255,255,.55)",
   expired: "rgba(255,255,255,.55)",
 };
@@ -205,21 +198,21 @@ const SALTOS_ARC_COLOR: Record<NodeState, string> = {
  * rodean -enlace, arco, fila de leyenda- en vez de competir por la
  * atención.
  */
-const SALTOS_POSITIVE_STATES = new Set<NodeState>(["billable", "direct"]);
-const SALTOS_MUTED_STATES = new Set<NodeState>(["expired", "discarded"]);
+const CONSTELACION_POSITIVE_STATES = new Set<NodeState>(["billable", "direct"]);
+const CONSTELACION_MUTED_STATES = new Set<NodeState>(["expired", "discarded"]);
 
 /** Color real de un nodo, para el propio punto, sus enlaces y su ficha. */
-function saltosNodeColor(node: Node): string {
-  return SALTOS_PHASE_COLOR[node.state];
+function constelacionNodeColor(node: Node): string {
+  return CONSTELACION_PHASE_COLOR[node.state];
 }
 
-/** Igual que saltosNodeColor, pero segura para trazo/texto: el negro de descartada/caducada no se ve sobre un fondo igual de oscuro. */
+/** Igual que constelacionNodeColor, pero segura para trazo/texto: el negro de descartada/caducada no se ve sobre un fondo igual de oscuro. */
 function safeLineColor(node: Node): string {
-  return SALTOS_MUTED_STATES.has(node.state) ? SALTOS_ARC_COLOR[node.state] : saltosNodeColor(node);
+  return CONSTELACION_MUTED_STATES.has(node.state) ? CONSTELACION_ACCENT_COLOR[node.state] : constelacionNodeColor(node);
 }
 
 /**
- * "En ventana" no es un tamaño fijo: arranca en SALTOS_PHASE_SIZE.window
+ * "En ventana" no es un tamaño fijo: arranca en CONSTELACION_PHASE_SIZE.window
  * (igual que el canje que la abre) y se encoge un 4% por cada día que
  * pasa sin resolverse -sin bajar nunca de WINDOW_SIZE_FLOOR-, y parpadea
  * cada vez más rápido cuantos menos días le quedan de los
@@ -276,27 +269,29 @@ function nodeXY(point: { angle: number; ringRadius: number; depth: number }): XY
 /**
  * Misma posición que nodeXY, pero con la rotación de fondo y el bamboleo
  * del nodo -radial y angular- ya aplicados, y el imán encima: `magnet.value`
- * va de -1 (atraído al núcleo, tras tocar una sección del anillo que no es
- * la suya) a +1 (atraído al propio punto de la sección elegida, en
- * `magnet.target`), pasando por 0 (sin categoría elegida o de vuelta a su
- * sitio) -ver el comentario de MAGNET_TARGET_RADIUS_FACTOR más arriba.
+ * va de 0 (sin categoría elegida, o esta esfera no es de la categoría
+ * tocada: sigue en su órbita natural, sin tocarla) a 1 (atraído del todo
+ * a `magnet.target`, un punto sobre la barra). Es una interpolación lineal
+ * simple de la posición cartesiana, no polar -el objetivo ya no es "un
+ * ángulo a tal radio" como con el anillo, es un punto fijo de la barra.
  */
-function animatedXY(point: SaltosPoint, rotation: number, nowMs: number, magnet: Magnet = NO_MAGNET): XY {
+function animatedXY(point: ConstelacionPoint, rotation: number, nowMs: number, magnet: Magnet = NO_MAGNET): XY {
   if (point.depth === 0) return { x: 0, y: 0 };
   const t = nowMs / 1000;
   const radialWobble = Math.sin(t * wobbleFreq(point.index) + wobblePhase(point.index)) * WOBBLE_AMPLITUDE;
   const angularWobble = Math.sin(t * wobbleFreqAngular(point.index) + wobblePhaseAngular(point.index)) * WOBBLE_ANGULAR_AMPLITUDE;
   const naturalAngle = point.angle + rotation + angularWobble;
   const naturalR = point.ringRadius + radialWobble;
+  const naturalX = naturalR * Math.cos(naturalAngle);
+  const naturalY = naturalR * Math.sin(naturalAngle);
 
   if (magnet.value > 0 && magnet.target) {
-    const angle = angleLerp(naturalAngle, magnet.target.angle, magnet.value);
-    const r = naturalR + (magnet.target.radius - naturalR) * magnet.value;
-    return { x: r * Math.cos(angle), y: r * Math.sin(angle) };
+    return {
+      x: naturalX + (magnet.target.x - naturalX) * magnet.value,
+      y: naturalY + (magnet.target.y - naturalY) * magnet.value,
+    };
   }
-  const magnetMul = magnet.value < 0 ? 1 + magnet.value * (1 - MAGNET_IN_FACTOR) : 1;
-  const r = naturalR * magnetMul;
-  return { x: r * Math.cos(naturalAngle), y: r * Math.sin(naturalAngle) };
+  return { x: naturalX, y: naturalY };
 }
 
 /**
@@ -365,7 +360,7 @@ const EMPTY_RADIUS_MAP: Map<string, number> = new Map();
  * esa respiración, igual que point.index lo es del bamboleo de cada nodo.
  */
 function linkBezier(
-  layout: SaltosLayout,
+  layout: ConstelacionLayout,
   rotation: number,
   nowMs: number,
   fromId: string,
@@ -438,7 +433,7 @@ function bezierPointAt(b: Bezier, t: number): XY {
 }
 
 function linkOrganicPoints(
-  layout: SaltosLayout,
+  layout: ConstelacionLayout,
   rotation: number,
   nowMs: number,
   fromId: string,
@@ -510,7 +505,7 @@ function organicPointAt(points: XY[], t: number): XY {
 }
 
 function linkPath(
-  layout: SaltosLayout,
+  layout: ConstelacionLayout,
   rotation: number,
   nowMs: number,
   fromId: string,
@@ -523,15 +518,6 @@ function linkPath(
   const points = linkOrganicPoints(layout, rotation, nowMs, fromId, toId, index, magnetFrom, magnetTo, undefined, undefined, radiusById);
   if (!points) return null;
   return organicLinkPath(points);
-}
-
-function arcPath(a0: number, a1: number, r: number): string {
-  const x0 = Math.cos(a0) * r,
-    y0 = Math.sin(a0) * r,
-    x1 = Math.cos(a1) * r,
-    y1 = Math.sin(a1) * r;
-  const largeArc = a1 - a0 > Math.PI ? 1 : 0;
-  return `M${x0.toFixed(2)},${y0.toFixed(2)} A${r.toFixed(2)},${r.toFixed(2)} 0 ${largeArc} 1 ${x1.toFixed(2)},${y1.toFixed(2)}`;
 }
 
 /** Puntos deterministas -sin Math.random(), igual que el resto del repo- fuera del grupo de zoom. */
@@ -582,7 +568,7 @@ function CountUpStat({ value, label, active, delayMs = 0 }: { value: number; lab
 }
 
 /**
- * El mapa de saltos de verdad: constelación radial sobre el grafo real de
+ * La constelación de verdad: mapa radial sobre el grafo real de
  * invitaciones/atribuciones, con los mismos tokens de diseño del resto del
  * panel. El primer pintado -posiciones y curvas- se calcula una vez por
  * render, directamente en JSX, sin refs ni rAF: tiene que ser correcto ya
@@ -592,7 +578,7 @@ function CountUpStat({ value, label, active, delayMs = 0 }: { value: number; lab
  * canjes recientes- escribiendo atributos DOM directamente vía refs, para
  * no forzar un re-render de React en cada frame.
  */
-export function SaltosMap({
+export function ConstelacionMap({
   graph,
   shopName,
   stampsGoal,
@@ -608,7 +594,7 @@ export function SaltosMap({
   locale: Locale;
   t: Dict;
 }) {
-  const layout = useMemo(() => layoutSaltos(graph.nodes, graph.edges, graph.establishment.id), [graph]);
+  const layout = useMemo(() => layoutConstelacion(graph.nodes, graph.edges, graph.establishment.id), [graph]);
   const byId = useMemo(() => new Map(graph.nodes.map((n) => [n.id, n])), [graph.nodes]);
   const parentOf = useMemo(() => new Map(graph.edges.map((e) => [e.to, e.from])), [graph.edges]);
   // giftedAt del propio enlace entrante: cuándo se envió la invitación que trajo
@@ -660,18 +646,23 @@ export function SaltosMap({
     return counts;
   }, [graph.nodes]);
   const funnelTotal = useMemo(() => [...funnelCounts.values()].reduce((a, b) => a + b, 0), [funnelCounts]);
+  const frameRadius = layout.frameRadius;
 
-  // Rango angular -inicio y fin, no solo el punto medio- de cada sección
-  // del arco, para el efecto imán: misma geometría -GAP, ángulo de
-  // arranque, spanTotal- que el propio dibujado del arco más abajo en el
-  // JSX, así que si uno cambia el otro tiene que cambiar igual o dejan de
-  // apuntar al mismo sitio.
-  const arcAngleRangeByState = useMemo(() => {
+  // Rango vertical -inicio y fin, no solo el punto medio- de cada sección
+  // de la barra, para el efecto imán: misma geometría -GAP, mitad de
+  // altura, reparto proporcional al recuento- que el propio dibujado de la
+  // barra en el JSX, así que si uno cambia el otro tiene que cambiar igual
+  // o dejan de apuntar al mismo sitio. En coordenadas del mundo del SVG,
+  // no en píxeles de pantalla: la barra en sí es un overlay HTML fijo a la
+  // izquierda, pero el punto al que convergen las esferas vive en el mismo
+  // espacio que ellas.
+  const barRangeByState = useMemo(() => {
     const map = new Map<NodeState, { start: number; end: number }>();
     if (funnelTotal === 0) return map;
-    const GAP = 0.04;
-    let cursor = -Math.PI / 2 + 0.05;
-    const spanTotal = Math.PI * 2 - 0.26;
+    const halfHeight = frameRadius * BAR_TARGET_HALF_HEIGHT_FACTOR;
+    const GAP = halfHeight * 0.02;
+    let cursor = -halfHeight;
+    const spanTotal = halfHeight * 2;
     for (const state of FUNNEL_ORDER) {
       const count = funnelCounts.get(state) ?? 0;
       if (count === 0) continue;
@@ -681,10 +672,10 @@ export function SaltosMap({
       cursor = a1 + GAP;
     }
     return map;
-  }, [funnelCounts, funnelTotal]);
+  }, [funnelCounts, funnelTotal, frameRadius]);
 
   // Puesto de cada nodo entre los de su misma categoría -y cuántos son en
-  // total-, para repartirlos en orden a lo largo de la sección del anillo
+  // total-, para repartirlos en orden a lo largo de la sección de la barra
   // en vez de apilarlos todos en su punto medio. Mismo orden estable que
   // point.index -la propia iteración de layout.points-, así que dos
   // nodos vecinos en el anillo también quedan cerca al converger.
@@ -722,15 +713,14 @@ export function SaltosMap({
 
   const customerCount = useMemo(() => graph.nodes.filter((n) => n.claimed).length, [graph.nodes]);
 
-  // Encuadre automático: el viewBox es el arco del embudo -el elemento más
-  // lejano de todos, layout.arcRadius- más un margen fijo. Un viewBox
-  // cuadrado con "xMidYMid meet" ya reparte eso solo en cualquier proporción
-  // de pantalla, así que no hace falta recalcular en el resize: es una
-  // propiedad de cómo SVG escala un viewBox, no algo que dependa de los
-  // píxeles reales del contenedor -ni tampoco de la rotación de fondo, que
-  // gira dentro de ese margen sin llegar nunca a asomar fuera de él.
-  const arcRadius = layout.arcRadius;
-  const half = arcRadius + VIEWBOX_PADDING;
+  // Encuadre automático: el viewBox es el borde más lejano de todos
+  // -frameRadius- más un margen fijo. Un viewBox cuadrado con "xMidYMid
+  // meet" ya reparte eso solo en cualquier proporción de pantalla, así que
+  // no hace falta recalcular en el resize: es una propiedad de cómo SVG
+  // escala un viewBox, no algo que dependa de los píxeles reales del
+  // contenedor -ni tampoco de la rotación de fondo, que gira dentro de ese
+  // margen sin llegar nunca a asomar fuera de él.
+  const half = frameRadius + VIEWBOX_PADDING;
   const size = half * 2;
   const stars = useMemo(() => starfield(half), [half]);
 
@@ -757,15 +747,15 @@ export function SaltosMap({
     if (selectedCategory) {
       lastCategoryRef.current = selectedCategory;
       // Diferido a un microtask -mismo patrón que el snapshot de
-      // SaltosSheet-: evita el aviso de "cascading renders" sin retrasar
+      // ConstelacionSheet-: evita el aviso de "cascading renders" sin retrasar
       // visualmente el cambio.
       queueMicrotask(() => setLastCategory(selectedCategory));
     }
   }, [selectedCategory]);
-  const arcAngleRangeRef = useRef(new Map<NodeState, { start: number; end: number }>());
+  const barRangeRef = useRef(new Map<NodeState, { start: number; end: number }>());
   useEffect(() => {
-    arcAngleRangeRef.current = arcAngleRangeByState;
-  }, [arcAngleRangeByState]);
+    barRangeRef.current = barRangeByState;
+  }, [barRangeByState]);
   const categoryMemberRankRef = useRef(new Map<string, { rank: number; count: number }>());
   useEffect(() => {
     categoryMemberRankRef.current = categoryMemberRank;
@@ -818,7 +808,7 @@ export function SaltosMap({
   const svgRef = useRef<SVGSVGElement>(null);
   const pointers = useRef(new Map<number, PointerState>());
   const dragOrigin = useRef<{ pan: Pan; mid: PointerState; dist: number } | null>(null);
-  const tapCandidate = useRef<{ pointerId: number; nodeId: string | null; arcState: NodeState | null; down: PointerPoint } | null>(null);
+  const tapCandidate = useRef<{ pointerId: number; nodeId: string | null; down: PointerPoint } | null>(null);
 
   // Refs para el bucle de rAF: se escriben atributos DOM directamente en
   // cada frame -rotación y bamboleo-, sin pasar por setState ni volver a
@@ -925,13 +915,15 @@ export function SaltosMap({
       const rotation = rotationRef.current;
       const now = performance.now();
 
-      // Imán: objetivo -1/0/+1 según si el nodo es de la categoría tocada,
-      // suavizado hacia ese objetivo en vez de saltar de golpe.
+      // Imán: objetivo 0/1 según si el nodo es de la categoría tocada,
+      // suavizado hacia ese objetivo en vez de saltar de golpe. Las que no
+      // son de la categoría elegida se quedan en 0 -su órbita natural, sin
+      // atracción alguna- en vez de encogerse hacia el núcleo.
       const category = selectedCategoryRef.current;
       for (const point of layout.points.values()) {
         if (point.depth === 0) continue;
         const node = byId.get(point.id);
-        const target = !category ? 0 : node?.state === category ? 1 : -1;
+        const target = category && node?.state === category ? 1 : 0;
         const cur = magnetRef.current.get(point.id) ?? 0;
         magnetRef.current.set(point.id, cur + (target - cur) * MAGNET_EASE);
       }
@@ -939,18 +931,19 @@ export function SaltosMap({
       // El objetivo de atracción usa la ÚLTIMA categoría real -no la actual,
       // que puede ya ser null tras deseleccionar-, para que el valor de
       // imán pueda seguir suavizándose de vuelta a 0 sin saltar de golpe.
-      const range = lastCategoryRef.current ? arcAngleRangeRef.current.get(lastCategoryRef.current) : undefined;
+      const range = lastCategoryRef.current ? barRangeRef.current.get(lastCategoryRef.current) : undefined;
+      const targetX = -frameRadius * BAR_TARGET_X_FACTOR;
       function magnetFor(id: string): Magnet {
         const value = magnetRef.current.get(id) ?? 0;
         if (value <= 0 || range == null) return { value, target: null };
         const entry = categoryMemberRankRef.current.get(id);
         // Puesto normalizado (0..1) entre los de su misma categoría -0.5 si
         // no se conoce o es el único-, repartido con un margen a cada lado
-        // para no pegar ninguna esfera justo al borde del arco.
+        // para no pegar ninguna esfera justo al borde del tramo.
         const t = entry && entry.count > 1 ? entry.rank / (entry.count - 1) : 0.5;
-        const margin = MAGNET_ARC_MARGIN * (range.end - range.start);
-        const angle = range.start + margin + t * (range.end - range.start - margin * 2);
-        return { value, target: { angle, radius: arcRadius * MAGNET_TARGET_RADIUS_FACTOR } };
+        const margin = BAR_MEMBER_MARGIN * (range.end - range.start);
+        const y = range.start + margin + t * (range.end - range.start - margin * 2);
+        return { value, target: { x: targetX, y } };
       }
 
       // Posición "deseada" de cada esfera -imán ya aplicado, todavía sin
@@ -965,7 +958,7 @@ export function SaltosMap({
       for (const point of layout.points.values()) {
         if (point.depth === 0) continue;
         const magnet = magnetFor(point.id);
-        if (Math.abs(magnet.value) > COLLISION_MAGNET_THRESHOLD) magnetActive = true;
+        if (magnet.value > COLLISION_MAGNET_THRESHOLD) magnetActive = true;
         nodeIds.push(point.id);
         nodePositions.push(animatedXY(point, rotation, now, magnet));
         nodeRadii.push(nodeRadiusRef.current.get(point.id) ?? 4);
@@ -1086,11 +1079,9 @@ export function SaltosMap({
       dragOrigin.current = { pan, mid: { x: event.clientX, y: event.clientY }, dist: 0 };
       const targetEl = event.target as Element;
       const nodeEl = targetEl.closest?.("[data-node-id]");
-      const arcEl = targetEl.closest?.("[data-arc-state]");
       tapCandidate.current = {
         pointerId: event.pointerId,
         nodeId: nodeEl?.getAttribute("data-node-id") ?? null,
-        arcState: (arcEl?.getAttribute("data-arc-state") as NodeState | null) ?? null,
         down: { x: event.clientX, y: event.clientY, t: Date.now() },
       };
     } else {
@@ -1148,8 +1139,7 @@ export function SaltosMap({
       if (pending && pending.pointerId === event.pointerId) {
         const up: PointerPoint = { x: event.clientX, y: event.clientY, t: Date.now() };
         if (isTap(pending.down, up, TAP_MAX_DISTANCE_PX, TAP_MAX_DURATION_MS)) {
-          if (pending.arcState) setSelectedCategory((prev) => (prev === pending.arcState ? null : pending.arcState));
-          else if (pending.nodeId && pending.nodeId !== graph.establishment.id) setSelectedId(pending.nodeId);
+          if (pending.nodeId && pending.nodeId !== graph.establishment.id) setSelectedId(pending.nodeId);
           else if (!pending.nodeId) setSelectedId(null);
         }
       }
@@ -1222,28 +1212,28 @@ export function SaltosMap({
     <div className="fixed inset-0 aurora-night text-chalk">
       {/* Capa de grano: sin ella el degradado nocturno se bandea en pantallas OLED. */}
       <svg className="pointer-events-none fixed inset-0 z-10 h-full w-full opacity-[0.15]" aria-hidden="true">
-        <filter id="saltos-grain">
+        <filter id="constelacion-grain">
           <feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves={3} stitchTiles="stitch" />
         </filter>
-        <rect width="100%" height="100%" filter="url(#saltos-grain)" />
+        <rect width="100%" height="100%" filter="url(#constelacion-grain)" />
       </svg>
 
       <style>{`
-        @keyframes saltos-alert-pulse { 0%, 100% { transform: scale(1); opacity: 0.12; } 50% { transform: scale(1.2); opacity: 0.4; } }
-        @keyframes saltos-billable-glow { 0%, 100% { transform: scale(1); opacity: 0.22; } 50% { transform: scale(1.08); opacity: 0.32; } }
-        @keyframes saltos-window-blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.42; } }
-        @keyframes saltos-sun-aura-a { 0%, 100% { transform: scale(1) translate(0, 0); opacity: 0.14; } 50% { transform: scale(1.14) translate(1.5%, -1%); opacity: 0.22; } }
-        @keyframes saltos-sun-aura-b { 0%, 100% { transform: scale(1.06) translate(-1%, 1%); opacity: 0.1; } 50% { transform: scale(0.94) translate(1%, 1.5%); opacity: 0.18; } }
-        @keyframes saltos-sun-aura-c { 0%, 100% { transform: scale(0.96) translate(1%, -1.5%); opacity: 0.07; } 50% { transform: scale(1.1) translate(-1.5%, 1%); opacity: 0.15; } }
-        .saltos-alert-ring { transform-origin: center; transform-box: fill-box; animation: saltos-alert-pulse 2.6s ease-in-out infinite; }
-        .saltos-billable-glow { transform-origin: center; transform-box: fill-box; animation: saltos-billable-glow 5s ease-in-out infinite; }
-        .saltos-window-blink { animation: saltos-window-blink 3s ease-in-out infinite; }
-        .saltos-sun-aura-a { transform-origin: center; transform-box: fill-box; animation: saltos-sun-aura-a 4.6s ease-in-out infinite; }
-        .saltos-sun-aura-b { transform-origin: center; transform-box: fill-box; animation: saltos-sun-aura-b 6.3s ease-in-out infinite 0.6s; }
-        .saltos-sun-aura-c { transform-origin: center; transform-box: fill-box; animation: saltos-sun-aura-c 7.9s ease-in-out infinite 1.3s; }
+        @keyframes constelacion-alert-pulse { 0%, 100% { transform: scale(1); opacity: 0.12; } 50% { transform: scale(1.2); opacity: 0.4; } }
+        @keyframes constelacion-billable-glow { 0%, 100% { transform: scale(1); opacity: 0.22; } 50% { transform: scale(1.08); opacity: 0.32; } }
+        @keyframes constelacion-window-blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.42; } }
+        @keyframes constelacion-sun-aura-a { 0%, 100% { transform: scale(1) translate(0, 0); opacity: 0.14; } 50% { transform: scale(1.14) translate(1.5%, -1%); opacity: 0.22; } }
+        @keyframes constelacion-sun-aura-b { 0%, 100% { transform: scale(1.06) translate(-1%, 1%); opacity: 0.1; } 50% { transform: scale(0.94) translate(1%, 1.5%); opacity: 0.18; } }
+        @keyframes constelacion-sun-aura-c { 0%, 100% { transform: scale(0.96) translate(1%, -1.5%); opacity: 0.07; } 50% { transform: scale(1.1) translate(-1.5%, 1%); opacity: 0.15; } }
+        .constelacion-alert-ring { transform-origin: center; transform-box: fill-box; animation: constelacion-alert-pulse 2.6s ease-in-out infinite; }
+        .constelacion-billable-glow { transform-origin: center; transform-box: fill-box; animation: constelacion-billable-glow 5s ease-in-out infinite; }
+        .constelacion-window-blink { animation: constelacion-window-blink 3s ease-in-out infinite; }
+        .constelacion-sun-aura-a { transform-origin: center; transform-box: fill-box; animation: constelacion-sun-aura-a 4.6s ease-in-out infinite; }
+        .constelacion-sun-aura-b { transform-origin: center; transform-box: fill-box; animation: constelacion-sun-aura-b 6.3s ease-in-out infinite 0.6s; }
+        .constelacion-sun-aura-c { transform-origin: center; transform-box: fill-box; animation: constelacion-sun-aura-c 7.9s ease-in-out infinite 1.3s; }
         @media (prefers-reduced-motion: reduce) {
-          .saltos-alert-ring, .saltos-billable-glow, .saltos-window-blink,
-          .saltos-sun-aura-a, .saltos-sun-aura-b, .saltos-sun-aura-c { animation: none; }
+          .constelacion-alert-ring, .constelacion-billable-glow, .constelacion-window-blink,
+          .constelacion-sun-aura-a, .constelacion-sun-aura-b, .constelacion-sun-aura-c { animation: none; }
         }
       `}</style>
 
@@ -1262,14 +1252,14 @@ export function SaltosMap({
         aria-label={t.admin.referralMap}
       >
         <defs>
-          <radialGradient id="saltos-hub-glow">
+          <radialGradient id="constelacion-hub-glow">
             <stop offset="0%" stopColor="var(--color-lime)" stopOpacity={0.45} />
             <stop offset="60%" stopColor="var(--color-lime)" stopOpacity={0.08} />
             <stop offset="100%" stopColor="var(--color-lime)" stopOpacity={0} />
           </radialGradient>
           {/*
             Aura reutilizable por color -"currentColor" hereda del `color` en
-            línea del propio elemento-, en vez del `filter="url(#saltos-soft)"`
+            línea del propio elemento-, en vez del `filter="url(#constelacion-soft)"`
             -un feGaussianBlur- que llevaba antes cada halo. Con un grafo real
             (70-90 nodos, ~30 con el glow que respira) un blur SVG animado en
             cada uno obliga al navegador a re-rasterizar ese halo entero en
@@ -1278,7 +1268,7 @@ export function SaltosMap({
             pesado. Un degradado radial da el mismo aspecto de resplandor
             suave sin ese coste: es una malla que la GPU compone directamente.
           */}
-          <radialGradient id="saltos-glow">
+          <radialGradient id="constelacion-glow">
             <stop offset="0%" stopColor="currentColor" stopOpacity={1} />
             <stop offset="100%" stopColor="currentColor" stopOpacity={0} />
           </radialGradient>
@@ -1295,44 +1285,6 @@ export function SaltosMap({
         </g>
 
         <g transform={`translate(${pan.x} ${pan.y}) scale(${pan.scale})`}>
-          {funnelTotal > 0
-            ? (() => {
-                const GAP = 0.04;
-                let cursor = -Math.PI / 2 + 0.05;
-                const spanTotal = Math.PI * 2 - 0.26;
-                const arcs: React.ReactNode[] = [];
-                for (const state of FUNNEL_ORDER) {
-                  const count = funnelCounts.get(state) ?? 0;
-                  if (count === 0) continue;
-                  const span = (spanTotal * count) / funnelTotal;
-                  const a1 = cursor + span - GAP;
-                  const isMutedArc = SALTOS_MUTED_STATES.has(state);
-                  const isPositiveArc = SALTOS_POSITIVE_STATES.has(state);
-                  const isSelectedArc = state === selectedCategory;
-                  const arcWidthBase = isPositiveArc ? 5.5 : isMutedArc ? 3 : 4.5;
-                  const arcWidth = isSelectedArc ? arcWidthBase * 1.8 : arcWidthBase;
-                  const arcOpacity = isPositiveArc ? 0.95 : isMutedArc ? 0.4 : 0.85;
-                  const d = arcPath(cursor, a1, arcRadius);
-                  arcs.push(
-                    <g key={state} data-arc-state={state} className="cursor-pointer">
-                      {/* Trazo ancho e invisible: el arco visible es fino -3 a 5.5 unidades-, así que sin esto tocarlo con el dedo es una lotería. */}
-                      <path d={d} fill="none" stroke="transparent" strokeWidth={16} strokeLinecap="round" />
-                      <path
-                        d={d}
-                        fill="none"
-                        stroke={SALTOS_ARC_COLOR[state]}
-                        strokeOpacity={arcOpacity}
-                        strokeLinecap="round"
-                        style={{ strokeWidth: arcWidth, transition: "stroke-width 320ms var(--ease-out-soft)" }}
-                      />
-                    </g>,
-                  );
-                  cursor = a1 + GAP;
-                }
-                return arcs;
-              })()
-            : null}
-
           {layout.links.map((link, linkIndex) => {
             const key = `${link.fromId}>${link.toId}`;
             const toNode = byId.get(link.toId);
@@ -1342,7 +1294,7 @@ export function SaltosMap({
             // Mismo criterio que en los nodos: una rama que terminó en nada
             // -caducada, descartada- se retira visualmente en vez de pesar
             // igual que una que sigue viva.
-            const isMutedLink = toNode != null && SALTOS_MUTED_STATES.has(toNode.state);
+            const isMutedLink = toNode != null && CONSTELACION_MUTED_STATES.has(toNode.state);
             const restOpacity = isMutedLink ? 0.14 : 0.3;
             const restWidth = isMutedLink ? 0.9 : 1.3;
             const opacity = selectedId ? (isPathLink ? 0.95 : 0.04) : restOpacity;
@@ -1381,7 +1333,7 @@ export function SaltosMap({
                 opacity={0}
                 className="pointer-events-none"
               >
-                <circle r={PULSE_GLOW_R} fill="url(#saltos-glow)" fillOpacity={0.5} style={{ color: pulseColor }} />
+                <circle r={PULSE_GLOW_R} fill="url(#constelacion-glow)" fillOpacity={0.5} style={{ color: pulseColor }} />
                 <circle r={PULSE_DOT_R} fill={pulseColor} />
               </g>
             );
@@ -1391,10 +1343,10 @@ export function SaltosMap({
             {/* Aura de sol: tres círculos difuminados, cada uno con su propio período y
                 retraso -no laten a la vez-, para que el borde de la corona ondule en vez
                 de simplemente "respirar" en bloque, como el resto de los halos del mapa. */}
-            <circle className="saltos-sun-aura-a" r={ESTABLISHMENT_RADIUS * 3.4} fill="url(#saltos-glow)" fillOpacity={0.14} style={{ color: "var(--color-lime)" }} />
-            <circle className="saltos-sun-aura-b" r={ESTABLISHMENT_RADIUS * 3.9} fill="url(#saltos-glow)" fillOpacity={0.1} style={{ color: "var(--color-lime)" }} />
-            <circle className="saltos-sun-aura-c" r={ESTABLISHMENT_RADIUS * 4.5} fill="url(#saltos-glow)" fillOpacity={0.07} style={{ color: "var(--color-lime)" }} />
-            <circle cx={0} cy={0} r={ESTABLISHMENT_RADIUS * 2.5} fill="url(#saltos-hub-glow)" />
+            <circle className="constelacion-sun-aura-a" r={ESTABLISHMENT_RADIUS * 3.4} fill="url(#constelacion-glow)" fillOpacity={0.14} style={{ color: "var(--color-lime)" }} />
+            <circle className="constelacion-sun-aura-b" r={ESTABLISHMENT_RADIUS * 3.9} fill="url(#constelacion-glow)" fillOpacity={0.1} style={{ color: "var(--color-lime)" }} />
+            <circle className="constelacion-sun-aura-c" r={ESTABLISHMENT_RADIUS * 4.5} fill="url(#constelacion-glow)" fillOpacity={0.07} style={{ color: "var(--color-lime)" }} />
+            <circle cx={0} cy={0} r={ESTABLISHMENT_RADIUS * 2.5} fill="url(#constelacion-hub-glow)" />
             <circle cx={0} cy={0} r={ESTABLISHMENT_RADIUS} fill="var(--color-lime)" />
             <text y={-1} textAnchor="middle" dominantBaseline="middle" fontSize={8} fontWeight={800} fill="#15150f">
               {shopName}
@@ -1422,13 +1374,13 @@ export function SaltosMap({
             const dimmed = selectedId != null && !isSelected && !isAncestor;
             const isBest = node.id === bestPadrino;
             const isExpiringNode = expiringIds.has(node.id);
-            const color = saltosNodeColor(node);
+            const color = constelacionNodeColor(node);
             const showLabel = node.claimed && (pan.scale >= LABEL_VISIBLE_SCALE || isSelected || isAncestor);
             // Jerarquía visual: lo bueno pesa más, lo perdido se retira -no
             // compiten por la atención a partes iguales-. Ver el comentario
-            // de SALTOS_POSITIVE_STATES/SALTOS_MUTED_STATES más arriba.
-            const isPositive = SALTOS_POSITIVE_STATES.has(node.state);
-            const isMuted = SALTOS_MUTED_STATES.has(node.state);
+            // de CONSTELACION_POSITIVE_STATES/CONSTELACION_MUTED_STATES más arriba.
+            const isPositive = CONSTELACION_POSITIVE_STATES.has(node.state);
+            const isMuted = CONSTELACION_MUTED_STATES.has(node.state);
             // Más visitas -sellos en la tarjeta actual, hasta completarla-,
             // aura más fuerte: un cliente que vuelve mucho se nota en el
             // mapa aunque su estado no cambie. Solo clientes reales, una
@@ -1461,21 +1413,21 @@ export function SaltosMap({
                 transform={`translate(${pos.x.toFixed(2)},${pos.y.toFixed(2)})`}
               >
                 {isExpiringNode ? (
-                  <circle className="saltos-alert-ring" r={displayRadius + 6} fill="none" stroke="var(--color-coral)" strokeWidth={1} />
+                  <circle className="constelacion-alert-ring" r={displayRadius + 6} fill="none" stroke="var(--color-coral)" strokeWidth={1} />
                 ) : null}
                 {isBest ? (
-                  <circle r={displayRadius * 2.1} fill="url(#saltos-glow)" fillOpacity={0.16} style={{ color: "var(--color-amber)" }} />
+                  <circle r={displayRadius * 2.1} fill="url(#constelacion-glow)" fillOpacity={0.16} style={{ color: "var(--color-amber)" }} />
                 ) : null}
 
                 <circle
-                  className={isPositive ? "saltos-billable-glow" : undefined}
+                  className={isPositive ? "constelacion-billable-glow" : undefined}
                   r={displayRadius * haloScale}
-                  fill="url(#saltos-glow)"
+                  fill="url(#constelacion-glow)"
                   fillOpacity={haloFillOpacity}
                   style={{ color }}
                 />
-                <circle className={isWindow ? "saltos-window-blink" : undefined} style={windowBlinkStyle} r={displayRadius} fill={color} />
-                <circle r={displayRadius} fill="none" stroke={SALTOS_STROKE_COLOR[node.state]} strokeWidth={isMuted ? 0.9 : 0.55} />
+                <circle className={isWindow ? "constelacion-window-blink" : undefined} style={windowBlinkStyle} r={displayRadius} fill={color} />
+                <circle r={displayRadius} fill="none" stroke={CONSTELACION_STROKE_COLOR[node.state]} strokeWidth={isMuted ? 0.9 : 0.55} />
                 <circle r={Math.max(displayRadius + 7, 12)} fill="transparent" />
 
                 {node.claimed ? (
@@ -1501,13 +1453,17 @@ export function SaltosMap({
           bajos -móvil en horizontal- la leyenda puede crecer hasta solaparse con la
           cabecera, y el botón de volver tiene que seguir pudiéndose tocar. */}
       <header className="pointer-events-none fixed inset-x-0 top-0 z-30 flex items-start justify-between gap-3 px-5 pt-[max(1rem,env(safe-area-inset-top))]">
+        {/* Esta es ahora la portada del panel -no cuelga de ninguna otra
+            pantalla-, así que el botón de la esquina ya no es "volver" sino
+            el mismo HomeIcon -> /inicio que llevan el resto de pantallas del
+            panel en su cabecera. */}
         <Link
-          href="/admin/atribuciones"
+          href="/inicio"
           prefetch={false}
-          className="btn glass-dark pointer-events-auto gap-1.5 px-4 py-2.5 text-[0.875rem] text-chalk"
+          className="btn glass-dark pointer-events-auto size-11 text-chalk"
+          aria-label={t.home.eyebrow}
         >
-          <ArrowLeftIcon className="size-4" />
-          {t.common.back}
+          <HomeIcon className="size-5" />
         </Link>
 
         {/* Misma caja que la leyenda -mismo glass-dark translúcido, mismo tamaño
@@ -1523,10 +1479,56 @@ export function SaltosMap({
         ) : null}
       </header>
 
-      {/* La leyenda vive en el lateral izquierdo, suelta de la columna de iconos
-          -que se queda a la derecha, junto al resto de controles-: son dos
-          contenedores fixed independientes, no un único bloque apilado. */}
-      <div className="pointer-events-none fixed inset-y-0 left-3 z-20 flex flex-col justify-end py-[max(1.25rem,env(safe-area-inset-bottom))]">
+      {/* La barra imán: pegada al borde izquierdo de la pantalla, cada tramo
+          proporcional a su recuento -misma proporción que antes tenía el
+          arco perimetral-, y tocarlo dispara el mismo efecto imán, ahora a
+          lo largo de la barra en vez de alrededor de un anillo. Vive fuera
+          del SVG -un overlay HTML fijo a la pantalla, no al mundo que se
+          puede pellizcar y arrastrar- así que un simple onClick basta, sin
+          la gestión de puntero a medida que hacía falta cuando la sección
+          vivía dentro del propio SVG. Cada botón reserva un ancho de toque
+          generoso (32px) aunque el tramo de color visible sea mucho más
+          fino, igual que el arco tenía antes un trazo ancho invisible
+          debajo del trazo fino visible. */}
+      {funnelTotal > 0 ? (
+        <div className="pointer-events-none fixed inset-y-0 left-0 z-20 flex w-8 flex-col gap-[3px] pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-[calc(4.5rem+env(safe-area-inset-top))]">
+          {FUNNEL_ORDER.map((state) => {
+            const count = funnelCounts.get(state) ?? 0;
+            if (count === 0) return null;
+            const isMutedSeg = CONSTELACION_MUTED_STATES.has(state);
+            const isPositiveSeg = CONSTELACION_POSITIVE_STATES.has(state);
+            const isSelectedSeg = state === selectedCategory;
+            const barWidth = isSelectedSeg ? 16 : isPositiveSeg ? 9 : isMutedSeg ? 5 : 7;
+            return (
+              <button
+                key={state}
+                type="button"
+                onClick={() => setSelectedCategory((prev) => (prev === state ? null : state))}
+                aria-pressed={isSelectedSeg}
+                aria-label={stateBadgeLabel(state, t)}
+                className="pointer-events-auto flex items-center"
+                style={{ flexGrow: count, flexBasis: 0, minHeight: 10 }}
+              >
+                <span
+                  className="block h-full rounded-full transition-[width] duration-300 ease-[var(--ease-out-soft)]"
+                  style={{
+                    width: barWidth,
+                    background: CONSTELACION_ACCENT_COLOR[state],
+                    opacity: isMutedSeg ? 0.4 : isPositiveSeg ? 0.95 : 0.85,
+                  }}
+                />
+              </button>
+            );
+          })}
+        </div>
+      ) : null}
+
+      {/* La leyenda vive en el lateral izquierdo, un poco más adentro que la
+          barra imán -que ya ocupa los primeros 32px del borde-, suelta de la
+          columna de iconos -que se queda a la derecha, junto al resto de
+          controles-: son contenedores fixed independientes, no un único
+          bloque apilado. */}
+      <div className="pointer-events-none fixed inset-y-0 left-10 z-20 flex flex-col justify-end py-[max(1.25rem,env(safe-area-inset-bottom))]">
         <div
           className="glass-dark pointer-events-auto max-w-[16rem] p-3.5 transition-transform duration-300 ease-[var(--ease-out-soft)]"
           style={{
@@ -1538,15 +1540,15 @@ export function SaltosMap({
             background: "rgba(10,14,13,0.32)",
           }}
         >
-          <p className="eyebrow text-chalk/40">{t.admin.saltosLegendTitle}</p>
-          <p className="mt-0.5 text-[0.6875rem] leading-snug text-chalk/30">{t.admin.saltosLegendDesc}</p>
+          <p className="eyebrow text-chalk/40">{t.admin.constelacionLegendTitle}</p>
+          <p className="mt-0.5 text-[0.6875rem] leading-snug text-chalk/30">{t.admin.constelacionLegendDesc}</p>
           <div className="mt-2 flex flex-col gap-1.5">
             {FUNNEL_ORDER.map((state) => {
-              const isMutedRow = SALTOS_MUTED_STATES.has(state);
+              const isMutedRow = CONSTELACION_MUTED_STATES.has(state);
               // El propio punto de la leyenda ya es la burbuja a escala -mismo
               // multiplicador que dibuja el mapa-, así que enseña de un
               // vistazo que el tamaño también cuenta la fase del cliente.
-              const swatchPx = 5 + SALTOS_PHASE_SIZE[state] * 6.5;
+              const swatchPx = 5 + CONSTELACION_PHASE_SIZE[state] * 6.5;
               return (
                 <div key={state} className={cn("flex items-center gap-2 text-[0.75rem]", isMutedRow ? "text-chalk/45" : "text-chalk/75")}>
                   <span
@@ -1558,9 +1560,9 @@ export function SaltosMap({
                       style={{
                         width: swatchPx,
                         height: swatchPx,
-                        background: SALTOS_PHASE_COLOR[state],
+                        background: CONSTELACION_PHASE_COLOR[state],
                         opacity: isMutedRow ? 0.55 : 1,
-                        border: isMutedRow ? `1px solid ${SALTOS_STROKE_COLOR[state]}` : undefined,
+                        border: isMutedRow ? `1px solid ${CONSTELACION_STROKE_COLOR[state]}` : undefined,
                       }}
                     />
                   </span>
@@ -1570,8 +1572,8 @@ export function SaltosMap({
               );
             })}
           </div>
-          <p className="mt-2.5 border-t border-white/8 pt-2.5 text-[0.625rem] leading-tight text-chalk/40">{t.admin.saltosSizeLegend}</p>
-          <p className="mt-1.5 text-[0.625rem] leading-tight text-chalk/40">{t.admin.saltosBrightnessLegend}</p>
+          <p className="mt-2.5 border-t border-white/8 pt-2.5 text-[0.625rem] leading-tight text-chalk/40">{t.admin.constelacionSizeLegend}</p>
+          <p className="mt-1.5 text-[0.625rem] leading-tight text-chalk/40">{t.admin.constelacionBrightnessLegend}</p>
         </div>
       </div>
 
@@ -1595,7 +1597,7 @@ export function SaltosMap({
                 background: "rgba(10,14,13,0.32)",
               }}
             >
-              <p className="numeral text-[1.5rem] font-extrabold leading-none" style={{ color: SALTOS_ARC_COLOR[lastCategory] }}>
+              <p className="numeral text-[1.5rem] font-extrabold leading-none" style={{ color: CONSTELACION_ACCENT_COLOR[lastCategory] }}>
                 {funnelCounts.get(lastCategory) ?? 0}
               </p>
               <p className="mt-1 text-[0.6875rem] leading-snug text-chalk/70">{stateBadgeLabel(lastCategory, t)}</p>
@@ -1619,11 +1621,20 @@ export function SaltosMap({
             type="button"
             onClick={() => setHudVisible((v) => !v)}
             aria-pressed={hudVisible}
-            aria-label={t.admin.saltosToggleHud}
+            aria-label={t.admin.constelacionToggleHud}
             className={cn("btn size-11", hudVisible ? "bg-lime text-ink" : "glass-dark text-chalk")}
           >
             {hudVisible ? <EyeIcon className="size-5" /> : <EyeOffIcon className="size-5" />}
           </button>
+          {/* Esta pantalla es ahora la portada del panel y no lleva su propia
+              barra inferior -sigue siendo "una exploración a pantalla
+              completa, no una tarjeta más"-, así que este icono es el único
+              camino directo de vuelta al resto del panel -puertas y
+              señales, ahora juntas en /admin/metricas-; desde ahí, la barra
+              inferior de siempre ya lleva a cualquier otra pantalla. */}
+          <Link href="/admin/metricas" prefetch={false} aria-label={t.admin.navMetrics} className="btn glass-dark size-11 text-chalk">
+            <PulseIcon className="size-5" />
+          </Link>
         </div>
       </div>
 
@@ -1635,7 +1646,7 @@ export function SaltosMap({
         ) : null}
       </footer>
 
-      <SaltosSheet
+      <ConstelacionSheet
         node={selectedNode}
         giftedByName={giftedByName}
         invitedCount={selectedNode?.childCount ?? 0}

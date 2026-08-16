@@ -1,15 +1,21 @@
 import Link from "next/link";
-import { BottomNav } from "@/components/admin/BottomNav";
-import { GateCard } from "@/components/admin/GateCard";
+import { ConstelacionMap } from "@/components/admin/ConstelacionMap";
 import { LoginForm } from "@/components/admin/LoginForm";
 import { HomeIcon } from "@/components/ui/Icons";
-import { LangSwitch } from "@/components/ui/LangSwitch";
 import { Logo } from "@/components/ui/Logo";
 import { Screen } from "@/components/ui/Screen";
 import { getAdminContext } from "@/lib/auth/admin";
-import { loadFunnel } from "@/lib/funnel";
+import { loadRealGiftGraph } from "@/lib/giftGraph/loadRealGiftGraph";
 import { getI18n } from "@/lib/i18n/server";
 
+/**
+ * La constelación es ahora la portada del panel: lo primero que ve el
+ * dueño al entrar. Las puertas y las señales -lo que antes vivía aquí-
+ * se juntaron en /admin/metricas, alcanzable desde la barra inferior de
+ * cualquier otra pantalla del panel; esta, a pantalla completa, se queda
+ * sin esa barra a propósito, igual que ya hacía antes en
+ * /admin/atribuciones/mapa -era "una exploración, no una tarjeta más".
+ */
 export default async function AdminPage() {
   const { locale, t } = await getI18n();
   const ctx = await getAdminContext();
@@ -33,37 +39,16 @@ export default async function AdminPage() {
     );
   }
 
-  const data = await loadFunnel(ctx.shop.id);
+  const graph = await loadRealGiftGraph(ctx.shop.id, ctx.shop.name);
 
   return (
-    <Screen tone="ink" className="gap-8 pb-28 lg:max-w-3xl">
-      <header className="flex items-center justify-between gap-3 pt-2">
-        <div className="flex items-center gap-3">
-          <Link
-            href="/inicio"
-            prefetch={false}
-            className="-m-2 p-2 text-chalk/45 transition-colors hover:text-chalk"
-            aria-label={t.home.eyebrow}
-          >
-            <HomeIcon className="size-6" />
-          </Link>
-          <div>
-            <p className="eyebrow text-chalk/35">{ctx.shop.name}</p>
-            <h1 className="display mt-1 text-[1.75rem] lg:text-[2rem]">{t.admin.gates}</h1>
-          </div>
-        </div>
-        <LangSwitch locale={locale} tone="chalk" />
-      </header>
-
-      <section className="flex flex-col gap-3">
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-          <GateCard gate={data.gates.p1} label={t.admin.gate1} t={t.admin} />
-          <GateCard gate={data.gates.p2} label={t.admin.gate2} t={t.admin} />
-          <GateCard gate={data.gates.p3} label={t.admin.gate3} t={t.admin} />
-        </div>
-      </section>
-
-      <BottomNav t={t.admin} active="gates" />
-    </Screen>
+    <ConstelacionMap
+      graph={graph}
+      shopName={ctx.shop.name}
+      stampsGoal={ctx.shop.stamps_goal}
+      returnWindowDays={ctx.shop.return_window_days}
+      locale={locale}
+      t={t}
+    />
   );
 }

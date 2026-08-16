@@ -2,7 +2,7 @@ import Link from "next/link";
 import {
   ChartIcon,
   FunnelIcon,
-  GateIcon,
+  OrbitIcon,
   PulseIcon,
   TabletIcon,
 } from "@/components/ui/Icons";
@@ -10,19 +10,24 @@ import { cn } from "@/lib/cn";
 import type { Dict } from "@/lib/i18n";
 
 type AdminDict = Dict["admin"];
-export type AdminSection = "gates" | "embudo" | "senales" | "dispositivos" | "atribuciones";
+export type AdminSection = "constelacion" | "embudo" | "metricas" | "dispositivos" | "atribuciones";
 
 /**
  * Barra inferior fija del panel, tipo pestañas de app. Cinco páginas de
  * verdad, no anclas: cada una hace su propia comprobación de sesión, así
  * que basta con enlazar a la ruta y dejar que la propia página decida si
- * hay que enseñar el login.
+ * hay que enseñar el login. La constelación -la portada del panel- es la
+ * única que no lleva esta barra puesta encima, igual que antes tampoco la
+ * llevaba en /admin/atribuciones/mapa: sigue siendo una exploración a
+ * pantalla completa, no una pestaña más; aun así vive aquí como la
+ * primera pestaña, porque "gates" -las puertas- se juntó con las señales
+ * en /admin/metricas y le cedió el sitio.
  */
 export function BottomNav({ t, active }: { t: AdminDict; active?: AdminSection }) {
   const items: { key: AdminSection; href: string; label: string; icon: React.ReactNode }[] = [
-    { key: "gates", href: "/admin", label: t.navGates, icon: <GateIcon className="size-5" /> },
+    { key: "constelacion", href: "/admin", label: t.referralMap, icon: <OrbitIcon className="size-5" /> },
     { key: "embudo", href: "/admin/embudo", label: t.title, icon: <FunnelIcon className="size-5" /> },
-    { key: "senales", href: "/admin/senales", label: t.navOps, icon: <PulseIcon className="size-5" /> },
+    { key: "metricas", href: "/admin/metricas", label: t.navMetrics, icon: <PulseIcon className="size-5" /> },
     {
       key: "dispositivos",
       href: "/admin/dispositivos",
