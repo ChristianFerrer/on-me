@@ -30,6 +30,7 @@ export function ConstelacionSheet({
   locale,
   t,
   onClose,
+  variant = "sheet",
 }: {
   node: Node | null;
   giftedByName: string;
@@ -43,6 +44,14 @@ export function ConstelacionSheet({
   locale: Locale;
   t: Dict;
   onClose: () => void;
+  /**
+   * "sheet" -por defecto, ConstelacionMap-: pliego de ancho completo que sube
+   * desde el borde inferior, con su propio contenedor fijo. "corner" -solo
+   * ConstelacionSolMap-: sin contenedor fijo propio -el padre ya la coloca,
+   * apilada bajo la leyenda en la esquina inferior izquierda-, más estrecha
+   * y deslizándose desde la izquierda en vez de desde abajo.
+   */
+  variant?: "sheet" | "corner";
 }) {
   const initialSnapshot = node ? { node, giftedByName, invitedCount, sentAt, color } : null;
   const [snapshot, setSnapshot] = useState(initialSnapshot);
@@ -95,29 +104,23 @@ export function ConstelacionSheet({
       ? fill(t.admin.constelacionSentInvitedLine, { date: formatDateTime(snapshot.sentAt, locale), n: snapshot.invitedCount })
       : fill(t.admin.constelacionInvitedOnlyLine, { n: snapshot.invitedCount });
 
-  return (
+  const card = (
     <div
-      // 3.375rem = alto de BottomNav sin zona segura -ver el mismo cálculo en
-      // ConstelacionMap/ConstelacionSolMap-: la barra es fija en móvil/tablet
-      // -por debajo de `lg`-, así que ahí la ficha tiene que despegarse de su
-      // borde de pantalla, no solo llevar más z-index. A partir de `lg`
-      // BottomNav pasa a sidebar izquierdo -ver BottomNav.tsx-, sin barra
-      // inferior que despejar, así que el padding cae a `lg:pb-[max(1rem,...)]`,
-      // el margen de siempre; `lg:pl-[16rem]` -mismo ancho que
-      // ADMIN_SIDEBAR_WIDTH, repetido a mano porque Tailwind no puede leer esa
-      // constante JS en una clase- recentra la ficha en el hueco visible junto
-      // al sidebar, no en todo el ancho de la pantalla.
-      className="pointer-events-none fixed inset-x-0 bottom-0 z-30 flex justify-center px-3 pb-[calc(3.375rem+env(safe-area-inset-bottom)+1rem)] lg:pb-[max(1rem,env(safe-area-inset-bottom))] lg:pl-[16rem]"
-      aria-hidden={!open}
+      className={cn(
+        "glass-dark overflow-hidden p-5 shadow-[0_-18px_50px_rgba(0,0,0,0.5)] transition-transform duration-[400ms] ease-[cubic-bezier(0.22,1,0.36,1)]",
+        variant === "sheet" ? "w-full max-w-[30rem] sm:max-w-[34rem]" : "w-[16rem]",
+        open ? "pointer-events-auto" : "pointer-events-none",
+      )}
+      aria-hidden={variant === "corner" ? !open : undefined}
+      style={{
+        transform: open
+          ? "translate(0, 0)"
+          : variant === "sheet"
+            ? "translateY(102%)"
+            : "translateX(-120%)",
+      }}
     >
-      <div
-        className={cn(
-          "glass-dark w-full max-w-[30rem] overflow-hidden p-5 shadow-[0_-18px_50px_rgba(0,0,0,0.5)] transition-transform duration-[400ms] ease-[cubic-bezier(0.22,1,0.36,1)] sm:max-w-[34rem]",
-          open ? "pointer-events-auto" : "pointer-events-none",
-        )}
-        style={{ transform: open ? "translateY(0)" : "translateY(102%)" }}
-      >
-        <div className="mx-auto mb-3 h-[3.5px] w-[34px] rounded-full bg-white/16" />
+        {variant === "sheet" ? <div className="mx-auto mb-3 h-[3.5px] w-[34px] rounded-full bg-white/16" /> : null}
 
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
@@ -171,7 +174,27 @@ export function ConstelacionSheet({
         >
           {t.common.close}
         </button>
-      </div>
+    </div>
+  );
+
+  if (variant === "corner") return card;
+
+  return (
+    <div
+      // 3.375rem = alto de BottomNav sin zona segura -ver el mismo cálculo en
+      // ConstelacionMap-: la barra es fija en móvil/tablet -por debajo de
+      // `lg`-, así que ahí la ficha tiene que despegarse de su borde de
+      // pantalla, no solo llevar más z-index. A partir de `lg` BottomNav pasa
+      // a sidebar izquierdo -ver BottomNav.tsx-, sin barra inferior que
+      // despejar, así que el padding cae a `lg:pb-[max(1rem,...)]`, el
+      // margen de siempre; `lg:pl-[16rem]` -mismo ancho que
+      // ADMIN_SIDEBAR_WIDTH, repetido a mano porque Tailwind no puede leer esa
+      // constante JS en una clase- recentra la ficha en el hueco visible junto
+      // al sidebar, no en todo el ancho de la pantalla.
+      className="pointer-events-none fixed inset-x-0 bottom-0 z-30 flex justify-center px-3 pb-[calc(3.375rem+env(safe-area-inset-bottom)+1rem)] lg:pb-[max(1rem,env(safe-area-inset-bottom))] lg:pl-[16rem]"
+      aria-hidden={!open}
+    >
+      {card}
     </div>
   );
 }

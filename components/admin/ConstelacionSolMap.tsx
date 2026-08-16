@@ -39,13 +39,13 @@ const TAP_MAX_DURATION_MS = 400;
  * BottomNav.tsx, hoy "16rem"-, así que ahí ya no hay barra inferior que
  * despejar -cae a `lg:pb-[max(1.25rem,env(safe-area-inset-bottom))]`, el
  * margen de siempre- pero sí hueco a la izquierda que respetar -de ahí
- * `lg:left-[calc(16rem+0.75rem)]` en la columna de la leyenda, 0.75rem
- * siendo el mismo hueco que ya usa `left-3`-. Valores estáticos, así que
- * viven directamente en clases de Tailwind -no en una constante JS: Tailwind
- * no puede leer una plantilla interpolada en tiempo de build-; 16rem se
- * repite a mano en vez de importar ADMIN_SIDEBAR_WIDTH porque no queda
- * ningún `style` en tiempo de ejecución donde usar esa constante.
- */
+ * `lg:left-[calc(var(--admin-sidebar-width,16rem)+0.75rem)]` en la columna
+ * de la leyenda, 0.75rem siendo el mismo hueco que ya usa `left-3`-. Esta
+ * vista pasa `collapsible` a BottomNav -único sitio del panel que lo hace-,
+ * así que el ancho del sidebar no es fijo: BottomNav publica su ancho real
+ * en la variable CSS `--admin-sidebar-width` -16rem desplegado, 4.75rem
+ * plegado- y aquí se lee con ese mismo nombre, 16rem de reserva por si el
+ * valor no llegó a fijarse a tiempo -SSR/primer pintado-. */
 
 /** Radianes por frame de la rotación de fondo, y cuánto tarda en reanudarse tras soltar. */
 const ROTATION_PER_FRAME = 0.00019;
@@ -316,11 +316,6 @@ function windowSizeMultiplier(daysElapsed: number): number {
 function windowBlinkDurationS(daysRemaining: number, returnWindowDays: number): number {
   const t = clamp(daysRemaining / Math.max(1, returnWindowDays), 0, 1);
   return WINDOW_BLINK_FASTEST_S + t * (WINDOW_BLINK_SLOWEST_S - WINDOW_BLINK_FASTEST_S);
-}
-
-/** Días que le quedan a una esfera "en ventana" antes de que se cierre -mismo cálculo que windowDaysLeft en ConstelacionSheet-, para el numeral que se pinta encima de su propia estrella. */
-function windowDaysLeft(daysElapsed: number, returnWindowDays: number): number {
-  return Math.max(0, returnWindowDays - Math.floor(daysElapsed));
 }
 
 type PointerState = { x: number; y: number };
@@ -845,6 +840,31 @@ export function ConstelacionSolMap({
   useEffect(() => {
     arcAngleRangeRef.current = arcAngleRangeByState;
   }, [arcAngleRangeByState]);
+
+  /** Zoom en el detalle -tamaño, pulso, nombre- de la sección tocada, el mismo `scale` a partir del cual se enseñan las etiquetas. */
+  const CATEGORY_ZOOM_SCALE = 2.2;
+  /** Solo mientras dura la animación del zoom automático: fuera de esa ventana el `<g>` no lleva transición, para no competir con el pellizco/arrastre manual, que actualiza `pan` en cada frame. */
+  const [autoZooming, setAutoZooming] = useState(false);
+  useEffect(() => {
+    const range = selectedCategory ? arcAngleRangeByState.get(selectedCategory) : undefined;
+    // Diferido a un microtask -mismo patrón que el snapshot de lastCategory
+    // más abajo-: evita el aviso de "cascading renders" sin retrasar
+    // visualmente el zoom.
+    queueMicrotask(() => {
+      setAutoZooming(true);
+      if (range) {
+        const angle = (range.start + range.end) / 2;
+        const targetRadius = frameRadius * MAGNET_TARGET_RADIUS_FACTOR;
+        const cx = targetRadius * Math.cos(angle);
+        const cy = targetRadius * Math.sin(angle);
+        setPan({ x: -cx * CATEGORY_ZOOM_SCALE, y: -cy * CATEGORY_ZOOM_SCALE, scale: CATEGORY_ZOOM_SCALE });
+      } else {
+        setPan({ x: 0, y: 0, scale: 1 });
+      }
+    });
+    const timeout = window.setTimeout(() => setAutoZooming(false), 500);
+    return () => window.clearTimeout(timeout);
+  }, [selectedCategory, arcAngleRangeByState, frameRadius]);
   const categoryMemberRankRef = useRef(new Map<string, { rank: number; count: number }>());
   useEffect(() => {
     categoryMemberRankRef.current = categoryMemberRank;
@@ -872,8 +892,8 @@ export function ConstelacionSolMap({
   }, [nodeRadiusById]);
   const [legendOpen, setLegendOpen] = useState(true);
   const [hudVisible, setHudVisible] = useState(true);
-  /** Ajuste propio de esta vista -no existe en ConstelacionMap-: oculta las líneas que van del sol a un cliente sin padrino (alta directa por QR), que en un local con muchas suelen ser la mayoría del ruido visual alrededor del núcleo. */
-  const [hideDirectLinks, setHideDirectLinks] = useState(false);
+  /** Ajuste propio de esta vista -no existe en ConstelacionMap-: oculta los "rayos" -las líneas que van del sol a un cliente sin padrino, alta directa por QR-, que en un local con muchas suelen ser la mayoría del ruido visual alrededor del núcleo. Ocultos por defecto: el sol arranca "apagado", sin rayos, y el propio botón los enciende. */
+  const [hideDirectLinks, setHideDirectLinks] = useState(true);
   const [touched, setTouched] = useState(false);
 
   const ancestors = useMemo(() => {
@@ -1411,7 +1431,10 @@ export function ConstelacionSolMap({
           ))}
         </g>
 
-        <g transform={`translate(${pan.x} ${pan.y}) scale(${pan.scale})`}>
+        <g
+          transform={`translate(${pan.x} ${pan.y}) scale(${pan.scale})`}
+          style={autoZooming ? { transition: "transform 450ms var(--ease-out-soft)" } : undefined}
+        >
           {funnelTotal > 0
             ? (() => {
                 const GAP = 0.04;
@@ -1598,9 +1621,6 @@ export function ConstelacionSolMap({
             const windowBlinkStyle = isWindow
               ? { animationDuration: `${windowBlinkDurationS(returnWindowDays - daysElapsed, returnWindowDays).toFixed(2)}s` }
               : undefined;
-            // Solo "en ventana" cuenta días de verdad -el resto de estados no se
-            // encoge con el tiempo-, así que solo esta estrella lleva el numeral.
-            const daysLeft = isWindow ? windowDaysLeft(daysElapsed, returnWindowDays) : null;
             const twinkleStyle = {
               "--twinkle-s": `${twinkleDurationS(pt.index, livelinessFor(node, nowMs)).toFixed(2)}s`,
               "--twinkle-delay": `${twinkleDelayS(pt.index).toFixed(2)}s`,
@@ -1642,18 +1662,6 @@ export function ConstelacionSolMap({
                   <circle className={isWindow ? "constelacion-window-blink" : undefined} style={windowBlinkStyle} r={starCoreR} fill={color} />
                   <circle r={starCoreR} fill="none" stroke={CONSTELACION_STROKE_COLOR[node.state]} strokeWidth={isMuted ? 0.7 : 0.4} />
                 </g>
-                {isWindow ? (
-                  <text
-                    textAnchor="middle"
-                    dominantBaseline="middle"
-                    fontSize={Math.max(2.4, displayRadius * 1.1)}
-                    fontWeight={800}
-                    fill="#15150f"
-                    style={{ pointerEvents: "none" }}
-                  >
-                    {daysLeft}
-                  </text>
-                ) : null}
                 <circle r={Math.max(displayRadius + 7, 12)} fill="transparent" />
 
                 {node.claimed ? (
@@ -1723,7 +1731,7 @@ export function ConstelacionSolMap({
           efecto imán- vive dentro del SVG de arriba, no aquí: pertenece
           al mundo que se pellizca y arrastra, no a este overlay fijo. */}
       <div
-        className="pointer-events-none fixed inset-y-0 left-3 z-20 flex flex-col justify-end pt-[max(1.25rem,env(safe-area-inset-bottom))] pb-[calc(3.375rem+env(safe-area-inset-bottom)+1.25rem)] lg:left-[calc(16rem+0.75rem)] lg:pb-[max(1.25rem,env(safe-area-inset-bottom))]"
+        className="pointer-events-none fixed inset-y-0 left-3 z-20 flex flex-col justify-end pt-[max(1.25rem,env(safe-area-inset-bottom))] pb-[calc(3.375rem+env(safe-area-inset-bottom)+1.25rem)] transition-[left] duration-200 ease-[var(--ease-out-soft)] lg:left-[calc(var(--admin-sidebar-width,16rem)+0.75rem)] lg:pb-[max(1.25rem,env(safe-area-inset-bottom))]"
       >
         <div
           className="glass-dark pointer-events-auto max-w-[16rem] p-3.5 transition-transform duration-300 ease-[var(--ease-out-soft)]"
@@ -1771,16 +1779,38 @@ export function ConstelacionSolMap({
           <p className="mt-2.5 border-t border-white/8 pt-2.5 text-[0.625rem] leading-tight text-chalk/40">{t.admin.constelacionSizeLegend}</p>
           <p className="mt-1.5 text-[0.625rem] leading-tight text-chalk/40">{t.admin.constelacionBrightnessLegend}</p>
         </div>
+
+        {/* La ficha vive en esta misma columna, justo debajo de la leyenda -no
+            en su propio overlay a pantalla completa como en ConstelacionMap-:
+            `justify-end` la empuja al fondo y dobla como último hijo, así que
+            la leyenda -primer hijo- siempre queda por encima de ella cuando
+            las dos están abiertas a la vez. */}
+        <div className="mt-2 pointer-events-none">
+          <ConstelacionSheet
+            variant="corner"
+            node={selectedNode}
+            giftedByName={giftedByName}
+            invitedCount={selectedNode?.childCount ?? 0}
+            sentAt={selectedNode ? (sentAtById.get(selectedNode.id) ?? null) : null}
+            color={selectedNode ? safeLineColor(selectedNode) : "var(--color-slate)"}
+            stampsGoal={stampsGoal}
+            returnWindowDays={returnWindowDays}
+            nowMs={nowMs}
+            locale={locale}
+            t={t}
+            onClose={() => setSelectedId(null)}
+          />
+        </div>
       </div>
 
-      {/* La ficha (z-30, opaca, ancho completo) se pinta encima de esta columna
-          (z-20) en cuanto hay un nodo seleccionado: sin ocultarla aquí, los tres
-          botones quedaban tapados y sin forma de tocarlos hasta cerrar la ficha
-          con su propio botón. */}
+      {/* La ficha ahora vive en la columna de la izquierda, apilada bajo la
+          leyenda -ya no es un pliego de ancho completo-, así que no tapa
+          esta columna: los botones se quedan visibles y usables aunque haya
+          un nodo seleccionado. */}
       <div
         className="pointer-events-none fixed inset-y-0 right-3 z-20 flex flex-col items-center justify-end gap-2 pt-[max(1.25rem,env(safe-area-inset-bottom))] pb-[calc(3.375rem+env(safe-area-inset-bottom)+1.25rem)] lg:pb-[max(1.25rem,env(safe-area-inset-bottom))]"
       >
-        <div className={cn("pointer-events-none flex flex-col items-end gap-2", selectedNode ? "invisible" : "visible")}>
+        <div className="pointer-events-none flex flex-col items-end gap-2">
           {/* Número y descripción de la categoría del anillo tocada, con el
               mismo tratamiento visual que la leyenda -glass-dark, mismo tono
               translúcido- y ajustado al tamaño del texto en vez de a un
@@ -1802,7 +1832,7 @@ export function ConstelacionSolMap({
             </div>
           ) : null}
         </div>
-        <div className={cn("pointer-events-auto flex flex-col items-center gap-2", selectedNode ? "invisible" : "visible")}>
+        <div className="pointer-events-auto flex flex-col items-center gap-2">
           <button
             type="button"
             onClick={() => setLegendOpen((v) => !v)}
@@ -1824,16 +1854,18 @@ export function ConstelacionSolMap({
           >
             {hudVisible ? <EyeIcon className="size-5" /> : <EyeOffIcon className="size-5" />}
           </button>
-          {/* Propio de esta vista -no existe en ConstelacionMap-: apaga las
-              líneas que van del sol a un cliente de alta directa por QR, el
-              ruido visual más habitual alrededor del núcleo. */}
+          {/* Propio de esta vista -no existe en ConstelacionMap-: enciende/apaga
+              los rayos del sol -las líneas que van del núcleo a un cliente de
+              alta directa por QR-, el ruido visual más habitual alrededor del
+              núcleo. Apagados por defecto: en lima solo cuando están
+              encendidos -rayos visibles-, apagado/glass-dark cuando no los hay. */}
           <button
             type="button"
             onClick={() => setHideDirectLinks((v) => !v)}
-            aria-pressed={hideDirectLinks}
+            aria-pressed={!hideDirectLinks}
             aria-label={t.admin.constelacionHideDirectLinks}
             title={t.admin.constelacionSettings}
-            className={cn("btn size-11", hideDirectLinks ? "bg-lime text-ink" : "glass-dark text-chalk")}
+            className={cn("btn size-11", !hideDirectLinks ? "bg-lime text-ink" : "glass-dark text-chalk")}
           >
             <SettingsIcon className="size-5" />
           </button>
@@ -1848,7 +1880,7 @@ export function ConstelacionSolMap({
       </div>
 
       <footer
-        className="pointer-events-none fixed inset-x-0 bottom-0 z-20 flex flex-col items-center gap-3 px-5 pb-[calc(3.375rem+env(safe-area-inset-bottom)+1.25rem)] lg:pb-[max(1.25rem,env(safe-area-inset-bottom))] lg:pl-[16rem]"
+        className="pointer-events-none fixed inset-x-0 bottom-0 z-20 flex flex-col items-center gap-3 px-5 pb-[calc(3.375rem+env(safe-area-inset-bottom)+1.25rem)] transition-[padding-left] duration-200 ease-[var(--ease-out-soft)] lg:pb-[max(1.25rem,env(safe-area-inset-bottom))] lg:pl-[var(--admin-sidebar-width,16rem)]"
       >
         {!selectedNode && !touched ? (
           <p className="text-[0.65625rem] text-chalk/32 transition-opacity duration-300">
@@ -1857,21 +1889,7 @@ export function ConstelacionSolMap({
         ) : null}
       </footer>
 
-      <BottomNav t={t.admin} active="constelacion" />
-
-      <ConstelacionSheet
-        node={selectedNode}
-        giftedByName={giftedByName}
-        invitedCount={selectedNode?.childCount ?? 0}
-        sentAt={selectedNode ? (sentAtById.get(selectedNode.id) ?? null) : null}
-        color={selectedNode ? safeLineColor(selectedNode) : "var(--color-slate)"}
-        stampsGoal={stampsGoal}
-        returnWindowDays={returnWindowDays}
-        nowMs={nowMs}
-        locale={locale}
-        t={t}
-        onClose={() => setSelectedId(null)}
-      />
+      <BottomNav t={t.admin} active="constelacion" collapsible />
     </div>
   );
 }
