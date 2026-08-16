@@ -102,7 +102,7 @@ function linkWobblePhase(index: number): number {
  * apaga con Math.sin(u * π) en ambos extremos para que la cuerda no se
  * despegue nunca de los nodos que conecta.
  */
-const LINK_POINT_COUNT = 16;
+const LINK_POINT_COUNT = 100;
 const LINK_POINT_WOBBLE_AMPLITUDE = 0.05;
 const LINK_POINT_PHASE_STEP = 0.55;
 
@@ -302,6 +302,44 @@ function animatedXY(point: SaltosPoint, rotation: number, nowMs: number, magnet:
   return { x: r * Math.cos(naturalAngle), y: r * Math.sin(naturalAngle) };
 }
 
+/**
+ * El objetivo del imán es un único punto -la sección tocada, o el núcleo
+ * al deseleccionar-, no un hueco reservado para cada esfera que converge
+ * ahí: MAGNET_TARGET_SPREAD ya reparte un poco el ángulo, pero con varias
+ * decenas de nodos de la misma categoría -o encogiéndose hacia el mismo
+ * núcleo- terminaban solapándose sin remedio. Esta pasada, después de
+ * calcular la posición "deseada" de cada esfera y antes de pintarla,
+ * empuja cada par que se invade -según su propio radio visible, el mismo
+ * displayRadius que se pinta, no el halo, que sí puede superponerse- lejos
+ * uno de otro. Un par de iteraciones por fotograma bastan: no es una
+ * simulación física exacta, solo lo justo para que ninguna silueta tape a
+ * otra sin que se note el reacomodo como un salto brusco.
+ */
+const COLLISION_PADDING = 0.6;
+const COLLISION_ITERATIONS = 10;
+const COLLISION_MAGNET_THRESHOLD = 0.01;
+
+function resolveCollisions(positions: XY[], radii: number[], iterations: number, padding: number): void {
+  for (let iter = 0; iter < iterations; iter++) {
+    for (let i = 0; i < positions.length; i++) {
+      for (let j = i + 1; j < positions.length; j++) {
+        const dx = positions[j].x - positions[i].x;
+        const dy = positions[j].y - positions[i].y;
+        const dist = Math.hypot(dx, dy) || 0.0001;
+        const minDist = radii[i] + radii[j] + padding;
+        if (dist >= minDist) continue;
+        const push = (minDist - dist) / 2;
+        const nx = dx / dist;
+        const ny = dy / dist;
+        positions[i].x -= nx * push;
+        positions[i].y -= ny * push;
+        positions[j].x += nx * push;
+        positions[j].y += ny * push;
+      }
+    }
+  }
+}
+
 type Bezier = { p0: XY; c1: XY; c2: XY; p1: XY };
 
 /**
@@ -335,13 +373,21 @@ function linkBezier(
   index = 0,
   magnetFrom: Magnet = NO_MAGNET,
   magnetTo: Magnet = NO_MAGNET,
+  // Posición ya corregida por resolveCollisions -si el bucle de rAF la
+  // calculó este fotograma-, para que la cuerda nazca exactamente donde
+  // de verdad se pintó la esfera, no donde el imán la quería antes de
+  // separarla de sus vecinas. Sin esto, con el imán activo la cuerda se
+  // despegaba visualmente del punto -o del núcleo- en cuanto la
+  // separación desplazaba a la esfera de su posición "deseada".
+  p0Override?: XY,
+  p1Override?: XY,
 ): Bezier | null {
   const from = layout.points.get(fromId);
   const to = layout.points.get(toId);
   if (!from || !to) return null;
 
-  const p0 = animatedXY(from, rotation, nowMs, magnetFrom);
-  const p1 = animatedXY(to, rotation, nowMs, magnetTo);
+  const p0 = p0Override ?? animatedXY(from, rotation, nowMs, magnetFrom);
+  const p1 = p1Override ?? animatedXY(to, rotation, nowMs, magnetTo);
   const midR = (from.ringRadius + to.ringRadius) / 2;
   // Desde el propio centro (radio 0) el ángulo del padre no significa nada:
   // el primer tramo sale recto, y ya curva a partir del segundo.
@@ -393,8 +439,10 @@ function linkOrganicPoints(
   index = 0,
   magnetFrom: Magnet = NO_MAGNET,
   magnetTo: Magnet = NO_MAGNET,
+  p0Override?: XY,
+  p1Override?: XY,
 ): XY[] | null {
-  const spine = linkBezier(layout, rotation, nowMs, fromId, toId, index, magnetFrom, magnetTo);
+  const spine = linkBezier(layout, rotation, nowMs, fromId, toId, index, magnetFrom, magnetTo, p0Override, p1Override);
   if (!spine) return null;
   const dx = spine.p1.x - spine.p0.x;
   const dy = spine.p1.y - spine.p0.y;
@@ -415,42 +463,35 @@ function linkOrganicPoints(
   return points;
 }
 
-/** Puntos de control de un tramo Catmull-Rom -tensión estándar 1/6-: a diferencia de una Bézier ajustada a ojo, el trazo pasa exactamente por cada punto de la cuerda, no solo cerca. */
-function catmullRomControlPoints(p0: XY, p1: XY, p2: XY, p3: XY): { c1: XY; c2: XY } {
-  return {
-    c1: { x: p1.x + (p2.x - p0.x) / 6, y: p1.y + (p2.y - p0.y) / 6 },
-    c2: { x: p2.x - (p3.x - p1.x) / 6, y: p2.y - (p3.y - p1.y) / 6 },
-  };
-}
-
-function catmullRomPath(points: XY[]): string {
+/**
+ * Con LINK_POINT_COUNT en varias decenas, cada tramo entre dos puntos
+ * consecutivos cubre una porción tan pequeña de la cuerda que una curva
+ * ajustada -Catmull-Rom, como se usaba con menos puntos- y una simple
+ * línea recta entre ellos se ven exactamente igual: la propia densidad
+ * de puntos ya hace de curva. Ir a rectas evita calcular los puntos de
+ * control de cada tramo y deja un `d` bastante más corto -dos números por
+ * tramo en vez de seis-, que es justo el coste que se dispara al pasar de
+ * 16 a 100 puntos por cuerda si se sigue con Bézier.
+ */
+function organicLinkPath(points: XY[]): string {
   if (points.length === 0) return "";
-  const last = points.length - 1;
   let d = `M${points[0].x.toFixed(2)},${points[0].y.toFixed(2)}`;
-  for (let i = 0; i < last; i++) {
-    const p0 = points[Math.max(0, i - 1)];
-    const p1 = points[i];
-    const p2 = points[i + 1];
-    const p3 = points[Math.min(last, i + 2)];
-    const { c1, c2 } = catmullRomControlPoints(p0, p1, p2, p3);
-    d += ` C${c1.x.toFixed(2)},${c1.y.toFixed(2)} ${c2.x.toFixed(2)},${c2.y.toFixed(2)} ${p2.x.toFixed(2)},${p2.y.toFixed(2)}`;
+  for (let i = 1; i < points.length; i++) {
+    d += ` L${points[i].x.toFixed(2)},${points[i].y.toFixed(2)}`;
   }
   return d;
 }
 
-/** Mismo criterio que bezierPointAt -evitar el DOM para el pulso viajero-, pero sobre el tramo Catmull-Rom que le toca a `t`. */
-function catmullRomPointAt(points: XY[], t: number): XY {
+/** Mismo criterio que bezierPointAt -evitar el DOM para el pulso viajero-, pero interpolando en línea recta entre los dos puntos que le tocan a `t`: con tantos puntos por cuerda, la diferencia con una curva ajustada no se nota. */
+function organicPointAt(points: XY[], t: number): XY {
   const segments = points.length - 1;
   if (segments <= 0) return points[0];
   const scaled = clamp(t, 0, 1) * segments;
   const i = Math.min(Math.floor(scaled), segments - 1);
   const localT = scaled - i;
-  const p0 = points[Math.max(0, i - 1)];
-  const p1 = points[i];
-  const p2 = points[i + 1];
-  const p3 = points[Math.min(segments, i + 2)];
-  const { c1, c2 } = catmullRomControlPoints(p0, p1, p2, p3);
-  return bezierPointAt({ p0: p1, c1, c2, p1: p2 }, localT);
+  const a = points[i];
+  const b = points[i + 1];
+  return { x: a.x + (b.x - a.x) * localT, y: a.y + (b.y - a.y) * localT };
 }
 
 function linkPath(
@@ -465,7 +506,7 @@ function linkPath(
 ): string | null {
   const points = linkOrganicPoints(layout, rotation, nowMs, fromId, toId, index, magnetFrom, magnetTo);
   if (!points) return null;
-  return catmullRomPath(points);
+  return organicLinkPath(points);
 }
 
 function arcPath(a0: number, a1: number, r: number): string {
@@ -687,6 +728,27 @@ export function SaltosMap({
   useEffect(() => {
     arcMidAngleRef.current = arcMidAngleByState;
   }, [arcMidAngleByState]);
+
+  // El radio visible de cada esfera -mismo cálculo que displayRadius más
+  // abajo en el JSX, "en ventana" incluido-, para que la pasada de
+  // separación del imán (bucle de rAF) sepa cuánto hueco necesita cada
+  // nodo sin duplicar esa cuenta ni desincronizarse de lo que de verdad
+  // se pinta.
+  const nodeRadiusById = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const node of graph.nodes) {
+      const pt = layout.points.get(node.id);
+      if (!pt) continue;
+      const isWindow = node.state === "window" && node.redeemedAt != null;
+      const daysElapsed = isWindow ? Math.max(0, (nowMs - new Date(node.redeemedAt as string).getTime()) / DAY_MS) : 0;
+      map.set(node.id, pt.nodeRadius * (isWindow ? windowSizeMultiplier(daysElapsed) : 1));
+    }
+    return map;
+  }, [graph.nodes, layout, nowMs]);
+  const nodeRadiusRef = useRef(new Map<string, number>());
+  useEffect(() => {
+    nodeRadiusRef.current = nodeRadiusById;
+  }, [nodeRadiusById]);
   const [legendOpen, setLegendOpen] = useState(true);
   const [hudVisible, setHudVisible] = useState(true);
   const [touched, setTouched] = useState(false);
@@ -844,11 +906,31 @@ export function SaltosMap({
         return { value, target: { angle: midAngle + spread, radius: arcRadius * MAGNET_TARGET_RADIUS_FACTOR } };
       }
 
+      // Posición "deseada" de cada esfera -imán ya aplicado, todavía sin
+      // separar de sus vecinas-, más su radio visible: solo hace falta la
+      // pasada de separación cuando el imán anda tirando de verdad -si no,
+      // el reposo natural del anillo ya evita el solape por construcción, y
+      // recorrer 80-90 pares cada fotograma sería trabajo de sobra.
+      const nodeIds: string[] = [];
+      const nodePositions: XY[] = [];
+      const nodeRadii: number[] = [];
+      let magnetActive = false;
       for (const point of layout.points.values()) {
         if (point.depth === 0) continue;
-        const el = nodeRefs.current.get(point.id);
+        const magnet = magnetFor(point.id);
+        if (Math.abs(magnet.value) > COLLISION_MAGNET_THRESHOLD) magnetActive = true;
+        nodeIds.push(point.id);
+        nodePositions.push(animatedXY(point, rotation, now, magnet));
+        nodeRadii.push(nodeRadiusRef.current.get(point.id) ?? 4);
+      }
+      if (magnetActive) resolveCollisions(nodePositions, nodeRadii, COLLISION_ITERATIONS, COLLISION_PADDING);
+
+      const correctedById = new Map<string, XY>();
+      for (let i = 0; i < nodeIds.length; i++) {
+        correctedById.set(nodeIds[i], nodePositions[i]);
+        const el = nodeRefs.current.get(nodeIds[i]);
         if (!el) continue;
-        const { x, y } = animatedXY(point, rotation, now, magnetFor(point.id));
+        const { x, y } = nodePositions[i];
         el.setAttribute("transform", `translate(${x.toFixed(2)},${y.toFixed(2)})`);
       }
 
@@ -856,15 +938,29 @@ export function SaltosMap({
       // reutilizan para el pulso viajero de más abajo -si no, cada pulso
       // recalcularía su propia cuerda por separado y podría, por redondeo,
       // acabar viajando sobre un trazo ligeramente distinto al que se ve.
+      // Sus extremos parten de la MISMA posición ya corregida de arriba
+      // -correctedById-, así la cuerda nunca se despega de la esfera que
+      // conecta aunque la separación la haya movido de su punto "deseado".
       const organicPointsByKey = new Map<string, XY[]>();
       for (const link of layout.links) {
         const key = `${link.fromId}>${link.toId}`;
         const index = linkIndexOf.get(key) ?? 0;
-        const points = linkOrganicPoints(layout, rotation, now, link.fromId, link.toId, index, magnetFor(link.fromId), magnetFor(link.toId));
+        const points = linkOrganicPoints(
+          layout,
+          rotation,
+          now,
+          link.fromId,
+          link.toId,
+          index,
+          magnetFor(link.fromId),
+          magnetFor(link.toId),
+          correctedById.get(link.fromId),
+          correctedById.get(link.toId),
+        );
         if (!points) continue;
         organicPointsByKey.set(key, points);
         const pathEl = linkRefs.current.get(key);
-        if (pathEl) pathEl.setAttribute("d", catmullRomPath(points));
+        if (pathEl) pathEl.setAttribute("d", organicLinkPath(points));
       }
 
       pulseT = (pulseT + PULSE_STEP) % 1;
@@ -873,7 +969,7 @@ export function SaltosMap({
         if (!groupEl) continue;
         const points = organicPointsByKey.get(key);
         if (!points) continue;
-        const point = catmullRomPointAt(points, pulseT);
+        const point = organicPointAt(points, pulseT);
         groupEl.setAttribute("transform", `translate(${point.x.toFixed(2)},${point.y.toFixed(2)})`);
         groupEl.setAttribute("opacity", pulseOpacity.toFixed(3));
       }
