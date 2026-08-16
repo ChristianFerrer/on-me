@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { CompassIcon, EyeIcon, EyeOffIcon, HomeIcon, InfoIcon, PulseIcon, SparkleIcon } from "@/components/ui/Icons";
+import { ArrowLeftIcon, CompassIcon, EyeIcon, EyeOffIcon, InfoIcon, PulseIcon } from "@/components/ui/Icons";
 import { ConstelacionSheet } from "@/components/admin/ConstelacionSheet";
 import { cn } from "@/lib/cn";
 import { bestPadrinoId, isExpiringSoon } from "@/lib/giftGraph/insights";
@@ -30,6 +30,8 @@ const ROTATION_RESUME_DELAY_MS = 2600;
 /** Amplitud del bamboleo de cada nodo: radial (unidades del viewBox) y angular (radianes) -globo de helio en un hilo flojo, no un radio de rueda rígido. */
 const WOBBLE_AMPLITUDE = 6.5;
 const WOBBLE_ANGULAR_AMPLITUDE = 0.075;
+/** Fracción de displayRadius que ocupa el núcleo sólido de cada estrella -el resto es puro halo, para que el brillo pese más que el propio cuerpo, como una estrella real. */
+const STAR_CORE_SCALE = 0.42;
 /** Avance por frame del punto que recorre las cadenas con canje reciente, su radio y el de su halo resplandeciente. */
 const PULSE_STEP = 0.0035;
 const PULSE_DOT_R = 0.95;
@@ -63,11 +65,11 @@ type Magnet = { value: number; target: MagnetTarget };
 const NO_MAGNET: Magnet = { value: 0, target: null };
 
 /**
- * Cuerdas más flexibles: además del vaivén que ya traen sus dos extremos
- * -el bamboleo de cada nodo-, la propia curva se abomba hacia un lado con
- * un empuje base -LINK_CURVE_BULGE, fracción de la distancia entre
- * extremos- que respira con el tiempo -LINK_WOBBLE_AMPLITUDE-, como una
- * cuerda floja de verdad, no un arco geométrico rígido entre dos puntos.
+ * A diferencia de ConstelacionMap, aquí las líneas son rectas -ver
+ * starLinkPath más abajo-, así que LINK_CURVE_BULGE/LINK_WOBBLE_AMPLITUDE
+ * ya no dan forma al trazo que se pinta; se dejan porque linkBezier() -la
+ * misma función geométrica compartida con ConstelacionMap, sin tocar- los
+ * sigue usando para calcular c1/c2, aunque esta variante los ignore.
  */
 const LINK_CURVE_BULGE = 0.22;
 const LINK_WOBBLE_AMPLITUDE = 0.12;
@@ -78,22 +80,6 @@ function linkWobbleFreq(index: number): number {
 function linkWobblePhase(index: number): number {
   return index * 3.14;
 }
-
-/**
- * La curva de arriba solo tenía tres puntos de verdad -los dos extremos y
- * el abombamiento central-, así que por mucho que respirase se seguía
- * viendo como un arco rígido. Aquí se muestrea esa misma curva en
- * LINK_POINT_COUNT puntos y cada uno de los intermedios recibe su propio
- * vaivén perpendicular, desfasado del siguiente por LINK_POINT_PHASE_STEP:
- * el resultado es una ondulación que viaja a lo largo de la cuerda, como
- * una cuerda floja sacudida de verdad, no solo dos extremos que se
- * bambolean cada uno por su lado con un único bulto en medio. El vaivén se
- * apaga con Math.sin(u * π) en ambos extremos para que la cuerda no se
- * despegue nunca de los nodos que conecta.
- */
-const LINK_POINT_COUNT = 5;
-const LINK_POINT_WOBBLE_AMPLITUDE = 0.05;
-const LINK_POINT_PHASE_STEP = 0.55;
 
 /**
  * Efecto "escena espacial": el fondo de estrellas se desplaza con la
@@ -260,6 +246,21 @@ function wobblePhaseAngular(index: number): number {
   return index * 2.63;
 }
 
+/**
+ * Titileo de cada estrella: una animación CSS pura -constelacion-star-twinkle,
+ * ver el <style> más abajo- que cada punto arranca con su propia duración y
+ * retraso, por índice de aparición -mismo criterio determinista que el
+ * bamboleo (wobbleFreq/wobblePhase), no Math.random()-, así que ninguna
+ * estrella titila a la vez que su vecina. Es CSS, no otro cálculo dentro
+ * del bucle de rAF: el navegador la anima solo, sin coste por fotograma.
+ */
+function twinkleDurationS(index: number): number {
+  return 2.6 + ((index * 29) % 11) / 3.1;
+}
+function twinkleDelayS(index: number): number {
+  return ((index * 47) % 23) / 6.2;
+}
+
 function nodeXY(point: { angle: number; ringRadius: number; depth: number }): XY {
   if (point.depth === 0) return { x: 0, y: 0 };
   return { x: point.ringRadius * Math.cos(point.angle), y: point.ringRadius * Math.sin(point.angle) };
@@ -418,89 +419,21 @@ function linkBezier(
   return { p0, c1, c2, p1 };
 }
 
-/** Punto sobre la curva en el parámetro t -no proporcional a longitud de arco, pero para un pulso pequeño sobre una curva corta la diferencia no se nota, y evita tocar el DOM. */
-function bezierPointAt(b: Bezier, t: number): XY {
-  const mt = 1 - t;
-  const a = mt * mt * mt,
-    bb = 3 * mt * mt * t,
-    c = 3 * mt * t * t,
-    d = t * t * t;
-  return {
-    x: a * b.p0.x + bb * b.c1.x + c * b.c2.x + d * b.p1.x,
-    y: a * b.p0.y + bb * b.c1.y + c * b.c2.y + d * b.p1.y,
-  };
+/**
+ * A diferencia de ConstelacionMap -cuerdas orgánicas que se abomban y
+ * ondulan, como cuerda floja de verdad-, aquí cada enlace es un trazo
+ * recto y fino entre los mismos dos extremos ya recortados al borde de
+ * cada esfera -linkBezier ya hace ese recorte; solo se ignoran sus puntos
+ * de control c1/c2-, exactamente como las líneas de una carta estelar de
+ * verdad entre una estrella y la siguiente.
+ */
+function starLinkPath(b: Bezier): string {
+  return `M${b.p0.x.toFixed(2)},${b.p0.y.toFixed(2)} L${b.p1.x.toFixed(2)},${b.p1.y.toFixed(2)}`;
 }
 
-function linkOrganicPoints(
-  layout: ConstelacionLayout,
-  rotation: number,
-  nowMs: number,
-  fromId: string,
-  toId: string,
-  index = 0,
-  magnetFrom: Magnet = NO_MAGNET,
-  magnetTo: Magnet = NO_MAGNET,
-  p0Override?: XY,
-  p1Override?: XY,
-  radiusById: Map<string, number> = EMPTY_RADIUS_MAP,
-): XY[] | null {
-  const spine = linkBezier(layout, rotation, nowMs, fromId, toId, index, magnetFrom, magnetTo, p0Override, p1Override, radiusById);
-  if (!spine) return null;
-  const dx = spine.p1.x - spine.p0.x;
-  const dy = spine.p1.y - spine.p0.y;
-  const dist = Math.hypot(dx, dy) || 1;
-  const nx = -dy / dist;
-  const ny = dx / dist;
-  const t = nowMs / 1000;
-  const freq = linkWobbleFreq(index);
-  const phase = linkWobblePhase(index);
-  const points: XY[] = [];
-  for (let i = 0; i < LINK_POINT_COUNT; i++) {
-    const u = i / (LINK_POINT_COUNT - 1);
-    const base = bezierPointAt(spine, u);
-    const envelope = Math.sin(u * Math.PI);
-    const sway = dist * LINK_POINT_WOBBLE_AMPLITUDE * envelope * Math.sin(t * freq * 2.6 + phase + i * LINK_POINT_PHASE_STEP);
-    points.push({ x: base.x + nx * sway, y: base.y + ny * sway });
-  }
-  return points;
-}
-
-/** Puntos de control de un tramo Catmull-Rom -tensión estándar 1/6-: a diferencia de una Bézier ajustada a ojo, el trazo pasa exactamente por cada punto de la cuerda, no solo cerca. */
-function catmullRomControlPoints(p0: XY, p1: XY, p2: XY, p3: XY): { c1: XY; c2: XY } {
-  return {
-    c1: { x: p1.x + (p2.x - p0.x) / 6, y: p1.y + (p2.y - p0.y) / 6 },
-    c2: { x: p2.x - (p3.x - p1.x) / 6, y: p2.y - (p3.y - p1.y) / 6 },
-  };
-}
-
-function organicLinkPath(points: XY[]): string {
-  if (points.length === 0) return "";
-  const last = points.length - 1;
-  let d = `M${points[0].x.toFixed(2)},${points[0].y.toFixed(2)}`;
-  for (let i = 0; i < last; i++) {
-    const p0 = points[Math.max(0, i - 1)];
-    const p1 = points[i];
-    const p2 = points[i + 1];
-    const p3 = points[Math.min(last, i + 2)];
-    const { c1, c2 } = catmullRomControlPoints(p0, p1, p2, p3);
-    d += ` C${c1.x.toFixed(2)},${c1.y.toFixed(2)} ${c2.x.toFixed(2)},${c2.y.toFixed(2)} ${p2.x.toFixed(2)},${p2.y.toFixed(2)}`;
-  }
-  return d;
-}
-
-/** Mismo criterio que bezierPointAt -evitar el DOM para el pulso viajero-, pero sobre el tramo Catmull-Rom que le toca a `t`. */
-function organicPointAt(points: XY[], t: number): XY {
-  const segments = points.length - 1;
-  if (segments <= 0) return points[0];
-  const scaled = clamp(t, 0, 1) * segments;
-  const i = Math.min(Math.floor(scaled), segments - 1);
-  const localT = scaled - i;
-  const p0 = points[Math.max(0, i - 1)];
-  const p1 = points[i];
-  const p2 = points[i + 1];
-  const p3 = points[Math.min(segments, i + 2)];
-  const { c1, c2 } = catmullRomControlPoints(p0, p1, p2, p3);
-  return bezierPointAt({ p0: p1, c1, c2, p1: p2 }, localT);
+/** Punto sobre el propio trazo recto en el parámetro t -para el pulso viajero, mismo criterio que bezierPointAt en ConstelacionMap pero sin curva que evaluar. */
+function starLinkPointAt(b: Bezier, t: number): XY {
+  return { x: b.p0.x + (b.p1.x - b.p0.x) * t, y: b.p0.y + (b.p1.y - b.p0.y) * t };
 }
 
 function linkPath(
@@ -514,9 +447,9 @@ function linkPath(
   magnetTo: Magnet = NO_MAGNET,
   radiusById: Map<string, number> = EMPTY_RADIUS_MAP,
 ): string | null {
-  const points = linkOrganicPoints(layout, rotation, nowMs, fromId, toId, index, magnetFrom, magnetTo, undefined, undefined, radiusById);
-  if (!points) return null;
-  return organicLinkPath(points);
+  const b = linkBezier(layout, rotation, nowMs, fromId, toId, index, magnetFrom, magnetTo, undefined, undefined, radiusById);
+  if (!b) return null;
+  return starLinkPath(b);
 }
 
 function arcPath(a0: number, a1: number, r: number): string {
@@ -576,17 +509,19 @@ function CountUpStat({ value, label, active, delayMs = 0 }: { value: number; lab
 }
 
 /**
- * La constelación de verdad: mapa radial sobre el grafo real de
- * invitaciones/atribuciones, con los mismos tokens de diseño del resto del
- * panel. El primer pintado -posiciones y curvas- se calcula una vez por
- * render, directamente en JSX, sin refs ni rAF: tiene que ser correcto ya
- * en el primer frame, sin depender de que el JS de movimiento llegue a
- * arrancar. Encima de esa base, un único bucle de rAF mueve el grupo de
- * nodos y enlaces -rotación de fondo, bamboleo por nodo, pulso de
- * canjes recientes- escribiendo atributos DOM directamente vía refs, para
- * no forzar un re-render de React en cada frame.
+ * Variante "cielo de verdad" de la constelación, pensada para comparar
+ * lado a lado con ConstelacionMap: misma capa de datos, mismo layout
+ * radial, mismo gesto de pan/zoom/imán -physically es el mismo mapa-, pero
+ * pintada como un cielo nocturno de verdad en vez de un diagrama de
+ * burbujas de color plano. Tres diferencias a propósito, las que pidió la
+ * comparación: el núcleo es un sol -corona incluida-, no lleva el nombre
+ * del local escrito encima, que en su lugar vive fuera del mapa en una
+ * esquina; cada cliente es una estrella -un punto pequeño con su propio
+ * brillo que titila, no una esfera de color plana-; y las cuerdas entre
+ * ellas son líneas rectas y finas, como las de una carta estelar, no
+ * cuerdas orgánicas que se abomban y ondulan.
  */
-export function ConstelacionMap({
+export function ConstelacionSolMap({
   graph,
   shopName,
   stampsGoal,
@@ -978,18 +913,17 @@ export function ConstelacionMap({
         el.setAttribute("transform", `translate(${x.toFixed(2)},${y.toFixed(2)})`);
       }
 
-      // Los puntos de cada cuerda se calculan una sola vez por fotograma y se
-      // reutilizan para el pulso viajero de más abajo -si no, cada pulso
-      // recalcularía su propia cuerda por separado y podría, por redondeo,
-      // acabar viajando sobre un trazo ligeramente distinto al que se ve.
-      // Sus extremos parten de la MISMA posición ya corregida de arriba
-      // -correctedById-, así la cuerda nunca se despega de la esfera que
-      // conecta aunque la separación la haya movido de su punto "deseado".
-      const organicPointsByKey = new Map<string, XY[]>();
+      // El espinazo de cada enlace -sus dos extremos ya recortados al borde
+      // de la esfera- se calcula una sola vez por fotograma y se reutiliza
+      // para el pulso viajero de más abajo. Sus extremos parten de la MISMA
+      // posición ya corregida de arriba -correctedById-, así la línea nunca
+      // se despega de la esfera que conecta aunque la separación la haya
+      // movido de su punto "deseado".
+      const linkSpineByKey = new Map<string, Bezier>();
       for (const link of layout.links) {
         const key = `${link.fromId}>${link.toId}`;
         const index = linkIndexOf.get(key) ?? 0;
-        const points = linkOrganicPoints(
+        const spine = linkBezier(
           layout,
           rotation,
           now,
@@ -1002,19 +936,19 @@ export function ConstelacionMap({
           correctedById.get(link.toId),
           nodeRadiusRef.current,
         );
-        if (!points) continue;
-        organicPointsByKey.set(key, points);
+        if (!spine) continue;
+        linkSpineByKey.set(key, spine);
         const pathEl = linkRefs.current.get(key);
-        if (pathEl) pathEl.setAttribute("d", organicLinkPath(points));
+        if (pathEl) pathEl.setAttribute("d", starLinkPath(spine));
       }
 
       pulseT = (pulseT + PULSE_STEP) % 1;
       const pulseOpacity = Math.sin(pulseT * Math.PI) * 0.85;
       for (const [key, groupEl] of pulseDotRefs.current) {
         if (!groupEl) continue;
-        const points = organicPointsByKey.get(key);
-        if (!points) continue;
-        const point = organicPointAt(points, pulseT);
+        const spine = linkSpineByKey.get(key);
+        if (!spine) continue;
+        const point = starLinkPointAt(spine, pulseT);
         groupEl.setAttribute("transform", `translate(${point.x.toFixed(2)},${point.y.toFixed(2)})`);
         groupEl.setAttribute("opacity", pulseOpacity.toFixed(3));
       }
@@ -1238,9 +1172,14 @@ export function ConstelacionMap({
         .constelacion-sun-aura-a { transform-origin: center; transform-box: fill-box; animation: constelacion-sun-aura-a 4.6s ease-in-out infinite; }
         .constelacion-sun-aura-b { transform-origin: center; transform-box: fill-box; animation: constelacion-sun-aura-b 6.3s ease-in-out infinite 0.6s; }
         .constelacion-sun-aura-c { transform-origin: center; transform-box: fill-box; animation: constelacion-sun-aura-c 7.9s ease-in-out infinite 1.3s; }
+        @keyframes constelacion-sun-rays { to { transform: rotate(360deg); } }
+        @keyframes constelacion-star-twinkle { 0%, 100% { opacity: 1; } 50% { opacity: var(--twinkle-min, 0.55); } }
+        .constelacion-sun-rays { transform-origin: center; transform-box: fill-box; animation: constelacion-sun-rays 90s linear infinite; }
+        .constelacion-star-twinkle { animation: constelacion-star-twinkle var(--twinkle-s, 4s) ease-in-out infinite; animation-delay: var(--twinkle-delay, 0s); }
         @media (prefers-reduced-motion: reduce) {
           .constelacion-alert-ring, .constelacion-billable-glow, .constelacion-window-blink,
-          .constelacion-sun-aura-a, .constelacion-sun-aura-b, .constelacion-sun-aura-c { animation: none; }
+          .constelacion-sun-aura-a, .constelacion-sun-aura-b, .constelacion-sun-aura-c,
+          .constelacion-sun-rays, .constelacion-star-twinkle { animation: none; }
         }
       `}</style>
 
@@ -1259,10 +1198,20 @@ export function ConstelacionMap({
         aria-label={t.admin.referralMap}
       >
         <defs>
+          {/* El núcleo ya no es la esfera lima plana de ConstelacionMap: es un sol de
+              verdad, con su propio degradado radial -blanco casi puro en el centro,
+              hacia ámbar y naranja quemado en el borde-, el mismo tipo de gradiente
+              que cualquier ilustración de un sol real, no un color plano. */}
+          <radialGradient id="constelacion-sun-core">
+            <stop offset="0%" stopColor="#FFFDF2" />
+            <stop offset="45%" stopColor="#FFE8A3" />
+            <stop offset="80%" stopColor="#FFB238" />
+            <stop offset="100%" stopColor="#F2790A" />
+          </radialGradient>
           <radialGradient id="constelacion-hub-glow">
-            <stop offset="0%" stopColor="var(--color-lime)" stopOpacity={0.45} />
-            <stop offset="60%" stopColor="var(--color-lime)" stopOpacity={0.08} />
-            <stop offset="100%" stopColor="var(--color-lime)" stopOpacity={0} />
+            <stop offset="0%" stopColor="#FFC24D" stopOpacity={0.5} />
+            <stop offset="60%" stopColor="#FF8A1E" stopOpacity={0.1} />
+            <stop offset="100%" stopColor="#FF8A1E" stopOpacity={0} />
           </radialGradient>
           {/*
             Aura reutilizable por color -"currentColor" hereda del `color` en
@@ -1388,26 +1337,36 @@ export function ConstelacionMap({
             {/* Aura de sol: tres círculos difuminados, cada uno con su propio período y
                 retraso -no laten a la vez-, para que el borde de la corona ondule en vez
                 de simplemente "respirar" en bloque, como el resto de los halos del mapa. */}
-            <circle className="constelacion-sun-aura-a" r={ESTABLISHMENT_RADIUS * 3.4} fill="url(#constelacion-glow)" fillOpacity={0.14} style={{ color: "var(--color-lime)" }} />
-            <circle className="constelacion-sun-aura-b" r={ESTABLISHMENT_RADIUS * 3.9} fill="url(#constelacion-glow)" fillOpacity={0.1} style={{ color: "var(--color-lime)" }} />
-            <circle className="constelacion-sun-aura-c" r={ESTABLISHMENT_RADIUS * 4.5} fill="url(#constelacion-glow)" fillOpacity={0.07} style={{ color: "var(--color-lime)" }} />
+            <circle className="constelacion-sun-aura-a" r={ESTABLISHMENT_RADIUS * 3.4} fill="url(#constelacion-glow)" fillOpacity={0.14} style={{ color: "#FF8A1E" }} />
+            <circle className="constelacion-sun-aura-b" r={ESTABLISHMENT_RADIUS * 3.9} fill="url(#constelacion-glow)" fillOpacity={0.1} style={{ color: "#FF8A1E" }} />
+            <circle className="constelacion-sun-aura-c" r={ESTABLISHMENT_RADIUS * 4.5} fill="url(#constelacion-glow)" fillOpacity={0.07} style={{ color: "#FF8A1E" }} />
             <circle cx={0} cy={0} r={ESTABLISHMENT_RADIUS * 2.5} fill="url(#constelacion-hub-glow)" />
-            <circle cx={0} cy={0} r={ESTABLISHMENT_RADIUS} fill="var(--color-lime)" />
-            <text y={-1} textAnchor="middle" dominantBaseline="middle" fontSize={8} fontWeight={800} fill="#15150f">
-              {shopName}
-            </text>
-            <text
-              y={7.5}
-              textAnchor="middle"
-              dominantBaseline="middle"
-              fontSize={4.6}
-              fontWeight={600}
-              letterSpacing={0.1 * 4.6}
-              style={{ textTransform: "uppercase" }}
-              fill="rgba(14,18,17,0.6)"
-            >
-              {customerCount} {t.admin.attributions}
-            </text>
+            {/* Rayos de la corona: giran solos por CSS -sin tocar el bucle de rAF-, un
+                adorno puramente decorativo del sol, nunca un dato que haga falta leer. */}
+            <g className="constelacion-sun-rays" aria-hidden="true">
+              {Array.from({ length: 10 }, (_, i) => {
+                const a = (i / 10) * Math.PI * 2;
+                const r0 = ESTABLISHMENT_RADIUS * 1.05;
+                const r1 = ESTABLISHMENT_RADIUS * (i % 2 === 0 ? 1.85 : 1.5);
+                return (
+                  <line
+                    key={i}
+                    x1={r0 * Math.cos(a)}
+                    y1={r0 * Math.sin(a)}
+                    x2={r1 * Math.cos(a)}
+                    y2={r1 * Math.sin(a)}
+                    stroke="#FFC24D"
+                    strokeOpacity={0.4}
+                    strokeWidth={1}
+                    strokeLinecap="round"
+                  />
+                );
+              })}
+            </g>
+            {/* Sin nombre del local escrito encima -eso es justo lo que este mapa cambia
+                respecto a ConstelacionMap-: el núcleo es solo el sol, el nombre vive
+                fuera, en la esquina -ver la placa fija más abajo en el JSX. */}
+            <circle cx={0} cy={0} r={ESTABLISHMENT_RADIUS} fill="url(#constelacion-sun-core)" />
           </g>
 
           {graph.nodes.map((node) => {
@@ -1441,9 +1400,21 @@ export function ConstelacionMap({
             const isWindow = node.state === "window" && node.redeemedAt != null;
             const daysElapsed = isWindow ? Math.max(0, (nowMs - new Date(node.redeemedAt as string).getTime()) / DAY_MS) : 0;
             const displayRadius = pt.nodeRadius * (isWindow ? windowSizeMultiplier(daysElapsed) : 1);
+            // Cada cliente es una estrella, no una esfera de color plana: un punto
+            // pequeño y brillante -starCoreR, una fracción de displayRadius- con
+            // un halo grande alrededor -haloScale ya calculado sobre displayRadius
+            // entero, así que al encoger solo el núcleo el halo pesa proporcionalmente
+            // más, justo el aspecto "brillo dominante, cuerpo casi invisible" de una
+            // estrella real-. El resto de la geometría -halo, parpadeo, blanco de
+            // toque- sigue midiéndose sobre displayRadius para no desincronizarse.
+            const starCoreR = Math.max(displayRadius * STAR_CORE_SCALE, 0.7);
             const windowBlinkStyle = isWindow
               ? { animationDuration: `${windowBlinkDurationS(returnWindowDays - daysElapsed, returnWindowDays).toFixed(2)}s` }
               : undefined;
+            const twinkleStyle = {
+              "--twinkle-s": `${twinkleDurationS(pt.index).toFixed(2)}s`,
+              "--twinkle-delay": `${twinkleDelayS(pt.index).toFixed(2)}s`,
+            } as React.CSSProperties;
 
             return (
               <g
@@ -1471,8 +1442,13 @@ export function ConstelacionMap({
                   fillOpacity={haloFillOpacity}
                   style={{ color }}
                 />
-                <circle className={isWindow ? "constelacion-window-blink" : undefined} style={windowBlinkStyle} r={displayRadius} fill={color} />
-                <circle r={displayRadius} fill="none" stroke={CONSTELACION_STROKE_COLOR[node.state]} strokeWidth={isMuted ? 0.9 : 0.55} />
+                <circle
+                  className={cn("constelacion-star-twinkle", isWindow && "constelacion-window-blink")}
+                  style={{ ...twinkleStyle, ...windowBlinkStyle }}
+                  r={starCoreR}
+                  fill={color}
+                />
+                <circle r={starCoreR} fill="none" stroke={CONSTELACION_STROKE_COLOR[node.state]} strokeWidth={isMuted ? 0.7 : 0.4} />
                 <circle r={Math.max(displayRadius + 7, 12)} fill="transparent" />
 
                 {node.claimed ? (
@@ -1498,18 +1474,29 @@ export function ConstelacionMap({
           bajos -móvil en horizontal- la leyenda puede crecer hasta solaparse con la
           cabecera, y el botón de volver tiene que seguir pudiéndose tocar. */}
       <header className="pointer-events-none fixed inset-x-0 top-0 z-30 flex items-start justify-between gap-3 px-5 pt-[max(1rem,env(safe-area-inset-top))]">
-        {/* Esta es ahora la portada del panel -no cuelga de ninguna otra
-            pantalla-, así que el botón de la esquina ya no es "volver" sino
-            el mismo HomeIcon -> /inicio que llevan el resto de pantallas del
-            panel en su cabecera. */}
-        <Link
-          href="/inicio"
-          prefetch={false}
-          className="btn glass-dark pointer-events-auto size-11 text-chalk"
-          aria-label={t.home.eyebrow}
-        >
-          <HomeIcon className="size-5" />
-        </Link>
+        {/* A diferencia de ConstelacionMap -la portada del panel-, esta es una
+            vista de comparación que cuelga de ella, así que el botón de la
+            esquina vuelve a ser "volver a /admin", no el HomeIcon -> /inicio. */}
+        <div className="flex flex-col items-start gap-2.5">
+          <Link
+            href="/admin"
+            prefetch={false}
+            className="btn glass-dark pointer-events-auto size-11 text-chalk"
+            aria-label={t.admin.constelacionSolBack}
+          >
+            <ArrowLeftIcon className="size-5" />
+          </Link>
+
+          {/* El nombre del local, fuera del mapa -no escrito encima del sol, como
+              en ConstelacionMap-: una placa fija en la esquina, tipo cartela de
+              observatorio, ajena al SVG que se pellizca y arrastra. */}
+          <div className="pointer-events-none flex flex-col gap-0.5 pl-1">
+            <p className="text-[0.9375rem] font-semibold leading-tight text-chalk/90">{shopName}</p>
+            <p className="eyebrow text-chalk/40">
+              {t.admin.referralMap} · {customerCount} {t.admin.attributions}
+            </p>
+          </div>
+        </div>
 
         {/* Misma caja que la leyenda -mismo glass-dark translúcido, mismo tamaño
             de letra-, y ocultable con su propio icono en la columna de la derecha. */}
@@ -1628,20 +1615,12 @@ export function ConstelacionMap({
           >
             {hudVisible ? <EyeIcon className="size-5" /> : <EyeOffIcon className="size-5" />}
           </button>
-          {/* Esta pantalla es ahora la portada del panel y no lleva su propia
-              barra inferior -sigue siendo "una exploración a pantalla
-              completa, no una tarjeta más"-, así que este icono es el único
-              camino directo de vuelta al resto del panel -puertas y
-              señales, ahora juntas en /admin/metricas-; desde ahí, la barra
-              inferior de siempre ya lleva a cualquier otra pantalla. */}
+          {/* Como en ConstelacionMap: esta vista tampoco lleva su propia barra
+              inferior -es igualmente "una exploración a pantalla completa, no
+              una tarjeta más"-, así que este icono sigue siendo el camino
+              directo a puertas y señales, juntas en /admin/metricas. */}
           <Link href="/admin/metricas" prefetch={false} aria-label={t.admin.navMetrics} className="btn glass-dark size-11 text-chalk">
             <PulseIcon className="size-5" />
-          </Link>
-          {/* Vista de comparación: mismo grafo, mismo gesto, pintado como un
-              cielo de verdad -sol en el núcleo, clientes como estrellas- en
-              vez de este diagrama de burbujas de color. */}
-          <Link href="/admin/constelacion-sol" prefetch={false} aria-label={t.admin.constelacionSolLink} className="btn glass-dark size-11 text-chalk">
-            <SparkleIcon className="size-5" />
           </Link>
         </div>
       </div>
