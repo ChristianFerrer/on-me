@@ -40,16 +40,38 @@ const RECENT_REDEMPTION_MS = 30 * DAY_MS;
 
 /**
  * Efecto imán al tocar una sección del anillo: los nodos de esa misma
- * categoría salen despedidos hacia fuera -MAGNET_OUT_OFFSET, unidades fijas
- * de radio-, y el resto -que sigue siendo parte de una rama real, no ruido-
- * es atraído hacia el núcleo, encogiendo su radio a MAGNET_IN_FACTOR de el
- * que tenía. `magnet` va de -1 (atraído al núcleo) a +1 (despedido al
- * anillo) pasando por 0 (sin categoría elegida), y se suaviza cuadro a
- * cuadro -MAGNET_EASE- para que el imán tire, no teletransporte.
+ * categoría son atraídos hacia el propio punto de la sección elegida -su
+ * ángulo medio, a MAGNET_TARGET_RADIUS_FACTOR del radio del arco-, no solo
+ * empujados hacia fuera en su propio ángulo; el resto -que sigue siendo
+ * parte de una rama real, no ruido- es atraído hacia el núcleo, encogiendo
+ * su radio a MAGNET_IN_FACTOR del que tenía. `value` va de -1 (atraído al
+ * núcleo) a +1 (atraído a la sección) pasando por 0 (sin categoría
+ * elegida), y se suaviza cuadro a cuadro -MAGNET_EASE- para que el imán
+ * tire, no teletransporte. MAGNET_TARGET_SPREAD reparte a los atraídos
+ * -que si no, se apilarían todos exactamente en el mismo punto- en un
+ * abanico estrecho alrededor de ese ángulo medio, con semilla propia por
+ * nodo -point.index-, igual que el resto de bamboleos de este archivo.
  */
-const MAGNET_OUT_OFFSET = 16;
+const MAGNET_TARGET_RADIUS_FACTOR = 0.9;
+const MAGNET_TARGET_SPREAD = 0.14;
 const MAGNET_IN_FACTOR = 0.45;
 const MAGNET_EASE = 0.07;
+
+function magnetSpreadFor(index: number): number {
+  return ((((index * 17) % 11) / 10) - 0.5) * 2 * MAGNET_TARGET_SPREAD;
+}
+
+/** Ángulo objetivo + radio objetivo cuando un nodo es atraído a una sección; `null` cuando no hay atracción -imán neutro o hacia el núcleo-. */
+type MagnetTarget = { angle: number; radius: number } | null;
+type Magnet = { value: number; target: MagnetTarget };
+const NO_MAGNET: Magnet = { value: 0, target: null };
+
+/** Interpola un ángulo por el camino más corto -nunca dando la vuelta larga solo porque el valor en bruto sea menor/mayor. */
+function angleLerp(from: number, to: number, t: number): number {
+  const twoPi = 2 * Math.PI;
+  const diff = ((to - from + Math.PI) % twoPi + twoPi) % twoPi - Math.PI;
+  return from + diff * t;
+}
 
 /**
  * Cuerdas más flexibles: además del vaivén que ya traen sus dos extremos
@@ -238,23 +260,30 @@ function nodeXY(point: { angle: number; ringRadius: number; depth: number }): XY
   return { x: point.ringRadius * Math.cos(point.angle), y: point.ringRadius * Math.sin(point.angle) };
 }
 
-/** Misma posición que nodeXY, pero con la rotación de fondo y el bamboleo del nodo -radial y angular- ya aplicados. */
 /**
- * `magnet` va de -1 (atraído al núcleo, tras tocar una sección del anillo
- * que no es la suya) a +1 (despedido hacia el anillo, es de esa categoría),
- * pasando por 0 (sin categoría elegida): ver el comentario de
- * MAGNET_OUT_OFFSET más arriba.
+ * Misma posición que nodeXY, pero con la rotación de fondo y el bamboleo
+ * del nodo -radial y angular- ya aplicados, y el imán encima: `magnet.value`
+ * va de -1 (atraído al núcleo, tras tocar una sección del anillo que no es
+ * la suya) a +1 (atraído al propio punto de la sección elegida, en
+ * `magnet.target`), pasando por 0 (sin categoría elegida o de vuelta a su
+ * sitio) -ver el comentario de MAGNET_TARGET_RADIUS_FACTOR más arriba.
  */
-function animatedXY(point: SaltosPoint, rotation: number, nowMs: number, magnet = 0): XY {
+function animatedXY(point: SaltosPoint, rotation: number, nowMs: number, magnet: Magnet = NO_MAGNET): XY {
   if (point.depth === 0) return { x: 0, y: 0 };
   const t = nowMs / 1000;
   const radialWobble = Math.sin(t * wobbleFreq(point.index) + wobblePhase(point.index)) * WOBBLE_AMPLITUDE;
   const angularWobble = Math.sin(t * wobbleFreqAngular(point.index) + wobblePhaseAngular(point.index)) * WOBBLE_ANGULAR_AMPLITUDE;
-  const magnetMul = magnet < 0 ? 1 + magnet * (1 - MAGNET_IN_FACTOR) : 1;
-  const magnetOffset = magnet > 0 ? magnet * MAGNET_OUT_OFFSET : 0;
-  const r = point.ringRadius * magnetMul + magnetOffset + radialWobble;
-  const angle = point.angle + rotation + angularWobble;
-  return { x: r * Math.cos(angle), y: r * Math.sin(angle) };
+  const naturalAngle = point.angle + rotation + angularWobble;
+  const naturalR = point.ringRadius + radialWobble;
+
+  if (magnet.value > 0 && magnet.target) {
+    const angle = angleLerp(naturalAngle, magnet.target.angle, magnet.value);
+    const r = naturalR + (magnet.target.radius - naturalR) * magnet.value;
+    return { x: r * Math.cos(angle), y: r * Math.sin(angle) };
+  }
+  const magnetMul = magnet.value < 0 ? 1 + magnet.value * (1 - MAGNET_IN_FACTOR) : 1;
+  const r = naturalR * magnetMul;
+  return { x: r * Math.cos(naturalAngle), y: r * Math.sin(naturalAngle) };
 }
 
 type Bezier = { p0: XY; c1: XY; c2: XY; p1: XY };
@@ -288,8 +317,8 @@ function linkBezier(
   fromId: string,
   toId: string,
   index = 0,
-  magnetFrom = 0,
-  magnetTo = 0,
+  magnetFrom: Magnet = NO_MAGNET,
+  magnetTo: Magnet = NO_MAGNET,
 ): Bezier | null {
   const from = layout.points.get(fromId);
   const to = layout.points.get(toId);
@@ -325,8 +354,8 @@ function linkPath(
   fromId: string,
   toId: string,
   index = 0,
-  magnetFrom = 0,
-  magnetTo = 0,
+  magnetFrom: Magnet = NO_MAGNET,
+  magnetTo: Magnet = NO_MAGNET,
 ): string | null {
   const b = linkBezier(layout, rotation, nowMs, fromId, toId, index, magnetFrom, magnetTo);
   if (!b) return null;
@@ -482,6 +511,28 @@ export function SaltosMap({
   }, [graph.nodes]);
   const funnelTotal = useMemo(() => [...funnelCounts.values()].reduce((a, b) => a + b, 0), [funnelCounts]);
 
+  // Ángulo medio de cada sección del arco, para el efecto imán -el punto al
+  // que se atrae a los nodos de la categoría elegida-: misma geometría
+  // -GAP, ángulo de arranque, spanTotal- que el propio dibujado del arco
+  // más abajo en el JSX, así que si uno cambia el otro tiene que cambiar
+  // igual o dejan de apuntar al mismo sitio.
+  const arcMidAngleByState = useMemo(() => {
+    const map = new Map<NodeState, number>();
+    if (funnelTotal === 0) return map;
+    const GAP = 0.04;
+    let cursor = -Math.PI / 2 + 0.05;
+    const spanTotal = Math.PI * 2 - 0.26;
+    for (const state of FUNNEL_ORDER) {
+      const count = funnelCounts.get(state) ?? 0;
+      if (count === 0) continue;
+      const span = (spanTotal * count) / funnelTotal;
+      const a1 = cursor + span - GAP;
+      map.set(state, (cursor + a1) / 2);
+      cursor = a1 + GAP;
+    }
+    return map;
+  }, [funnelCounts, funnelTotal]);
+
   // El HUD sale de la misma cuenta que la leyenda -funnelCounts, por
   // estado actual de cada nodo del grafo-, no del histórico de
   // /admin/embudo: son preguntas distintas ("cuántas se han enviado
@@ -518,9 +569,31 @@ export function SaltosMap({
   // cuando cambia `layout`-, así que también vive en un ref sincronizado.
   const [selectedCategory, setSelectedCategory] = useState<NodeState | null>(null);
   const selectedCategoryRef = useRef<NodeState | null>(null);
+  // Se queda con la última categoría real -no se limpia al deseleccionar-
+  // para que, mientras el imán suaviza el valor de vuelta a 0, siga
+  // sabiendo hacia qué ángulo estaba tirando -si no, el nodo saltaría de
+  // golpe a su posición natural en cuanto `selectedCategory` pasa a null,
+  // en vez de soltarse poco a poco.
+  const lastCategoryRef = useRef<NodeState | null>(null);
+  // Copia en estado -no solo en el ref de arriba, que el render no puede
+  // leer- de la última categoría real: así el panel inferior derecho puede
+  // seguir mostrando su número y descripción mientras se desvanece hacia
+  // fuera, en lugar de vaciarse de golpe en cuanto se deselecciona.
+  const [lastCategory, setLastCategory] = useState<NodeState | null>(null);
   useEffect(() => {
     selectedCategoryRef.current = selectedCategory;
+    if (selectedCategory) {
+      lastCategoryRef.current = selectedCategory;
+      // Diferido a un microtask -mismo patrón que el snapshot de
+      // SaltosSheet-: evita el aviso de "cascading renders" sin retrasar
+      // visualmente el cambio.
+      queueMicrotask(() => setLastCategory(selectedCategory));
+    }
   }, [selectedCategory]);
+  const arcMidAngleRef = useRef(new Map<NodeState, number>());
+  useEffect(() => {
+    arcMidAngleRef.current = arcMidAngleByState;
+  }, [arcMidAngleByState]);
   const [legendOpen, setLegendOpen] = useState(true);
   const [hudVisible, setHudVisible] = useState(true);
   const [touched, setTouched] = useState(false);
@@ -666,12 +739,23 @@ export function SaltosMap({
         magnetRef.current.set(point.id, cur + (target - cur) * MAGNET_EASE);
       }
 
+      // El objetivo de atracción usa la ÚLTIMA categoría real -no la actual,
+      // que puede ya ser null tras deseleccionar-, para que el valor de
+      // imán pueda seguir suavizándose de vuelta a 0 sin saltar de golpe.
+      const midAngle = lastCategoryRef.current ? arcMidAngleRef.current.get(lastCategoryRef.current) : undefined;
+      function magnetFor(id: string): Magnet {
+        const value = magnetRef.current.get(id) ?? 0;
+        if (value <= 0 || midAngle == null) return { value, target: null };
+        const point = layout.points.get(id);
+        const spread = point ? magnetSpreadFor(point.index) : 0;
+        return { value, target: { angle: midAngle + spread, radius: arcRadius * MAGNET_TARGET_RADIUS_FACTOR } };
+      }
+
       for (const point of layout.points.values()) {
         if (point.depth === 0) continue;
         const el = nodeRefs.current.get(point.id);
         if (!el) continue;
-        const magnet = magnetRef.current.get(point.id) ?? 0;
-        const { x, y } = animatedXY(point, rotation, now, magnet);
+        const { x, y } = animatedXY(point, rotation, now, magnetFor(point.id));
         el.setAttribute("transform", `translate(${x.toFixed(2)},${y.toFixed(2)})`);
       }
 
@@ -680,9 +764,7 @@ export function SaltosMap({
         const pathEl = linkRefs.current.get(key);
         if (!pathEl) continue;
         const index = linkIndexOf.get(key) ?? 0;
-        const magnetFrom = magnetRef.current.get(link.fromId) ?? 0;
-        const magnetTo = magnetRef.current.get(link.toId) ?? 0;
-        const d = linkPath(layout, rotation, now, link.fromId, link.toId, index, magnetFrom, magnetTo);
+        const d = linkPath(layout, rotation, now, link.fromId, link.toId, index, magnetFor(link.fromId), magnetFor(link.toId));
         if (d) pathEl.setAttribute("d", d);
       }
 
@@ -692,9 +774,7 @@ export function SaltosMap({
         if (!groupEl) continue;
         const [fromId, toId] = key.split(">");
         const index = linkIndexOf.get(key) ?? 0;
-        const magnetFrom = magnetRef.current.get(fromId) ?? 0;
-        const magnetTo = magnetRef.current.get(toId) ?? 0;
-        const bezier = linkBezier(layout, rotation, now, fromId, toId, index, magnetFrom, magnetTo);
+        const bezier = linkBezier(layout, rotation, now, fromId, toId, index, magnetFor(fromId), magnetFor(toId));
         if (!bezier) continue;
         const point = bezierPointAt(bezier, pulseT);
         groupEl.setAttribute("transform", `translate(${point.x.toFixed(2)},${point.y.toFixed(2)})`);
@@ -1274,6 +1354,28 @@ export function SaltosMap({
           botones quedaban tapados y sin forma de tocarlos hasta cerrar la ficha
           con su propio botón. */}
       <div className="pointer-events-none fixed inset-y-0 right-3 z-20 flex flex-col items-center justify-end gap-2 py-[max(1.25rem,env(safe-area-inset-bottom))]">
+        <div className={cn("pointer-events-none flex flex-col items-end gap-2", selectedNode ? "invisible" : "visible")}>
+          {/* Número y descripción de la categoría del anillo tocada, con el
+              mismo tratamiento visual que la leyenda -glass-dark, mismo tono
+              translúcido- y ajustado al tamaño del texto en vez de a un
+              ancho fijo. Se queda montado con `lastCategory` para poder
+              desvanecerse hacia fuera al deseleccionar, igual que la leyenda
+              se desliza fuera en vez de desaparecer de golpe. */}
+          {lastCategory ? (
+            <div
+              className="glass-dark max-w-[13rem] px-4 py-2.5 text-right transition-transform duration-300 ease-[var(--ease-out-soft)]"
+              style={{
+                transform: selectedCategory ? "translateX(0)" : "translateX(130%)",
+                background: "rgba(10,14,13,0.32)",
+              }}
+            >
+              <p className="numeral text-[1.5rem] font-extrabold leading-none" style={{ color: SALTOS_ARC_COLOR[lastCategory] }}>
+                {funnelCounts.get(lastCategory) ?? 0}
+              </p>
+              <p className="mt-1 text-[0.6875rem] leading-snug text-chalk/70">{stateBadgeLabel(lastCategory, t)}</p>
+            </div>
+          ) : null}
+        </div>
         <div className={cn("pointer-events-auto flex flex-col items-center gap-2", selectedNode ? "invisible" : "visible")}>
           <button
             type="button"
