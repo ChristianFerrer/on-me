@@ -1,6 +1,6 @@
 import { dictionaries, type Dict } from "./dictionaries";
 
-export const LOCALES = ["es", "en"] as const;
+export const LOCALES = ["es", "en", "fr", "de"] as const;
 export type Locale = (typeof LOCALES)[number];
 
 export const DEFAULT_LOCALE: Locale = "es";
@@ -36,7 +36,7 @@ export function plural(n: number, one: string, many: string): string {
 
 /**
  * Negocia el idioma a partir de la cabecera del navegador.
- * Cualquier cosa que no sea inglés cae en español: el piloto es en Barcelona.
+ * Cualquier idioma sin diccionario propio cae en español: el piloto es en Barcelona.
  */
 export function negotiateLocale(acceptLanguage: string | null): Locale {
   if (!acceptLanguage) return DEFAULT_LOCALE;
@@ -53,16 +53,22 @@ export function negotiateLocale(acceptLanguage: string | null): Locale {
 
   for (const { tag } of ranked) {
     const base = tag.split("-")[0];
-    if (base === "en") return "en";
-    if (base === "es") return "es";
+    if (isLocale(base)) return base;
   }
   return DEFAULT_LOCALE;
 }
 
+const INTL_LOCALE: Record<Locale, string> = {
+  es: "es-ES",
+  en: "en-GB",
+  fr: "fr-FR",
+  de: "de-DE",
+};
+
 /** Formatea una fecha corta en el idioma activo, sin cargar librerías. */
 export function formatDate(date: Date | string, locale: Locale): string {
   const d = typeof date === "string" ? new Date(date) : date;
-  return new Intl.DateTimeFormat(locale === "es" ? "es-ES" : "en-GB", {
+  return new Intl.DateTimeFormat(INTL_LOCALE[locale], {
     day: "numeric",
     month: "long",
     timeZone: "Europe/Madrid",
@@ -71,7 +77,7 @@ export function formatDate(date: Date | string, locale: Locale): string {
 
 export function formatDateTime(date: Date | string, locale: Locale): string {
   const d = typeof date === "string" ? new Date(date) : date;
-  return new Intl.DateTimeFormat(locale === "es" ? "es-ES" : "en-GB", {
+  return new Intl.DateTimeFormat(INTL_LOCALE[locale], {
     day: "2-digit",
     month: "short",
     hour: "2-digit",

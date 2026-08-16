@@ -1,0 +1,110 @@
+"use client";
+
+import { useMemo, useState } from "react";
+import { SearchIcon } from "@/components/ui/Icons";
+import { cn } from "@/lib/cn";
+import { STATE_BADGE_SKIN, stateBadgeLabel } from "@/lib/giftGraph/stateBadge";
+import type { NodeState } from "@/lib/giftGraph/types";
+import { formatDateTime, type Dict, type Locale } from "@/lib/i18n";
+
+export type AttributionRow = {
+  id: string;
+  guestName: string;
+  guestPhone: string;
+  referrerName: string;
+  state: NodeState;
+  redeemedAt: string;
+  returnedAt: string | null;
+};
+
+/** Minúsculas y sin acentos: así "Ángela" encuentra "angela" y viceversa. */
+function normalize(value: string): string {
+  return value
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "");
+}
+
+/**
+ * Lista de visitas con búsqueda en cliente: los datos ya viajaron completos
+ * desde el servidor -son como mucho 200 filas, límite de la propia
+ * consulta-, así que filtrar en el navegador es instantáneo y no hace
+ * falta ida y vuelta al servidor por cada tecla.
+ */
+export function AttributionsList({
+  rows,
+  t,
+  locale,
+}: {
+  rows: AttributionRow[];
+  t: Dict;
+  locale: Locale;
+}) {
+  const [query, setQuery] = useState("");
+
+  const filtered = useMemo(() => {
+    const q = normalize(query.trim());
+    if (!q) return rows;
+    return rows.filter(
+      (row) =>
+        normalize(row.guestName).includes(q) ||
+        normalize(row.referrerName).includes(q) ||
+        row.guestPhone.includes(q),
+    );
+  }, [rows, query]);
+
+  return (
+    <div className="flex flex-col gap-2.5">
+      <div className="relative">
+        <SearchIcon className="pointer-events-none absolute left-4 top-1/2 size-4 -translate-y-1/2 text-chalk/35" />
+        <input
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          placeholder={t.admin.attrSearchPlaceholder}
+          aria-label={t.admin.attrSearchPlaceholder}
+          className="field py-3 pl-11 text-[0.9375rem]"
+        />
+      </div>
+
+      {rows.length === 0 ? (
+        <p className="text-[0.9375rem] text-chalk/45">{t.admin.attrEmpty}</p>
+      ) : filtered.length === 0 ? (
+        <p className="text-[0.9375rem] text-chalk/45">{t.admin.attrSearchEmpty}</p>
+      ) : (
+        <ul className="flex flex-col gap-2">
+          {filtered.map((row) => (
+            <li key={row.id} className="rounded-xl bg-ink/70 p-3.5 backdrop-blur-md">
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="truncate text-[0.9375rem] font-semibold">{row.guestName}</p>
+                  <p className="eyebrow mt-0.5 text-chalk/35">
+                    {t.admin.attrPadrino} · {row.referrerName}
+                  </p>
+                </div>
+                <span
+                  className={cn(
+                    "eyebrow shrink-0 rounded-full px-2 py-0.5 text-[0.625rem]",
+                    STATE_BADGE_SKIN[row.state],
+                  )}
+                >
+                  {stateBadgeLabel(row.state, t)}
+                </span>
+              </div>
+
+              <dl className="numeral mt-2.5 flex flex-wrap gap-x-4 gap-y-1 text-[0.6875rem] text-chalk/40">
+                <div className="flex items-baseline gap-1">
+                  <dt className="text-chalk/30">{t.admin.attrRedeemed}</dt>
+                  <dd>{formatDateTime(row.redeemedAt, locale)}</dd>
+                </div>
+                <div className="flex items-baseline gap-1">
+                  <dt className="text-chalk/30">{t.admin.attrReturned}</dt>
+                  <dd>{row.returnedAt ? formatDateTime(row.returnedAt, locale) : "—"}</dd>
+                </div>
+              </dl>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}

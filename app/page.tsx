@@ -9,11 +9,11 @@ import { getI18n } from "@/lib/i18n/server";
  * qué es esto a quien teclee el dominio.
  */
 export default async function HomePage() {
-  const { locale, t } = await getI18n();
+  const { t } = await getI18n();
 
   return (
     <Screen className="gap-8">
-      <TopBar locale={locale} />
+      <TopBar />
 
       <div className="stagger flex flex-col gap-9 pt-[7vh] text-center">
         <div>

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { CompassIcon, EyeIcon, EyeOffIcon, HomeIcon, InfoIcon, PulseIcon, SparkleIcon } from "@/components/ui/Icons";
+import { BottomNav } from "@/components/admin/BottomNav";
 import { ConstelacionSheet } from "@/components/admin/ConstelacionSheet";
 import { cn } from "@/lib/cn";
 import { bestPadrinoId, isExpiringSoon } from "@/lib/giftGraph/insights";
@@ -23,6 +24,19 @@ const VIEWBOX_PADDING = 30;
 /** Toque vs. arrastre: umbrales propios de esta vista -no los del universo 3D-. */
 const TAP_MAX_DISTANCE_PX = 8;
 const TAP_MAX_DURATION_MS = 400;
+
+/**
+ * Alto real de BottomNav -ahora fija en toda página del panel, esta
+ * incluida, aunque siga siendo "pantalla completa"-, sin la zona segura
+ * -que la propia barra ya reserva aparte con su pb-[env(...)]-: padding
+ * vertical (py-2.5 arriba y abajo) + icono (size-5) + hueco (gap-1) +
+ * etiqueta (text-[0.625rem] leading-none) = 1.25 + 1.25 + 0.25 + 0.625rem.
+ * La columna de leyenda/iconos, el aviso inferior y la ficha (ver
+ * ConstelacionSheet) suman esto a su antiguo margen del borde de pantalla
+ * para no quedar tapados por la barra.
+ */
+const BOTTOM_NAV_HEIGHT_REM = 3.375;
+const BOTTOM_NAV_CLEARANCE = `calc(${BOTTOM_NAV_HEIGHT_REM}rem + env(safe-area-inset-bottom) + 1.25rem)`;
 
 /** Radianes por frame de la rotación de fondo, y cuánto tarda en reanudarse tras soltar. */
 const ROTATION_PER_FRAME = 0.00019;
@@ -231,6 +245,11 @@ function windowSizeMultiplier(daysElapsed: number): number {
 function windowBlinkDurationS(daysRemaining: number, returnWindowDays: number): number {
   const t = clamp(daysRemaining / Math.max(1, returnWindowDays), 0, 1);
   return WINDOW_BLINK_FASTEST_S + t * (WINDOW_BLINK_SLOWEST_S - WINDOW_BLINK_FASTEST_S);
+}
+
+/** Días que le quedan a una esfera "en ventana" antes de que se cierre -mismo cálculo que windowDaysLeft en ConstelacionSheet-, para el numeral que se pinta encima de su propia burbuja. */
+function windowDaysLeft(daysElapsed: number, returnWindowDays: number): number {
+  return Math.max(0, returnWindowDays - Math.floor(daysElapsed));
 }
 
 type PointerState = { x: number; y: number };
@@ -1450,6 +1469,9 @@ export function ConstelacionMap({
             const windowBlinkStyle = isWindow
               ? { animationDuration: `${windowBlinkDurationS(returnWindowDays - daysElapsed, returnWindowDays).toFixed(2)}s` }
               : undefined;
+            // Solo "en ventana" cuenta días de verdad -el resto de estados no se
+            // encoge con el tiempo-, así que solo esta esfera lleva el numeral.
+            const daysLeft = isWindow ? windowDaysLeft(daysElapsed, returnWindowDays) : null;
 
             return (
               <g
@@ -1479,6 +1501,18 @@ export function ConstelacionMap({
                 />
                 <circle className={isWindow ? "constelacion-window-blink" : undefined} style={windowBlinkStyle} r={displayRadius} fill={color} />
                 <circle r={displayRadius} fill="none" stroke={CONSTELACION_STROKE_COLOR[node.state]} strokeWidth={isMuted ? 0.9 : 0.55} />
+                {isWindow ? (
+                  <text
+                    textAnchor="middle"
+                    dominantBaseline="middle"
+                    fontSize={Math.max(2.4, displayRadius * 1.1)}
+                    fontWeight={800}
+                    fill="#15150f"
+                    style={{ pointerEvents: "none" }}
+                  >
+                    {daysLeft}
+                  </text>
+                ) : null}
                 <circle r={Math.max(displayRadius + 7, 12)} fill="transparent" />
 
                 {node.claimed ? (
@@ -1536,7 +1570,10 @@ export function ConstelacionMap({
           apilado. El propio anillo -selector de estado con el mismo
           efecto imán- vive dentro del SVG de arriba, no aquí: pertenece
           al mundo que se pellizca y arrastra, no a este overlay fijo. */}
-      <div className="pointer-events-none fixed inset-y-0 left-3 z-20 flex flex-col justify-end py-[max(1.25rem,env(safe-area-inset-bottom))]">
+      <div
+        className="pointer-events-none fixed inset-y-0 left-3 z-20 flex flex-col justify-end pt-[max(1.25rem,env(safe-area-inset-bottom))]"
+        style={{ paddingBottom: BOTTOM_NAV_CLEARANCE }}
+      >
         <div
           className="glass-dark pointer-events-auto max-w-[16rem] p-3.5 transition-transform duration-300 ease-[var(--ease-out-soft)]"
           style={{
@@ -1589,7 +1626,10 @@ export function ConstelacionMap({
           (z-20) en cuanto hay un nodo seleccionado: sin ocultarla aquí, los tres
           botones quedaban tapados y sin forma de tocarlos hasta cerrar la ficha
           con su propio botón. */}
-      <div className="pointer-events-none fixed inset-y-0 right-3 z-20 flex flex-col items-center justify-end gap-2 py-[max(1.25rem,env(safe-area-inset-bottom))]">
+      <div
+        className="pointer-events-none fixed inset-y-0 right-3 z-20 flex flex-col items-center justify-end gap-2 pt-[max(1.25rem,env(safe-area-inset-bottom))]"
+        style={{ paddingBottom: BOTTOM_NAV_CLEARANCE }}
+      >
         <div className={cn("pointer-events-none flex flex-col items-end gap-2", selectedNode ? "invisible" : "visible")}>
           {/* Número y descripción de la categoría del anillo tocada, con el
               mismo tratamiento visual que la leyenda -glass-dark, mismo tono
@@ -1652,13 +1692,18 @@ export function ConstelacionMap({
         </div>
       </div>
 
-      <footer className="pointer-events-none fixed inset-x-0 bottom-0 z-20 flex flex-col items-center gap-3 px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
+      <footer
+        className="pointer-events-none fixed inset-x-0 bottom-0 z-20 flex flex-col items-center gap-3 px-5"
+        style={{ paddingBottom: BOTTOM_NAV_CLEARANCE }}
+      >
         {!selectedNode && !touched ? (
           <p className="text-[0.65625rem] text-chalk/32 transition-opacity duration-300">
             {funnelTotal === 0 ? t.admin.referralMapEmpty : t.admin.referralMapHint}
           </p>
         ) : null}
       </footer>
+
+      <BottomNav t={t.admin} active="constelacion" />
 
       <ConstelacionSheet
         node={selectedNode}

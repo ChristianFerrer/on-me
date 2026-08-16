@@ -3,7 +3,6 @@ import { redirect } from "next/navigation";
 import { BottomNav } from "@/components/admin/BottomNav";
 import { GateCard } from "@/components/admin/GateCard";
 import { HomeIcon, ShieldIcon } from "@/components/ui/Icons";
-import { LangSwitch } from "@/components/ui/LangSwitch";
 import { Screen } from "@/components/ui/Screen";
 import { getAdminContext } from "@/lib/auth/admin";
 import { cn } from "@/lib/cn";
@@ -22,27 +21,24 @@ export default async function MetricsPage() {
   const ctx = await getAdminContext();
   if (!ctx) redirect("/admin");
 
-  const { locale, t } = await getI18n();
+  const { t } = await getI18n();
   const data = await loadFunnel(ctx.shop.id);
 
   return (
     <Screen tone="ink" className="gap-8 pb-28 lg:max-w-3xl">
-      <header className="flex items-center justify-between gap-3 pt-2">
-        <div className="flex items-center gap-3">
-          <Link
-            href="/inicio"
-            prefetch={false}
-            className="-m-2 p-2 text-chalk/45 transition-colors hover:text-chalk"
-            aria-label={t.home.eyebrow}
-          >
-            <HomeIcon className="size-6" />
-          </Link>
-          <div>
-            <p className="eyebrow text-chalk/35">{ctx.shop.name}</p>
-            <h1 className="display mt-1 text-[1.75rem] lg:text-[2rem]">{t.admin.metricsTitle}</h1>
-          </div>
+      <header className="flex items-center gap-3 pt-2">
+        <Link
+          href="/inicio"
+          prefetch={false}
+          className="-m-2 p-2 text-chalk/45 transition-colors hover:text-chalk"
+          aria-label={t.home.eyebrow}
+        >
+          <HomeIcon className="size-6" />
+        </Link>
+        <div>
+          <p className="eyebrow text-chalk/35">{ctx.shop.name}</p>
+          <h1 className="display mt-1 text-[1.75rem] lg:text-[2rem]">{t.admin.metricsTitle}</h1>
         </div>
-        <LangSwitch locale={locale} tone="chalk" />
       </header>
 
       <section className="flex flex-col gap-3">
@@ -88,7 +84,7 @@ export default async function MetricsPage() {
 
 function Signal({ label, value, alarm }: { label: string; value: string; alarm?: boolean }) {
   return (
-    <div className={cn("rounded-2xl p-5", alarm ? "bg-coral/15 ring-1 ring-coral/40" : "bg-ink")}>
+    <div className={cn("rounded-2xl p-5 backdrop-blur-md", alarm ? "bg-coral/15 ring-1 ring-coral/40" : "bg-ink/70")}>
       <dt className="text-[0.8125rem] leading-snug text-chalk/45">{label}</dt>
       <dd className={cn("numeral mt-2 text-[1.375rem] font-semibold", alarm && "text-coral")}>{value}</dd>
     </div>

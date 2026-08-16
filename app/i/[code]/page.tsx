@@ -5,7 +5,7 @@ import { Screen, Slab } from "@/components/ui/Screen";
 import { TopBar } from "@/components/ui/TopBar";
 import { normalizeInviteCode } from "@/lib/crypto";
 import { assertNoQueryError, db } from "@/lib/db/client";
-import { fill, formatDate, type Locale } from "@/lib/i18n";
+import { fill, formatDate } from "@/lib/i18n";
 import { getI18n } from "@/lib/i18n/server";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
 import { firstName } from "@/lib/scan-service";
@@ -42,7 +42,7 @@ export default async function GuestPage({
   );
   if (!limit.ok) {
     return (
-      <Notice locale={locale} title={t.errors.generic} body={t.join.errors.rate} />
+      <Notice title={t.errors.generic} body={t.join.errors.rate} />
     );
   }
 
@@ -55,7 +55,7 @@ export default async function GuestPage({
   assertNoQueryError(invitationError, `invitations.code=${code}`);
 
   if (!invitation) {
-    return <Notice locale={locale} title={t.guest.invalid} body={t.errors.notFoundBody} />;
+    return <Notice title={t.guest.invalid} body={t.errors.notFoundBody} />;
   }
 
   const expired =
@@ -63,12 +63,12 @@ export default async function GuestPage({
 
   if (expired) {
     return (
-      <Notice locale={locale} title={t.guest.expired} body={t.guest.expiredBody} />
+      <Notice title={t.guest.expired} body={t.guest.expiredBody} />
     );
   }
 
   if (!CLAIMABLE.includes(invitation.state)) {
-    return <Notice locale={locale} title={t.guest.used} body={t.guest.expiredBody} />;
+    return <Notice title={t.guest.used} body={t.guest.expiredBody} />;
   }
 
   const [shopResult, padrinoResult] = await Promise.all([
@@ -86,7 +86,7 @@ export default async function GuestPage({
 
   const shop = shopResult.data;
   if (!shop) {
-    return <Notice locale={locale} title={t.guest.invalid} body={t.errors.notFoundBody} />;
+    return <Notice title={t.guest.invalid} body={t.errors.notFoundBody} />;
   }
 
   // Solo el nombre de pila: nunca se enseña a nadie el apellido de otro.
@@ -95,7 +95,7 @@ export default async function GuestPage({
   return (
     <Screen className="gap-7 pb-8">
       <MarkOpened code={code} />
-      <TopBar locale={locale} />
+      <TopBar />
 
       <div className="stagger flex flex-col gap-7">
         <div className="pt-4">
@@ -137,17 +137,15 @@ export default async function GuestPage({
 }
 
 function Notice({
-  locale,
   title,
   body,
 }: {
-  locale: Locale;
   title: string;
   body: string;
 }) {
   return (
     <Screen tone="quiet" className="gap-6">
-      <TopBar locale={locale} />
+      <TopBar />
       <div className="flex flex-1 flex-col justify-center">
         <Slab className="p-7">
           <h1 className="display text-[1.875rem]">{title}</h1>

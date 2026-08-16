@@ -97,7 +97,12 @@ export function ConstelacionSheet({
 
   return (
     <div
-      className="pointer-events-none fixed inset-x-0 bottom-0 z-30 flex justify-center px-3 pb-[max(1rem,env(safe-area-inset-bottom))]"
+      className="pointer-events-none fixed inset-x-0 bottom-0 z-30 flex justify-center px-3"
+      // 3.375rem = alto de BottomNav sin zona segura -ver el mismo cálculo en
+      // ConstelacionMap/ConstelacionSolMap-: la barra es fija ahora en toda
+      // página del panel, así que la ficha tiene que despegarse de su borde
+      // de pantalla, no solo llevar más z-index.
+      style={{ paddingBottom: "calc(3.375rem + env(safe-area-inset-bottom) + 1rem)" }}
       aria-hidden={!open}
     >
       <div

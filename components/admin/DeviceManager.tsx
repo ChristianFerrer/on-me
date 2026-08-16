@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   CheckIcon,
   CopyIcon,
@@ -139,7 +139,7 @@ function DeviceRow({
   }
 
   return (
-    <li className="rounded-2xl bg-ink p-5">
+    <li className="rounded-2xl bg-ink/70 p-5 backdrop-blur-md">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="truncate text-[1.0625rem] font-semibold">{device.name}</p>
@@ -242,6 +242,7 @@ function PinForm({
   const [pin, setPin] = useState("");
   const [show, setShow] = useState(false);
   const [busy, setBusy] = useState(false);
+  const pinInputRef = useRef<HTMLInputElement>(null);
 
   async function save(event: React.FormEvent) {
     event.preventDefault();
@@ -279,14 +280,24 @@ function PinForm({
     >
       <div className="relative">
         <input
+          ref={pinInputRef}
           value={pin}
           onChange={(event) => setPin(event.target.value.replace(/\D/g, "").slice(0, 4))}
+          onFocus={() => {
+            // En móvil el teclado en pantalla puede tapar el campo si el
+            // dispositivo está al final de una lista larga: sin este empujón
+            // el navegador no siempre lo sube por encima del teclado solo.
+            window.setTimeout(
+              () => pinInputRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }),
+              300,
+            );
+          }}
           type={show ? "text" : "password"}
           inputMode="numeric"
           autoComplete="off"
           placeholder={t.pinPlaceholder}
           aria-label={t.pin}
-          className="numeral field w-28 py-2.5 pr-11 text-center text-[1.125rem] tracking-[0.3em]"
+          className="numeral field w-40 py-2.5 pr-11 text-center text-[1.125rem] tracking-[0.3em]"
         />
         <button
           type="button"

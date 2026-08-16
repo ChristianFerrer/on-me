@@ -18,7 +18,7 @@ export default async function PrivacyPage({
 }: {
   searchParams: Promise<{ from?: string }>;
 }) {
-  const { locale, t } = await getI18n();
+  const { t } = await getI18n();
   const { from } = await searchParams;
   const fromAdmin = from === "admin";
 
@@ -34,7 +34,7 @@ export default async function PrivacyPage({
           {t.admin.backToPanel}
         </Link>
       ) : (
-        <TopBar locale={locale} />
+        <TopBar />
       )}
 
       <Slab className="p-7">

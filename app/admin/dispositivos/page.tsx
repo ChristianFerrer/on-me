@@ -3,7 +3,6 @@ import { redirect } from "next/navigation";
 import { BottomNav } from "@/components/admin/BottomNav";
 import { DeviceManager } from "@/components/admin/DeviceManager";
 import { HomeIcon } from "@/components/ui/Icons";
-import { LangSwitch } from "@/components/ui/LangSwitch";
 import { Screen } from "@/components/ui/Screen";
 import { getAdminContext } from "@/lib/auth/admin";
 import { loadDevices } from "@/lib/devices";
@@ -19,22 +18,19 @@ export default async function DevicesPage() {
 
   return (
     <Screen tone="ink" className="gap-7 pb-28 lg:max-w-3xl">
-      <header className="flex items-center justify-between gap-3 pt-2">
-        <div className="flex items-center gap-3">
-          <Link
-            href="/inicio"
-            prefetch={false}
-            className="-m-2 p-2 text-chalk/45 transition-colors hover:text-chalk"
-            aria-label={t.home.eyebrow}
-          >
-            <HomeIcon className="size-6" />
-          </Link>
-          <div>
-            <p className="eyebrow text-chalk/35">{ctx.shop.name}</p>
-            <h1 className="display mt-1 text-[1.75rem]">{t.admin.devices}</h1>
-          </div>
+      <header className="flex items-center gap-3 pt-2">
+        <Link
+          href="/inicio"
+          prefetch={false}
+          className="-m-2 p-2 text-chalk/45 transition-colors hover:text-chalk"
+          aria-label={t.home.eyebrow}
+        >
+          <HomeIcon className="size-6" />
+        </Link>
+        <div>
+          <p className="eyebrow text-chalk/35">{ctx.shop.name}</p>
+          <h1 className="display mt-1 text-[1.75rem]">{t.admin.devices}</h1>
         </div>
-        <LangSwitch locale={locale} tone="chalk" />
       </header>
 
       <DeviceManager t={t.admin} devices={devices} baseUrl={env.baseUrl} locale={locale} />

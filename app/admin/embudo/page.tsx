@@ -4,7 +4,6 @@ import { BottomNav } from "@/components/admin/BottomNav";
 import { FunnelBars } from "@/components/admin/FunnelBars";
 import { WaveChart } from "@/components/admin/WaveChart";
 import { HomeIcon } from "@/components/ui/Icons";
-import { LangSwitch } from "@/components/ui/LangSwitch";
 import { Screen } from "@/components/ui/Screen";
 import { getAdminContext } from "@/lib/auth/admin";
 import { loadFunnel } from "@/lib/funnel";
@@ -14,27 +13,24 @@ export default async function FunnelPage() {
   const ctx = await getAdminContext();
   if (!ctx) redirect("/admin");
 
-  const { locale, t } = await getI18n();
+  const { t } = await getI18n();
   const data = await loadFunnel(ctx.shop.id);
 
   return (
     <Screen tone="ink" className="gap-8 pb-28 lg:max-w-5xl">
-      <header className="flex items-center justify-between gap-3 pt-2">
-        <div className="flex items-center gap-3">
-          <Link
-            href="/inicio"
-            prefetch={false}
-            className="-m-2 p-2 text-chalk/45 transition-colors hover:text-chalk"
-            aria-label={t.home.eyebrow}
-          >
-            <HomeIcon className="size-6" />
-          </Link>
-          <div>
-            <p className="eyebrow text-chalk/35">{ctx.shop.name}</p>
-            <h1 className="display mt-1 text-[1.75rem] lg:text-[2rem]">{t.admin.title}</h1>
-          </div>
+      <header className="flex items-center gap-3 pt-2">
+        <Link
+          href="/inicio"
+          prefetch={false}
+          className="-m-2 p-2 text-chalk/45 transition-colors hover:text-chalk"
+          aria-label={t.home.eyebrow}
+        >
+          <HomeIcon className="size-6" />
+        </Link>
+        <div>
+          <p className="eyebrow text-chalk/35">{ctx.shop.name}</p>
+          <h1 className="display mt-1 text-[1.75rem] lg:text-[2rem]">{t.admin.title}</h1>
         </div>
-        <LangSwitch locale={locale} tone="chalk" />
       </header>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:items-start">

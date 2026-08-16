@@ -9,7 +9,7 @@ import { getI18n } from "@/lib/i18n/server";
  * del equipo, porque no enseña ningún dato, solo el mecanismo.
  */
 export default async function ComoFuncionaPage() {
-  const { locale, t } = await getI18n();
+  const { t } = await getI18n();
 
   const steps = [
     { title: t.guide.step1Title, body: t.guide.step1Body },
@@ -21,7 +21,7 @@ export default async function ComoFuncionaPage() {
 
   return (
     <Screen tone="ink" className="gap-7">
-      <TopBar locale={locale} back="/inicio" backLabel={t.home.eyebrow} />
+      <TopBar back="/inicio" backLabel={t.home.eyebrow} />
 
       <div>
         <p className="eyebrow text-chalk/40">{t.guide.eyebrow}</p>

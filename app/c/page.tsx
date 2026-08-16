@@ -18,7 +18,7 @@ export default async function CardPage() {
   if (!card) {
     return (
       <Screen tone="quiet" className="gap-6">
-        <TopBar locale={locale} />
+        <TopBar />
         <div className="flex flex-1 flex-col justify-center">
           <Slab className="p-7">
             <h1 className="display text-[1.875rem]">{t.errors.notFound}</h1>
@@ -37,7 +37,7 @@ export default async function CardPage() {
 
   return (
     <Screen className="gap-4 pb-8">
-      <TopBar locale={locale} />
+      <TopBar />
 
       <div className="stagger flex flex-col gap-4">
         {/* ------------------------------------------------ estado de la tarjeta */}
@@ -73,6 +73,11 @@ export default async function CardPage() {
                 tone="dark"
                 className="mt-7"
               />
+              {stamps > 0 ? (
+                <p className="mt-4 text-[0.8125rem] italic leading-snug text-chalk/45">
+                  {t.card.stampJokes[(stamps - 1) % t.card.stampJokes.length]}
+                </p>
+              ) : null}
             </>
           )}
         </Slab>

@@ -9,7 +9,7 @@ import { getI18n } from "@/lib/i18n/server";
 import { readCustomerToken } from "@/lib/session";
 
 export default async function InvitePage() {
-  const { locale, t } = await getI18n();
+  const { t } = await getI18n();
   const token = await readCustomerToken();
   const card = token ? await loadCard(token) : null;
 
@@ -22,7 +22,7 @@ export default async function InvitePage() {
 
   return (
     <Screen className="gap-7 pb-8">
-      <TopBar locale={locale} back="/c" backLabel={t.common.back} />
+      <TopBar back="/c" backLabel={t.common.back} />
 
       <div className="stagger flex flex-col gap-7">
         <div className="pt-4">

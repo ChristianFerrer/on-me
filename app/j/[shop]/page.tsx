@@ -30,7 +30,7 @@ export default async function JoinPage({
 
   return (
     <Screen className="gap-7 pb-10">
-      <TopBar locale={locale} />
+      <TopBar />
 
       <div className="stagger flex flex-col gap-7">
         <div className="pt-4 text-center">

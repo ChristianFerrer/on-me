@@ -39,7 +39,7 @@ export function GateCard({
     gate.ratio === null ? "—" : `${Math.round(gate.ratio * 1000) / 10}%`;
 
   return (
-    <article className="rounded-[var(--radius-card)] bg-ink p-6">
+    <article className="rounded-[var(--radius-card)] bg-ink/70 p-6 backdrop-blur-md">
       <div className="flex items-start justify-between gap-3">
         <p className="eyebrow uppercase text-chalk/35">{gate.key}</p>
         <p
