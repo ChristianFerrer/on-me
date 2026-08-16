@@ -39,7 +39,7 @@ function NotEnrolled({ home }: { home: string }) {
       </Link>
       <div className="flex flex-1 flex-col items-center justify-center gap-8">
         <Logo size="lg" tone="chalk" />
-        <Slab className="bg-ink-2 p-7">
+        <Slab className="p-7">
           <p className="eyebrow text-coral">barra · counter</p>
           <h1 className="display mt-3 text-[1.75rem]">
             este dispositivo no está autorizado

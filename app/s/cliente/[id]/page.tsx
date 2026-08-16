@@ -67,7 +67,7 @@ export default async function CustomerPage({
         </p>
       </div>
 
-      <section className="rounded-[var(--radius-card)] bg-ink-2 p-6">
+      <section className="glass-dark p-6">
         <div className="flex items-baseline justify-between gap-3">
           <span className="numeral text-[1.5rem] font-semibold">
             {stamps}

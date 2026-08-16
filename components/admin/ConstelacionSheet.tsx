@@ -97,17 +97,22 @@ export function ConstelacionSheet({
 
   return (
     <div
-      className="pointer-events-none fixed inset-x-0 bottom-0 z-30 flex justify-center px-3"
       // 3.375rem = alto de BottomNav sin zona segura -ver el mismo cálculo en
-      // ConstelacionMap/ConstelacionSolMap-: la barra es fija ahora en toda
-      // página del panel, así que la ficha tiene que despegarse de su borde
-      // de pantalla, no solo llevar más z-index.
-      style={{ paddingBottom: "calc(3.375rem + env(safe-area-inset-bottom) + 1rem)" }}
+      // ConstelacionMap/ConstelacionSolMap-: la barra es fija en móvil/tablet
+      // -por debajo de `lg`-, así que ahí la ficha tiene que despegarse de su
+      // borde de pantalla, no solo llevar más z-index. A partir de `lg`
+      // BottomNav pasa a sidebar izquierdo -ver BottomNav.tsx-, sin barra
+      // inferior que despejar, así que el padding cae a `lg:pb-[max(1rem,...)]`,
+      // el margen de siempre; `lg:pl-[16rem]` -mismo ancho que
+      // ADMIN_SIDEBAR_WIDTH, repetido a mano porque Tailwind no puede leer esa
+      // constante JS en una clase- recentra la ficha en el hueco visible junto
+      // al sidebar, no en todo el ancho de la pantalla.
+      className="pointer-events-none fixed inset-x-0 bottom-0 z-30 flex justify-center px-3 pb-[calc(3.375rem+env(safe-area-inset-bottom)+1rem)] lg:pb-[max(1rem,env(safe-area-inset-bottom))] lg:pl-[16rem]"
       aria-hidden={!open}
     >
       <div
         className={cn(
-          "w-full max-w-[30rem] overflow-hidden rounded-[var(--radius-card)] border border-white/10 bg-ink p-5 shadow-[0_-18px_50px_rgba(0,0,0,0.5)] transition-transform duration-[400ms] ease-[cubic-bezier(0.22,1,0.36,1)] sm:max-w-[34rem]",
+          "glass-dark w-full max-w-[30rem] overflow-hidden p-5 shadow-[0_-18px_50px_rgba(0,0,0,0.5)] transition-transform duration-[400ms] ease-[cubic-bezier(0.22,1,0.36,1)] sm:max-w-[34rem]",
           open ? "pointer-events-auto" : "pointer-events-none",
         )}
         style={{ transform: open ? "translateY(0)" : "translateY(102%)" }}

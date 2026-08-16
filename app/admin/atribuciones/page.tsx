@@ -55,12 +55,12 @@ export default async function AttributionsPage() {
   }));
 
   return (
-    <Screen tone="ink" className="gap-5 pb-28 lg:max-w-3xl">
-      <header className="sticky top-0 z-10 -mx-5 flex items-center gap-3 bg-ink/85 px-5 py-3.5 backdrop-blur-lg">
+    <Screen tone="ink" className="gap-5 pb-28 lg:mx-0 lg:max-w-3xl lg:pb-10 lg:pl-72 lg:pr-10">
+      <header className="sticky top-0 z-10 -mx-5 flex items-center gap-3 bg-ink/85 px-5 py-3.5 backdrop-blur-lg lg:mx-0 lg:rounded-2xl lg:px-5">
         <Link
           href="/inicio"
           prefetch={false}
-          className="-m-2 p-2 text-chalk/45 transition-colors hover:text-chalk"
+          className="-m-2 p-2 text-chalk/45 transition-colors hover:text-chalk lg:hidden"
           aria-label={t.home.eyebrow}
         >
           <HomeIcon className="size-6" />

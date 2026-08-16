@@ -25,7 +25,7 @@ export default async function HomePage() {
           </p>
         </div>
 
-        <div className="rounded-[var(--radius-card)] bg-ink p-7 text-left">
+        <div className="glass-dark p-7 text-left">
           <p className="eyebrow text-chalk/40">{t.card.eyebrow}</p>
           <StampCard stamps={7} goal={10} tone="dark" className="mt-5" />
           <p className="numeral mt-5 text-[0.875rem] text-chalk/50">

@@ -73,7 +73,7 @@ export function AttributionsList({
       ) : (
         <ul className="flex flex-col gap-2">
           {filtered.map((row) => (
-            <li key={row.id} className="rounded-xl bg-ink/70 p-3.5 backdrop-blur-md">
+            <li key={row.id} className="glass-dark rounded-xl p-3.5">
               <div className="flex items-center justify-between gap-3">
                 <div className="min-w-0">
                   <p className="truncate text-[0.9375rem] font-semibold">{row.guestName}</p>

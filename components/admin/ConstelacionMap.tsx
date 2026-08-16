@@ -26,17 +26,26 @@ const TAP_MAX_DISTANCE_PX = 8;
 const TAP_MAX_DURATION_MS = 400;
 
 /**
- * Alto real de BottomNav -ahora fija en toda página del panel, esta
- * incluida, aunque siga siendo "pantalla completa"-, sin la zona segura
+ * Alto real de BottomNav en móvil/tablet -por debajo de `lg`, donde sigue
+ * siendo una barra inferior fija, ver BottomNav.tsx-, sin la zona segura
  * -que la propia barra ya reserva aparte con su pb-[env(...)]-: padding
  * vertical (py-2.5 arriba y abajo) + icono (size-5) + hueco (gap-1) +
- * etiqueta (text-[0.625rem] leading-none) = 1.25 + 1.25 + 0.25 + 0.625rem.
- * La columna de leyenda/iconos, el aviso inferior y la ficha (ver
- * ConstelacionSheet) suman esto a su antiguo margen del borde de pantalla
- * para no quedar tapados por la barra.
+ * etiqueta (text-[0.625rem] leading-none) = 1.25 + 1.25 + 0.25 + 0.625rem =
+ * 3.375rem. La columna de leyenda/iconos, el aviso inferior y la ficha (ver
+ * ConstelacionSheet) suman esto a su margen normal de borde de pantalla
+ * -1.25rem- vía `pb-[calc(3.375rem+env(safe-area-inset-bottom)+1.25rem)]`
+ * para no quedar tapados por la barra. A partir de `lg` BottomNav se
+ * convierte en un sidebar IZQUIERDO de ancho fijo -ADMIN_SIDEBAR_WIDTH en
+ * BottomNav.tsx, hoy "16rem"-, así que ahí ya no hay barra inferior que
+ * despejar -cae a `lg:pb-[max(1.25rem,env(safe-area-inset-bottom))]`, el
+ * margen de siempre- pero sí hueco a la izquierda que respetar -de ahí
+ * `lg:left-[calc(16rem+0.75rem)]` en la columna de la leyenda, 0.75rem
+ * siendo el mismo hueco que ya usa `left-3`-. Valores estáticos, así que
+ * viven directamente en clases de Tailwind -no en una constante JS: Tailwind
+ * no puede leer una plantilla interpolada en tiempo de build-; 16rem se
+ * repite a mano en vez de importar ADMIN_SIDEBAR_WIDTH porque no queda
+ * ningún `style` en tiempo de ejecución donde usar esa constante.
  */
-const BOTTOM_NAV_HEIGHT_REM = 3.375;
-const BOTTOM_NAV_CLEARANCE = `calc(${BOTTOM_NAV_HEIGHT_REM}rem + env(safe-area-inset-bottom) + 1.25rem)`;
 
 /** Radianes por frame de la rotación de fondo, y cuánto tarda en reanudarse tras soltar. */
 const ROTATION_PER_FRAME = 0.00019;
@@ -721,7 +730,7 @@ export function ConstelacionMap({
 
   // El HUD sale de la misma cuenta que la leyenda -funnelCounts, por
   // estado actual de cada nodo del grafo-, no del histórico de
-  // /admin/embudo: son preguntas distintas ("cuántas se han enviado
+  // /admin/metricas: son preguntas distintas ("cuántas se han enviado
   // alguna vez" vs. "cuántas están AHORA en ese punto del camino"), y
   // enseñar las dos con la misma etiqueta y valores distintos en la
   // misma pantalla se leía como un dato roto. Con la misma fuente que la
@@ -1571,8 +1580,7 @@ export function ConstelacionMap({
           efecto imán- vive dentro del SVG de arriba, no aquí: pertenece
           al mundo que se pellizca y arrastra, no a este overlay fijo. */}
       <div
-        className="pointer-events-none fixed inset-y-0 left-3 z-20 flex flex-col justify-end pt-[max(1.25rem,env(safe-area-inset-bottom))]"
-        style={{ paddingBottom: BOTTOM_NAV_CLEARANCE }}
+        className="pointer-events-none fixed inset-y-0 left-3 z-20 flex flex-col justify-end pt-[max(1.25rem,env(safe-area-inset-bottom))] pb-[calc(3.375rem+env(safe-area-inset-bottom)+1.25rem)] lg:left-[calc(16rem+0.75rem)] lg:pb-[max(1.25rem,env(safe-area-inset-bottom))]"
       >
         <div
           className="glass-dark pointer-events-auto max-w-[16rem] p-3.5 transition-transform duration-300 ease-[var(--ease-out-soft)]"
@@ -1627,8 +1635,7 @@ export function ConstelacionMap({
           botones quedaban tapados y sin forma de tocarlos hasta cerrar la ficha
           con su propio botón. */}
       <div
-        className="pointer-events-none fixed inset-y-0 right-3 z-20 flex flex-col items-center justify-end gap-2 pt-[max(1.25rem,env(safe-area-inset-bottom))]"
-        style={{ paddingBottom: BOTTOM_NAV_CLEARANCE }}
+        className="pointer-events-none fixed inset-y-0 right-3 z-20 flex flex-col items-center justify-end gap-2 pt-[max(1.25rem,env(safe-area-inset-bottom))] pb-[calc(3.375rem+env(safe-area-inset-bottom)+1.25rem)] lg:pb-[max(1.25rem,env(safe-area-inset-bottom))]"
       >
         <div className={cn("pointer-events-none flex flex-col items-end gap-2", selectedNode ? "invisible" : "visible")}>
           {/* Número y descripción de la categoría del anillo tocada, con el
@@ -1693,8 +1700,7 @@ export function ConstelacionMap({
       </div>
 
       <footer
-        className="pointer-events-none fixed inset-x-0 bottom-0 z-20 flex flex-col items-center gap-3 px-5"
-        style={{ paddingBottom: BOTTOM_NAV_CLEARANCE }}
+        className="pointer-events-none fixed inset-x-0 bottom-0 z-20 flex flex-col items-center gap-3 px-5 pb-[calc(3.375rem+env(safe-area-inset-bottom)+1.25rem)] lg:pb-[max(1.25rem,env(safe-area-inset-bottom))] lg:pl-[16rem]"
       >
         {!selectedNode && !touched ? (
           <p className="text-[0.65625rem] text-chalk/32 transition-opacity duration-300">

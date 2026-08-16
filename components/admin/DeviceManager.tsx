@@ -139,7 +139,7 @@ function DeviceRow({
   }
 
   return (
-    <li className="rounded-2xl bg-ink/70 p-5 backdrop-blur-md">
+    <li className="glass-dark rounded-2xl p-5">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="truncate text-[1.0625rem] font-semibold">{device.name}</p>

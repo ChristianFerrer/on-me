@@ -39,7 +39,7 @@ export function GateCard({
     gate.ratio === null ? "—" : `${Math.round(gate.ratio * 1000) / 10}%`;
 
   return (
-    <article className="rounded-[var(--radius-card)] bg-ink/70 p-6 backdrop-blur-md">
+    <article className="glass-dark p-6">
       <div className="flex items-start justify-between gap-3">
         <p className="eyebrow uppercase text-chalk/35">{gate.key}</p>
         <p
@@ -64,7 +64,6 @@ export function GateCard({
       <p className="mt-2 text-[0.875rem] leading-snug text-chalk/60">{label}</p>
 
       <p className="numeral mt-4 text-[0.8125rem] text-chalk/35">
-        {gate.numerator}/{gate.denominator} ·{" "}
         {fill(t.target, { n: Math.round(gate.threshold * 100) })}
         {short ? ` · ${fill(t.insufficientBody, { n: gate.minSample, m: gate.denominator })}` : ""}
       </p>

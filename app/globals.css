@@ -139,15 +139,6 @@
      Superficies
      ========================================================================== */
 
-  /* Grafito: la tarjeta oscura sobre el degradado -translúcida, con el
-     degradado respirando detrás en vez de taparlo del todo. */
-  .slab {
-    background: rgba(14, 18, 17, 0.72);
-    backdrop-filter: blur(20px) saturate(1.15);
-    color: var(--color-chalk);
-    border-radius: var(--radius-card);
-  }
-
   /* Vidrio: se apoya en el degradado en vez de taparlo. */
   .glass {
     background: rgba(255, 255, 255, 0.5);
@@ -156,10 +147,25 @@
     border-radius: var(--radius-card);
   }
 
+  /* Grafito: negro con transparencia -el mismo material que la leyenda
+     de la constelación, un único contenedor oscuro para toda la app: tarjetas,
+     paneles, fichas y chrome flotante. Un solo lugar donde ajustar "el
+     contenedor" cuando haga falta, en vez de un valor distinto por pantalla. */
   .glass-dark {
     background: rgba(10, 14, 13, 0.62);
     backdrop-filter: blur(18px) saturate(1.2);
     border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: var(--radius-card);
+  }
+
+  /* .slab es el mismo material que .glass-dark, con nombre propio porque es
+     la superficie que usa <Slab> -el bloque de contenido genérico-, no el
+     chrome flotante. */
+  .slab {
+    background: rgba(10, 14, 13, 0.62);
+    backdrop-filter: blur(18px) saturate(1.2);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: var(--color-chalk);
     border-radius: var(--radius-card);
   }
 

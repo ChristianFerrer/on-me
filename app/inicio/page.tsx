@@ -90,7 +90,7 @@ function Tile({
     <Link
       href={href}
       prefetch={false}
-      className="flex aspect-square flex-col justify-center gap-2.5 overflow-hidden rounded-[var(--radius-card)] bg-ink/55 p-4 ring-1 ring-inset ring-chalk/10 backdrop-blur-lg transition-colors hover:bg-ink/75 sm:aspect-auto sm:gap-4 sm:p-7"
+      className="glass-dark flex aspect-square flex-col justify-center gap-2.5 overflow-hidden p-4 transition-[filter] hover:brightness-125 sm:aspect-auto sm:gap-4 sm:p-7"
     >
       <span className="flex size-10 shrink-0 items-center justify-center rounded-2xl bg-lime text-ink sm:size-12">
         {icon}

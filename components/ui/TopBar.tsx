@@ -24,7 +24,7 @@ export function TopBar({
   return (
     <header
       className={cn(
-        "flex items-center gap-3 rounded-full bg-ink py-2.5 px-5",
+        "glass-dark flex items-center gap-3 rounded-full py-2.5 px-5",
         className,
       )}
     >
