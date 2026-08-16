@@ -39,6 +39,36 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 const RECENT_REDEMPTION_MS = 30 * DAY_MS;
 
 /**
+ * Efecto imán al tocar una sección del anillo: los nodos de esa misma
+ * categoría salen despedidos hacia fuera -MAGNET_OUT_OFFSET, unidades fijas
+ * de radio-, y el resto -que sigue siendo parte de una rama real, no ruido-
+ * es atraído hacia el núcleo, encogiendo su radio a MAGNET_IN_FACTOR de el
+ * que tenía. `magnet` va de -1 (atraído al núcleo) a +1 (despedido al
+ * anillo) pasando por 0 (sin categoría elegida), y se suaviza cuadro a
+ * cuadro -MAGNET_EASE- para que el imán tire, no teletransporte.
+ */
+const MAGNET_OUT_OFFSET = 16;
+const MAGNET_IN_FACTOR = 0.45;
+const MAGNET_EASE = 0.07;
+
+/**
+ * Cuerdas más flexibles: además del vaivén que ya traen sus dos extremos
+ * -el bamboleo de cada nodo-, la propia curva se abomba hacia un lado con
+ * un empuje base -LINK_CURVE_BULGE, fracción de la distancia entre
+ * extremos- que respira con el tiempo -LINK_WOBBLE_AMPLITUDE-, como una
+ * cuerda floja de verdad, no un arco geométrico rígido entre dos puntos.
+ */
+const LINK_CURVE_BULGE = 0.22;
+const LINK_WOBBLE_AMPLITUDE = 0.12;
+
+function linkWobbleFreq(index: number): number {
+  return 0.09 + ((index * 41) % 19) / 52;
+}
+function linkWobblePhase(index: number): number {
+  return index * 3.14;
+}
+
+/**
  * Efecto "escena espacial": el fondo de estrellas se desplaza con la
  * inclinación del móvil -o con el cursor en escritorio, que no tiene
  * giroscopio- dando sensación de profundidad, como el fondo animado del
@@ -209,12 +239,20 @@ function nodeXY(point: { angle: number; ringRadius: number; depth: number }): XY
 }
 
 /** Misma posición que nodeXY, pero con la rotación de fondo y el bamboleo del nodo -radial y angular- ya aplicados. */
-function animatedXY(point: SaltosPoint, rotation: number, nowMs: number): XY {
+/**
+ * `magnet` va de -1 (atraído al núcleo, tras tocar una sección del anillo
+ * que no es la suya) a +1 (despedido hacia el anillo, es de esa categoría),
+ * pasando por 0 (sin categoría elegida): ver el comentario de
+ * MAGNET_OUT_OFFSET más arriba.
+ */
+function animatedXY(point: SaltosPoint, rotation: number, nowMs: number, magnet = 0): XY {
   if (point.depth === 0) return { x: 0, y: 0 };
   const t = nowMs / 1000;
   const radialWobble = Math.sin(t * wobbleFreq(point.index) + wobblePhase(point.index)) * WOBBLE_AMPLITUDE;
   const angularWobble = Math.sin(t * wobbleFreqAngular(point.index) + wobblePhaseAngular(point.index)) * WOBBLE_ANGULAR_AMPLITUDE;
-  const r = point.ringRadius + radialWobble;
+  const magnetMul = magnet < 0 ? 1 + magnet * (1 - MAGNET_IN_FACTOR) : 1;
+  const magnetOffset = magnet > 0 ? magnet * MAGNET_OUT_OFFSET : 0;
+  const r = point.ringRadius * magnetMul + magnetOffset + radialWobble;
   const angle = point.angle + rotation + angularWobble;
   return { x: r * Math.cos(angle), y: r * Math.sin(angle) };
 }
@@ -235,26 +273,62 @@ type Bezier = { p0: XY; c1: XY; c2: XY; p1: XY };
  * muchísimo más caro que la aritmética directa y, con muchos pulsos
  * activos a la vez, es la diferencia entre una página fluida y una que
  * se nota pesada.
+ *
+ * A ese arco base se le suma un abombamiento perpendicular a la línea
+ * recta entre extremos -LINK_CURVE_BULGE más una respiración lenta que
+ * varía con el tiempo, LINK_WOBBLE_AMPLITUDE-, para que la cuerda tenga
+ * cuerpo propio y no sea solo dos puntos que se bambolean cada uno por su
+ * lado: `index` -la posición del enlace en layout.links- es la semilla de
+ * esa respiración, igual que point.index lo es del bamboleo de cada nodo.
  */
-function linkBezier(layout: SaltosLayout, rotation: number, nowMs: number, fromId: string, toId: string): Bezier | null {
+function linkBezier(
+  layout: SaltosLayout,
+  rotation: number,
+  nowMs: number,
+  fromId: string,
+  toId: string,
+  index = 0,
+  magnetFrom = 0,
+  magnetTo = 0,
+): Bezier | null {
   const from = layout.points.get(fromId);
   const to = layout.points.get(toId);
   if (!from || !to) return null;
 
-  const p0 = animatedXY(from, rotation, nowMs);
-  const p1 = animatedXY(to, rotation, nowMs);
+  const p0 = animatedXY(from, rotation, nowMs, magnetFrom);
+  const p1 = animatedXY(to, rotation, nowMs, magnetTo);
   const midR = (from.ringRadius + to.ringRadius) / 2;
   // Desde el propio centro (radio 0) el ángulo del padre no significa nada:
   // el primer tramo sale recto, y ya curva a partir del segundo.
   const a0 = (from.depth === 0 ? to.angle : from.angle) + rotation;
   const a1 = to.angle + rotation;
-  const c1 = { x: midR * Math.cos(a0), y: midR * Math.sin(a0) };
-  const c2 = { x: midR * Math.cos(a1), y: midR * Math.sin(a1) };
+  let c1 = { x: midR * Math.cos(a0), y: midR * Math.sin(a0) };
+  let c2 = { x: midR * Math.cos(a1), y: midR * Math.sin(a1) };
+
+  const dx = p1.x - p0.x,
+    dy = p1.y - p0.y;
+  const dist = Math.hypot(dx, dy) || 1;
+  const nx = -dy / dist,
+    ny = dx / dist; // perpendicular unitario a la línea recta entre extremos
+  const breathe = Math.sin((nowMs / 1000) * linkWobbleFreq(index) + linkWobblePhase(index));
+  const bulge = dist * (LINK_CURVE_BULGE + LINK_WOBBLE_AMPLITUDE * breathe);
+  c1 = { x: c1.x + nx * bulge, y: c1.y + ny * bulge };
+  c2 = { x: c2.x + nx * bulge, y: c2.y + ny * bulge };
+
   return { p0, c1, c2, p1 };
 }
 
-function linkPath(layout: SaltosLayout, rotation: number, nowMs: number, fromId: string, toId: string): string | null {
-  const b = linkBezier(layout, rotation, nowMs, fromId, toId);
+function linkPath(
+  layout: SaltosLayout,
+  rotation: number,
+  nowMs: number,
+  fromId: string,
+  toId: string,
+  index = 0,
+  magnetFrom = 0,
+  magnetTo = 0,
+): string | null {
+  const b = linkBezier(layout, rotation, nowMs, fromId, toId, index, magnetFrom, magnetTo);
   if (!b) return null;
   return `M${b.p0.x.toFixed(2)},${b.p0.y.toFixed(2)} C${b.c1.x.toFixed(2)},${b.c1.y.toFixed(2)} ${b.c2.x.toFixed(2)},${b.c2.y.toFixed(2)} ${b.p1.x.toFixed(2)},${b.p1.y.toFixed(2)}`;
 }
@@ -439,6 +513,14 @@ export function SaltosMap({
 
   const [pan, setPan] = useState<Pan>({ x: 0, y: 0, scale: 1 });
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  // Categoría del anillo tocada, para el efecto imán: se lee dentro del
+  // bucle de rAF -que no vuelve a montarse en cada cambio de estado, solo
+  // cuando cambia `layout`-, así que también vive en un ref sincronizado.
+  const [selectedCategory, setSelectedCategory] = useState<NodeState | null>(null);
+  const selectedCategoryRef = useRef<NodeState | null>(null);
+  useEffect(() => {
+    selectedCategoryRef.current = selectedCategory;
+  }, [selectedCategory]);
   const [legendOpen, setLegendOpen] = useState(true);
   const [hudVisible, setHudVisible] = useState(true);
   const [touched, setTouched] = useState(false);
@@ -466,7 +548,7 @@ export function SaltosMap({
   const svgRef = useRef<SVGSVGElement>(null);
   const pointers = useRef(new Map<number, PointerState>());
   const dragOrigin = useRef<{ pan: Pan; mid: PointerState; dist: number } | null>(null);
-  const tapCandidate = useRef<{ pointerId: number; nodeId: string | null; down: PointerPoint } | null>(null);
+  const tapCandidate = useRef<{ pointerId: number; nodeId: string | null; arcState: NodeState | null; down: PointerPoint } | null>(null);
 
   // Refs para el bucle de rAF: se escriben atributos DOM directamente en
   // cada frame -rotación y bamboleo-, sin pasar por setState ni volver a
@@ -477,6 +559,10 @@ export function SaltosMap({
   const rotationRef = useRef(0);
   const pausedRef = useRef(false);
   const resumeTimer = useRef<number | null>(null);
+  /** Valor de imán ya suavizado por nodo -ver MAGNET_EASE-, para no saltar de golpe al elegir/quitar una categoría. */
+  const magnetRef = useRef(new Map<string, number>());
+  /** Índice estable de cada enlace dentro de layout.links, semilla de la respiración de su curva -ver linkBezier-. */
+  const linkIndexOf = useMemo(() => new Map(layout.links.map((l, i) => [`${l.fromId}>${l.toId}`, i])), [layout.links]);
 
   // Paralaje del fondo de estrellas: objetivo -lo que dice el sensor/ratón
   // ahora mismo- y valor ya suavizado -lo que de verdad se pinta-, para que
@@ -569,11 +655,23 @@ export function SaltosMap({
       const rotation = rotationRef.current;
       const now = performance.now();
 
+      // Imán: objetivo -1/0/+1 según si el nodo es de la categoría tocada,
+      // suavizado hacia ese objetivo en vez de saltar de golpe.
+      const category = selectedCategoryRef.current;
+      for (const point of layout.points.values()) {
+        if (point.depth === 0) continue;
+        const node = byId.get(point.id);
+        const target = !category ? 0 : node?.state === category ? 1 : -1;
+        const cur = magnetRef.current.get(point.id) ?? 0;
+        magnetRef.current.set(point.id, cur + (target - cur) * MAGNET_EASE);
+      }
+
       for (const point of layout.points.values()) {
         if (point.depth === 0) continue;
         const el = nodeRefs.current.get(point.id);
         if (!el) continue;
-        const { x, y } = animatedXY(point, rotation, now);
+        const magnet = magnetRef.current.get(point.id) ?? 0;
+        const { x, y } = animatedXY(point, rotation, now, magnet);
         el.setAttribute("transform", `translate(${x.toFixed(2)},${y.toFixed(2)})`);
       }
 
@@ -581,7 +679,10 @@ export function SaltosMap({
         const key = `${link.fromId}>${link.toId}`;
         const pathEl = linkRefs.current.get(key);
         if (!pathEl) continue;
-        const d = linkPath(layout, rotation, now, link.fromId, link.toId);
+        const index = linkIndexOf.get(key) ?? 0;
+        const magnetFrom = magnetRef.current.get(link.fromId) ?? 0;
+        const magnetTo = magnetRef.current.get(link.toId) ?? 0;
+        const d = linkPath(layout, rotation, now, link.fromId, link.toId, index, magnetFrom, magnetTo);
         if (d) pathEl.setAttribute("d", d);
       }
 
@@ -590,7 +691,10 @@ export function SaltosMap({
       for (const [key, groupEl] of pulseDotRefs.current) {
         if (!groupEl) continue;
         const [fromId, toId] = key.split(">");
-        const bezier = linkBezier(layout, rotation, now, fromId, toId);
+        const index = linkIndexOf.get(key) ?? 0;
+        const magnetFrom = magnetRef.current.get(fromId) ?? 0;
+        const magnetTo = magnetRef.current.get(toId) ?? 0;
+        const bezier = linkBezier(layout, rotation, now, fromId, toId, index, magnetFrom, magnetTo);
         if (!bezier) continue;
         const point = bezierPointAt(bezier, pulseT);
         groupEl.setAttribute("transform", `translate(${point.x.toFixed(2)},${point.y.toFixed(2)})`);
@@ -661,9 +765,11 @@ export function SaltosMap({
       dragOrigin.current = { pan, mid: { x: event.clientX, y: event.clientY }, dist: 0 };
       const targetEl = event.target as Element;
       const nodeEl = targetEl.closest?.("[data-node-id]");
+      const arcEl = targetEl.closest?.("[data-arc-state]");
       tapCandidate.current = {
         pointerId: event.pointerId,
         nodeId: nodeEl?.getAttribute("data-node-id") ?? null,
+        arcState: (arcEl?.getAttribute("data-arc-state") as NodeState | null) ?? null,
         down: { x: event.clientX, y: event.clientY, t: Date.now() },
       };
     } else {
@@ -721,7 +827,8 @@ export function SaltosMap({
       if (pending && pending.pointerId === event.pointerId) {
         const up: PointerPoint = { x: event.clientX, y: event.clientY, t: Date.now() };
         if (isTap(pending.down, up, TAP_MAX_DISTANCE_PX, TAP_MAX_DURATION_MS)) {
-          if (pending.nodeId && pending.nodeId !== graph.establishment.id) setSelectedId(pending.nodeId);
+          if (pending.arcState) setSelectedCategory((prev) => (prev === pending.arcState ? null : pending.arcState));
+          else if (pending.nodeId && pending.nodeId !== graph.establishment.id) setSelectedId(pending.nodeId);
           else if (!pending.nodeId) setSelectedId(null);
         }
       }
@@ -882,31 +989,37 @@ export function SaltosMap({
                   const labelR = arcRadius + 12;
                   const isMutedArc = SALTOS_MUTED_STATES.has(state);
                   const isPositiveArc = SALTOS_POSITIVE_STATES.has(state);
-                  const arcWidth = isPositiveArc ? 5.5 : isMutedArc ? 3 : 4.5;
+                  const isSelectedArc = state === selectedCategory;
+                  const arcWidthBase = isPositiveArc ? 5.5 : isMutedArc ? 3 : 4.5;
+                  const arcWidth = isSelectedArc ? arcWidthBase * 1.8 : arcWidthBase;
                   const arcOpacity = isPositiveArc ? 0.95 : isMutedArc ? 0.4 : 0.85;
+                  const fontSize = isSelectedArc ? 6 * 1.85 : 6;
+                  const d = arcPath(cursor, a1, arcRadius);
                   arcs.push(
-                    <path
-                      key={state}
-                      d={arcPath(cursor, a1, arcRadius)}
-                      fill="none"
-                      stroke={SALTOS_ARC_COLOR[state]}
-                      strokeWidth={arcWidth}
-                      strokeOpacity={arcOpacity}
-                      strokeLinecap="round"
-                    />,
-                    <text
-                      key={`${state}-n`}
-                      x={(Math.cos(mid) * labelR).toFixed(2)}
-                      y={(Math.sin(mid) * labelR).toFixed(2)}
-                      textAnchor="middle"
-                      dominantBaseline="middle"
-                      fontSize={6}
-                      fontWeight={600}
-                      fill={SALTOS_ARC_COLOR[state]}
-                      fillOpacity={isMutedArc ? 0.5 : 0.8}
-                    >
-                      {count}
-                    </text>,
+                    <g key={state} data-arc-state={state} className="cursor-pointer">
+                      {/* Trazo ancho e invisible: el arco visible es fino -3 a 5.5 unidades-, así que sin esto tocarlo con el dedo es una lotería. */}
+                      <path d={d} fill="none" stroke="transparent" strokeWidth={16} strokeLinecap="round" />
+                      <path
+                        d={d}
+                        fill="none"
+                        stroke={SALTOS_ARC_COLOR[state]}
+                        strokeOpacity={arcOpacity}
+                        strokeLinecap="round"
+                        style={{ strokeWidth: arcWidth, transition: "stroke-width 320ms var(--ease-out-soft)" }}
+                      />
+                      <text
+                        x={(Math.cos(mid) * labelR).toFixed(2)}
+                        y={(Math.sin(mid) * labelR).toFixed(2)}
+                        textAnchor="middle"
+                        dominantBaseline="middle"
+                        fontWeight={600}
+                        fill={SALTOS_ARC_COLOR[state]}
+                        fillOpacity={isMutedArc ? 0.5 : 0.8}
+                        style={{ fontSize, transition: "font-size 320ms var(--ease-out-soft)" }}
+                      >
+                        {count}
+                      </text>
+                    </g>,
                   );
                   cursor = a1 + GAP;
                 }
@@ -914,10 +1027,10 @@ export function SaltosMap({
               })()
             : null}
 
-          {layout.links.map((link) => {
+          {layout.links.map((link, linkIndex) => {
             const key = `${link.fromId}>${link.toId}`;
             const toNode = byId.get(link.toId);
-            const d = linkPath(layout, 0, 0, link.fromId, link.toId);
+            const d = linkPath(layout, 0, 0, link.fromId, link.toId, linkIndex);
             if (!d) return null;
             const isPathLink = selectedId != null && ancestors.has(link.toId);
             // Mismo criterio que en los nodos: una rama que terminó en nada
