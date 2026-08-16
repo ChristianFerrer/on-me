@@ -701,6 +701,16 @@ export function SaltosMap({
     }
   }
 
+  // Deliberadamente NO en onPointerLeave: dentro de la constelación cada nodo
+  // apila varios círculos superpuestos (halo, aura, borde, círculo de toque
+  // más grande que el propio punto...), y con tantas capas encima unas de
+  // otras algunos navegadores táctiles disparan pointerleave sin que el
+  // dedo haya salido de verdad del SVG -solo cambió de qué capa interna
+  // está "debajo"-. Enganchado a endPointer, ese leave espurio soltaba el
+  // dedo a media cuenta y el pellizco/arrastre se cortaba en seco, pero
+  // solo dentro del área densa de nodos -fuera, sobre fondo vacío, no había
+  // capas que cruzar y el gesto funcionaba bien. pointercancel y
+  // lostpointercapture ya cubren el caso real de "el dedo se fue sin avisar".
   function endPointer(event: React.PointerEvent<SVGSVGElement>) {
     const pending = tapCandidate.current;
     pointers.current.delete(event.pointerId);
@@ -818,7 +828,6 @@ export function SaltosMap({
         onPointerMove={onPointerMove}
         onPointerUp={endPointer}
         onPointerCancel={endPointer}
-        onPointerLeave={endPointer}
         onLostPointerCapture={endPointer}
         onDoubleClick={resetView}
         role="img"
