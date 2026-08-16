@@ -79,8 +79,6 @@ function angleLerp(from: number, to: number, t: number): number {
  */
 const LINK_CURVE_BULGE = 0.22;
 const LINK_WOBBLE_AMPLITUDE = 0.12;
-/** Cuerdas un 5% más finas que antes, en todos sus grosores -reposo, muteada, seleccionada-. */
-const LINK_WIDTH_SCALE = 0.95;
 
 function linkWobbleFreq(index: number): number {
   return 0.09 + ((index * 41) % 19) / 52;
@@ -101,7 +99,7 @@ function linkWobblePhase(index: number): number {
  * apaga con Math.sin(u * π) en ambos extremos para que la cuerda no se
  * despegue nunca de los nodos que conecta.
  */
-const LINK_POINT_COUNT = 15;
+const LINK_POINT_COUNT = 5;
 const LINK_POINT_WOBBLE_AMPLITUDE = 0.05;
 const LINK_POINT_PHASE_STEP = 0.55;
 
@@ -439,28 +437,6 @@ function bezierPointAt(b: Bezier, t: number): XY {
   };
 }
 
-/**
- * Reparte los LINK_POINT_COUNT=15 puntos de una cuerda en tres grupos de
- * 5, no en pasos iguales: los 5 primeros muy juntos junto al arranque
- * -dentro de LINK_DENSE_END_FRACTION de la cuerda-, los 5 últimos igual de
- * juntos junto al final, y los 5 del medio bien separados por el tramo
- * central. El resultado es más denso en los extremos y más suelto en el
- * centro -"o . . . . .   .   .   .   .   .    . . . . . o"-, en vez del
- * espaciado uniforme de antes. Asume 15 puntos exactos -tres grupos de
- * 5-: si LINK_POINT_COUNT cambia, este reparto hay que rehacerlo.
- */
-const LINK_DENSE_END_FRACTION = 0.1;
-
-function linkPointU(i: number): number {
-  const D = LINK_DENSE_END_FRACTION;
-  if (i <= 4) return (D * i) / 4;
-  if (i <= 9) {
-    const step = (1 - 2 * D) / 6;
-    return D + step * (i - 4);
-  }
-  return 1 - D + (D * (i - 10)) / 4;
-}
-
 function linkOrganicPoints(
   layout: SaltosLayout,
   rotation: number,
@@ -486,7 +462,7 @@ function linkOrganicPoints(
   const phase = linkWobblePhase(index);
   const points: XY[] = [];
   for (let i = 0; i < LINK_POINT_COUNT; i++) {
-    const u = linkPointU(i);
+    const u = i / (LINK_POINT_COUNT - 1);
     const base = bezierPointAt(spine, u);
     const envelope = Math.sin(u * Math.PI);
     const sway = dist * LINK_POINT_WOBBLE_AMPLITUDE * envelope * Math.sin(t * freq * 2.6 + phase + i * LINK_POINT_PHASE_STEP);
@@ -1370,7 +1346,7 @@ export function SaltosMap({
             const restOpacity = isMutedLink ? 0.14 : 0.3;
             const restWidth = isMutedLink ? 0.9 : 1.3;
             const opacity = selectedId ? (isPathLink ? 0.95 : 0.04) : restOpacity;
-            const width = (selectedId && isPathLink ? 2.2 : selectedId ? 1.1 : restWidth) * LINK_WIDTH_SCALE;
+            const width = selectedId && isPathLink ? 2.2 : selectedId ? 1.1 : restWidth;
             return (
               <path
                 key={key}
