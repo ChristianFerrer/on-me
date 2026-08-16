@@ -40,26 +40,23 @@ const RECENT_REDEMPTION_MS = 30 * DAY_MS;
 
 /**
  * Efecto imán al tocar una sección del anillo: los nodos de esa misma
- * categoría son atraídos hacia el propio punto de la sección elegida -su
- * ángulo medio, a MAGNET_TARGET_RADIUS_FACTOR del radio del arco-, no solo
- * empujados hacia fuera en su propio ángulo; el resto -que sigue siendo
- * parte de una rama real, no ruido- es atraído hacia el núcleo, encogiendo
- * su radio a MAGNET_IN_FACTOR del que tenía. `value` va de -1 (atraído al
- * núcleo) a +1 (atraído a la sección) pasando por 0 (sin categoría
- * elegida), y se suaviza cuadro a cuadro -MAGNET_EASE- para que el imán
- * tire, no teletransporte. MAGNET_TARGET_SPREAD reparte a los atraídos
- * -que si no, se apilarían todos exactamente en el mismo punto- en un
- * abanico estrecho alrededor de ese ángulo medio, con semilla propia por
- * nodo -point.index-, igual que el resto de bamboleos de este archivo.
+ * categoría son atraídos a lo largo de TODA la sección elegida -repartidos
+ * por su propio rango angular, a MAGNET_TARGET_RADIUS_FACTOR del radio del
+ * arco-, no apilados en un único punto medio ni empujados hacia fuera en
+ * su propio ángulo; el resto -que sigue siendo parte de una rama real, no
+ * ruido- es atraído hacia el núcleo, encogiendo su radio a MAGNET_IN_FACTOR
+ * del que tenía. `value` va de -1 (atraído al núcleo) a +1 (atraído a la
+ * sección) pasando por 0 (sin categoría elegida), y se suaviza cuadro a
+ * cuadro -MAGNET_EASE- para que el imán tire, no teletransporte. El reparto
+ * a lo largo de la sección usa el puesto de cada nodo entre los de su
+ * misma categoría -categoryMemberRank, calculado una vez por selección, no
+ * cada fotograma- para espaciarlos en orden, con un margen a cada lado
+ * -MAGNET_ARC_MARGIN- para no pegarlos justo al borde del arco.
  */
 const MAGNET_TARGET_RADIUS_FACTOR = 0.9;
-const MAGNET_TARGET_SPREAD = 0.14;
+const MAGNET_ARC_MARGIN = 0.08;
 const MAGNET_IN_FACTOR = 0.45;
 const MAGNET_EASE = 0.07;
-
-function magnetSpreadFor(index: number): number {
-  return ((((index * 17) % 11) / 10) - 0.5) * 2 * MAGNET_TARGET_SPREAD;
-}
 
 /** Ángulo objetivo + radio objetivo cuando un nodo es atraído a una sección; `null` cuando no hay atracción -imán neutro o hacia el núcleo-. */
 type MagnetTarget = { angle: number; radius: number } | null;
@@ -82,6 +79,8 @@ function angleLerp(from: number, to: number, t: number): number {
  */
 const LINK_CURVE_BULGE = 0.22;
 const LINK_WOBBLE_AMPLITUDE = 0.12;
+/** Cuerdas un 5% más finas que antes, en todos sus grosores -reposo, muteada, seleccionada-. */
+const LINK_WIDTH_SCALE = 0.95;
 
 function linkWobbleFreq(index: number): number {
   return 0.09 + ((index * 41) % 19) / 52;
@@ -303,17 +302,17 @@ function animatedXY(point: SaltosPoint, rotation: number, nowMs: number, magnet:
 }
 
 /**
- * El objetivo del imán es un único punto -la sección tocada, o el núcleo
- * al deseleccionar-, no un hueco reservado para cada esfera que converge
- * ahí: MAGNET_TARGET_SPREAD ya reparte un poco el ángulo, pero con varias
- * decenas de nodos de la misma categoría -o encogiéndose hacia el mismo
- * núcleo- terminaban solapándose sin remedio. Esta pasada, después de
- * calcular la posición "deseada" de cada esfera y antes de pintarla,
- * empuja cada par que se invade -según su propio radio visible, el mismo
- * displayRadius que se pinta, no el halo, que sí puede superponerse- lejos
- * uno de otro. Un par de iteraciones por fotograma bastan: no es una
- * simulación física exacta, solo lo justo para que ninguna silueta tape a
- * otra sin que se note el reacomodo como un salto brusco.
+ * Repartir a cada esfera a lo largo de toda la sección tocada -en vez de
+ * apilarlas en un único punto medio- ya reduce mucho el solape, pero no lo
+ * garantiza: una sección corta con muchos miembros, o el propio encogerse
+ * hacia el núcleo al deseleccionar, siguen pudiendo dejar dos siluetas
+ * demasiado cerca. Esta pasada, después de calcular la posición "deseada"
+ * de cada esfera y antes de pintarla, empuja cada par que se invade -según
+ * su propio radio visible, el mismo displayRadius que se pinta, no el
+ * halo, que sí puede superponerse- lejos uno de otro. Un par de
+ * iteraciones por fotograma bastan: no es una simulación física exacta,
+ * solo lo justo para que ninguna silueta tape a otra sin que se note el
+ * reacomodo como un salto brusco.
  */
 const COLLISION_PADDING = 0.6;
 const COLLISION_ITERATIONS = 10;
@@ -441,13 +440,27 @@ function bezierPointAt(b: Bezier, t: number): XY {
 }
 
 /**
- * Los LINK_POINT_COUNT puntos de una cuerda: se muestrea la Bézier
- * "espina" -linkBezier, que ya trae el abombamiento que respira- en
- * pasos iguales, y a cada punto intermedio se le suma un vaivén propio,
- * perpendicular a la línea recta entre extremos, desfasado punto a punto
- * -LINK_POINT_PHASE_STEP- para que la ondulación viaje a lo largo de la
- * cuerda en vez de moverse en bloque.
+ * Reparte los LINK_POINT_COUNT=15 puntos de una cuerda en tres grupos de
+ * 5, no en pasos iguales: los 5 primeros muy juntos junto al arranque
+ * -dentro de LINK_DENSE_END_FRACTION de la cuerda-, los 5 últimos igual de
+ * juntos junto al final, y los 5 del medio bien separados por el tramo
+ * central. El resultado es más denso en los extremos y más suelto en el
+ * centro -"o . . . . .   .   .   .   .   .    . . . . . o"-, en vez del
+ * espaciado uniforme de antes. Asume 15 puntos exactos -tres grupos de
+ * 5-: si LINK_POINT_COUNT cambia, este reparto hay que rehacerlo.
  */
+const LINK_DENSE_END_FRACTION = 0.1;
+
+function linkPointU(i: number): number {
+  const D = LINK_DENSE_END_FRACTION;
+  if (i <= 4) return (D * i) / 4;
+  if (i <= 9) {
+    const step = (1 - 2 * D) / 6;
+    return D + step * (i - 4);
+  }
+  return 1 - D + (D * (i - 10)) / 4;
+}
+
 function linkOrganicPoints(
   layout: SaltosLayout,
   rotation: number,
@@ -473,7 +486,7 @@ function linkOrganicPoints(
   const phase = linkWobblePhase(index);
   const points: XY[] = [];
   for (let i = 0; i < LINK_POINT_COUNT; i++) {
-    const u = i / (LINK_POINT_COUNT - 1);
+    const u = linkPointU(i);
     const base = bezierPointAt(spine, u);
     const envelope = Math.sin(u * Math.PI);
     const sway = dist * LINK_POINT_WOBBLE_AMPLITUDE * envelope * Math.sin(t * freq * 2.6 + phase + i * LINK_POINT_PHASE_STEP);
@@ -672,13 +685,13 @@ export function SaltosMap({
   }, [graph.nodes]);
   const funnelTotal = useMemo(() => [...funnelCounts.values()].reduce((a, b) => a + b, 0), [funnelCounts]);
 
-  // Ángulo medio de cada sección del arco, para el efecto imán -el punto al
-  // que se atrae a los nodos de la categoría elegida-: misma geometría
-  // -GAP, ángulo de arranque, spanTotal- que el propio dibujado del arco
-  // más abajo en el JSX, así que si uno cambia el otro tiene que cambiar
-  // igual o dejan de apuntar al mismo sitio.
-  const arcMidAngleByState = useMemo(() => {
-    const map = new Map<NodeState, number>();
+  // Rango angular -inicio y fin, no solo el punto medio- de cada sección
+  // del arco, para el efecto imán: misma geometría -GAP, ángulo de
+  // arranque, spanTotal- que el propio dibujado del arco más abajo en el
+  // JSX, así que si uno cambia el otro tiene que cambiar igual o dejan de
+  // apuntar al mismo sitio.
+  const arcAngleRangeByState = useMemo(() => {
+    const map = new Map<NodeState, { start: number; end: number }>();
     if (funnelTotal === 0) return map;
     const GAP = 0.04;
     let cursor = -Math.PI / 2 + 0.05;
@@ -688,11 +701,33 @@ export function SaltosMap({
       if (count === 0) continue;
       const span = (spanTotal * count) / funnelTotal;
       const a1 = cursor + span - GAP;
-      map.set(state, (cursor + a1) / 2);
+      map.set(state, { start: cursor, end: a1 });
       cursor = a1 + GAP;
     }
     return map;
   }, [funnelCounts, funnelTotal]);
+
+  // Puesto de cada nodo entre los de su misma categoría -y cuántos son en
+  // total-, para repartirlos en orden a lo largo de la sección del anillo
+  // en vez de apilarlos todos en su punto medio. Mismo orden estable que
+  // point.index -la propia iteración de layout.points-, así que dos
+  // nodos vecinos en el anillo también quedan cerca al converger.
+  const categoryMemberRank = useMemo(() => {
+    const byState = new Map<NodeState, string[]>();
+    for (const point of layout.points.values()) {
+      if (point.depth === 0) continue;
+      const node = byId.get(point.id);
+      if (!node) continue;
+      const ids = byState.get(node.state) ?? [];
+      ids.push(point.id);
+      byState.set(node.state, ids);
+    }
+    const map = new Map<string, { rank: number; count: number }>();
+    for (const ids of byState.values()) {
+      ids.forEach((id, rank) => map.set(id, { rank, count: ids.length }));
+    }
+    return map;
+  }, [layout, byId]);
 
   // El HUD sale de la misma cuenta que la leyenda -funnelCounts, por
   // estado actual de cada nodo del grafo-, no del histórico de
@@ -751,10 +786,14 @@ export function SaltosMap({
       queueMicrotask(() => setLastCategory(selectedCategory));
     }
   }, [selectedCategory]);
-  const arcMidAngleRef = useRef(new Map<NodeState, number>());
+  const arcAngleRangeRef = useRef(new Map<NodeState, { start: number; end: number }>());
   useEffect(() => {
-    arcMidAngleRef.current = arcMidAngleByState;
-  }, [arcMidAngleByState]);
+    arcAngleRangeRef.current = arcAngleRangeByState;
+  }, [arcAngleRangeByState]);
+  const categoryMemberRankRef = useRef(new Map<string, { rank: number; count: number }>());
+  useEffect(() => {
+    categoryMemberRankRef.current = categoryMemberRank;
+  }, [categoryMemberRank]);
 
   // El radio visible de cada esfera -mismo cálculo que displayRadius más
   // abajo en el JSX, "en ventana" incluido-, para que la pasada de
@@ -924,13 +963,18 @@ export function SaltosMap({
       // El objetivo de atracción usa la ÚLTIMA categoría real -no la actual,
       // que puede ya ser null tras deseleccionar-, para que el valor de
       // imán pueda seguir suavizándose de vuelta a 0 sin saltar de golpe.
-      const midAngle = lastCategoryRef.current ? arcMidAngleRef.current.get(lastCategoryRef.current) : undefined;
+      const range = lastCategoryRef.current ? arcAngleRangeRef.current.get(lastCategoryRef.current) : undefined;
       function magnetFor(id: string): Magnet {
         const value = magnetRef.current.get(id) ?? 0;
-        if (value <= 0 || midAngle == null) return { value, target: null };
-        const point = layout.points.get(id);
-        const spread = point ? magnetSpreadFor(point.index) : 0;
-        return { value, target: { angle: midAngle + spread, radius: arcRadius * MAGNET_TARGET_RADIUS_FACTOR } };
+        if (value <= 0 || range == null) return { value, target: null };
+        const entry = categoryMemberRankRef.current.get(id);
+        // Puesto normalizado (0..1) entre los de su misma categoría -0.5 si
+        // no se conoce o es el único-, repartido con un margen a cada lado
+        // para no pegar ninguna esfera justo al borde del arco.
+        const t = entry && entry.count > 1 ? entry.rank / (entry.count - 1) : 0.5;
+        const margin = MAGNET_ARC_MARGIN * (range.end - range.start);
+        const angle = range.start + margin + t * (range.end - range.start - margin * 2);
+        return { value, target: { angle, radius: arcRadius * MAGNET_TARGET_RADIUS_FACTOR } };
       }
 
       // Posición "deseada" de cada esfera -imán ya aplicado, todavía sin
@@ -1326,7 +1370,7 @@ export function SaltosMap({
             const restOpacity = isMutedLink ? 0.14 : 0.3;
             const restWidth = isMutedLink ? 0.9 : 1.3;
             const opacity = selectedId ? (isPathLink ? 0.95 : 0.04) : restOpacity;
-            const width = selectedId && isPathLink ? 2.2 : selectedId ? 1.1 : restWidth;
+            const width = (selectedId && isPathLink ? 2.2 : selectedId ? 1.1 : restWidth) * LINK_WIDTH_SCALE;
             return (
               <path
                 key={key}
