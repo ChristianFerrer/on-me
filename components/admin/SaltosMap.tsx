@@ -102,7 +102,7 @@ function linkWobblePhase(index: number): number {
  * apaga con Math.sin(u * π) en ambos extremos para que la cuerda no se
  * despegue nunca de los nodos que conecta.
  */
-const LINK_POINT_COUNT = 100;
+const LINK_POINT_COUNT = 15;
 const LINK_POINT_WOBBLE_AMPLITUDE = 0.05;
 const LINK_POINT_PHASE_STEP = 0.55;
 
@@ -342,6 +342,9 @@ function resolveCollisions(positions: XY[], radii: number[], iterations: number,
 
 type Bezier = { p0: XY; c1: XY; c2: XY; p1: XY };
 
+/** Mapa vacío compartido -en vez de un `new Map()` en cada valor por defecto- para cuando linkBezier() se llama sin radios que recortar, como en algún test o llamada suelta. */
+const EMPTY_RADIUS_MAP: Map<string, number> = new Map();
+
 /**
  * Puntos de control de la curva Bézier cúbica de un enlace: van al radio
  * medio entre el anillo del padre y el del hijo, cada uno en su propio
@@ -381,13 +384,28 @@ function linkBezier(
   // separación desplazaba a la esfera de su posición "deseada".
   p0Override?: XY,
   p1Override?: XY,
+  // Radio visible de cada nodo -el mismo displayRadius que se pinta,
+  // establishmentRadius para el propio local-, para recortar cada extremo
+  // desde el centro hasta el borde de la esfera: sin esto la cuerda nacía
+  // clavada en el centro de cada nodo, tapada por su propio relleno.
+  radiusById: Map<string, number> = EMPTY_RADIUS_MAP,
 ): Bezier | null {
   const from = layout.points.get(fromId);
   const to = layout.points.get(toId);
   if (!from || !to) return null;
 
-  const p0 = p0Override ?? animatedXY(from, rotation, nowMs, magnetFrom);
-  const p1 = p1Override ?? animatedXY(to, rotation, nowMs, magnetTo);
+  const rawP0 = p0Override ?? animatedXY(from, rotation, nowMs, magnetFrom);
+  const rawP1 = p1Override ?? animatedXY(to, rotation, nowMs, magnetTo);
+  const r0 = from.depth === 0 ? ESTABLISHMENT_RADIUS : (radiusById.get(fromId) ?? 0);
+  const r1 = to.depth === 0 ? ESTABLISHMENT_RADIUS : (radiusById.get(toId) ?? 0);
+  const rawDx = rawP1.x - rawP0.x;
+  const rawDy = rawP1.y - rawP0.y;
+  const rawDist = Math.hypot(rawDx, rawDy) || 1;
+  const ux = rawDx / rawDist;
+  const uy = rawDy / rawDist;
+  const p0 = { x: rawP0.x + ux * r0, y: rawP0.y + uy * r0 };
+  const p1 = { x: rawP1.x - ux * r1, y: rawP1.y - uy * r1 };
+
   const midR = (from.ringRadius + to.ringRadius) / 2;
   // Desde el propio centro (radio 0) el ángulo del padre no significa nada:
   // el primer tramo sale recto, y ya curva a partir del segundo.
@@ -441,8 +459,9 @@ function linkOrganicPoints(
   magnetTo: Magnet = NO_MAGNET,
   p0Override?: XY,
   p1Override?: XY,
+  radiusById: Map<string, number> = EMPTY_RADIUS_MAP,
 ): XY[] | null {
-  const spine = linkBezier(layout, rotation, nowMs, fromId, toId, index, magnetFrom, magnetTo, p0Override, p1Override);
+  const spine = linkBezier(layout, rotation, nowMs, fromId, toId, index, magnetFrom, magnetTo, p0Override, p1Override, radiusById);
   if (!spine) return null;
   const dx = spine.p1.x - spine.p0.x;
   const dy = spine.p1.y - spine.p0.y;
@@ -463,35 +482,42 @@ function linkOrganicPoints(
   return points;
 }
 
-/**
- * Con LINK_POINT_COUNT en varias decenas, cada tramo entre dos puntos
- * consecutivos cubre una porción tan pequeña de la cuerda que una curva
- * ajustada -Catmull-Rom, como se usaba con menos puntos- y una simple
- * línea recta entre ellos se ven exactamente igual: la propia densidad
- * de puntos ya hace de curva. Ir a rectas evita calcular los puntos de
- * control de cada tramo y deja un `d` bastante más corto -dos números por
- * tramo en vez de seis-, que es justo el coste que se dispara al pasar de
- * 16 a 100 puntos por cuerda si se sigue con Bézier.
- */
+/** Puntos de control de un tramo Catmull-Rom -tensión estándar 1/6-: a diferencia de una Bézier ajustada a ojo, el trazo pasa exactamente por cada punto de la cuerda, no solo cerca. */
+function catmullRomControlPoints(p0: XY, p1: XY, p2: XY, p3: XY): { c1: XY; c2: XY } {
+  return {
+    c1: { x: p1.x + (p2.x - p0.x) / 6, y: p1.y + (p2.y - p0.y) / 6 },
+    c2: { x: p2.x - (p3.x - p1.x) / 6, y: p2.y - (p3.y - p1.y) / 6 },
+  };
+}
+
 function organicLinkPath(points: XY[]): string {
   if (points.length === 0) return "";
+  const last = points.length - 1;
   let d = `M${points[0].x.toFixed(2)},${points[0].y.toFixed(2)}`;
-  for (let i = 1; i < points.length; i++) {
-    d += ` L${points[i].x.toFixed(2)},${points[i].y.toFixed(2)}`;
+  for (let i = 0; i < last; i++) {
+    const p0 = points[Math.max(0, i - 1)];
+    const p1 = points[i];
+    const p2 = points[i + 1];
+    const p3 = points[Math.min(last, i + 2)];
+    const { c1, c2 } = catmullRomControlPoints(p0, p1, p2, p3);
+    d += ` C${c1.x.toFixed(2)},${c1.y.toFixed(2)} ${c2.x.toFixed(2)},${c2.y.toFixed(2)} ${p2.x.toFixed(2)},${p2.y.toFixed(2)}`;
   }
   return d;
 }
 
-/** Mismo criterio que bezierPointAt -evitar el DOM para el pulso viajero-, pero interpolando en línea recta entre los dos puntos que le tocan a `t`: con tantos puntos por cuerda, la diferencia con una curva ajustada no se nota. */
+/** Mismo criterio que bezierPointAt -evitar el DOM para el pulso viajero-, pero sobre el tramo Catmull-Rom que le toca a `t`. */
 function organicPointAt(points: XY[], t: number): XY {
   const segments = points.length - 1;
   if (segments <= 0) return points[0];
   const scaled = clamp(t, 0, 1) * segments;
   const i = Math.min(Math.floor(scaled), segments - 1);
   const localT = scaled - i;
-  const a = points[i];
-  const b = points[i + 1];
-  return { x: a.x + (b.x - a.x) * localT, y: a.y + (b.y - a.y) * localT };
+  const p0 = points[Math.max(0, i - 1)];
+  const p1 = points[i];
+  const p2 = points[i + 1];
+  const p3 = points[Math.min(segments, i + 2)];
+  const { c1, c2 } = catmullRomControlPoints(p0, p1, p2, p3);
+  return bezierPointAt({ p0: p1, c1, c2, p1: p2 }, localT);
 }
 
 function linkPath(
@@ -503,8 +529,9 @@ function linkPath(
   index = 0,
   magnetFrom: Magnet = NO_MAGNET,
   magnetTo: Magnet = NO_MAGNET,
+  radiusById: Map<string, number> = EMPTY_RADIUS_MAP,
 ): string | null {
-  const points = linkOrganicPoints(layout, rotation, nowMs, fromId, toId, index, magnetFrom, magnetTo);
+  const points = linkOrganicPoints(layout, rotation, nowMs, fromId, toId, index, magnetFrom, magnetTo, undefined, undefined, radiusById);
   if (!points) return null;
   return organicLinkPath(points);
 }
@@ -956,6 +983,7 @@ export function SaltosMap({
           magnetFor(link.toId),
           correctedById.get(link.fromId),
           correctedById.get(link.toId),
+          nodeRadiusRef.current,
         );
         if (!points) continue;
         organicPointsByKey.set(key, points);
@@ -1258,15 +1286,12 @@ export function SaltosMap({
                   if (count === 0) continue;
                   const span = (spanTotal * count) / funnelTotal;
                   const a1 = cursor + span - GAP;
-                  const mid = (cursor + a1) / 2;
-                  const labelR = arcRadius + 12;
                   const isMutedArc = SALTOS_MUTED_STATES.has(state);
                   const isPositiveArc = SALTOS_POSITIVE_STATES.has(state);
                   const isSelectedArc = state === selectedCategory;
                   const arcWidthBase = isPositiveArc ? 5.5 : isMutedArc ? 3 : 4.5;
                   const arcWidth = isSelectedArc ? arcWidthBase * 1.8 : arcWidthBase;
                   const arcOpacity = isPositiveArc ? 0.95 : isMutedArc ? 0.4 : 0.85;
-                  const fontSize = isSelectedArc ? 6 * 1.85 : 6;
                   const d = arcPath(cursor, a1, arcRadius);
                   arcs.push(
                     <g key={state} data-arc-state={state} className="cursor-pointer">
@@ -1280,18 +1305,6 @@ export function SaltosMap({
                         strokeLinecap="round"
                         style={{ strokeWidth: arcWidth, transition: "stroke-width 320ms var(--ease-out-soft)" }}
                       />
-                      <text
-                        x={(Math.cos(mid) * labelR).toFixed(2)}
-                        y={(Math.sin(mid) * labelR).toFixed(2)}
-                        textAnchor="middle"
-                        dominantBaseline="middle"
-                        fontWeight={600}
-                        fill={SALTOS_ARC_COLOR[state]}
-                        fillOpacity={isMutedArc ? 0.5 : 0.8}
-                        style={{ fontSize, transition: "font-size 320ms var(--ease-out-soft)" }}
-                      >
-                        {count}
-                      </text>
                     </g>,
                   );
                   cursor = a1 + GAP;
@@ -1303,7 +1316,7 @@ export function SaltosMap({
           {layout.links.map((link, linkIndex) => {
             const key = `${link.fromId}>${link.toId}`;
             const toNode = byId.get(link.toId);
-            const d = linkPath(layout, 0, 0, link.fromId, link.toId, linkIndex);
+            const d = linkPath(layout, 0, 0, link.fromId, link.toId, linkIndex, NO_MAGNET, NO_MAGNET, nodeRadiusById);
             if (!d) return null;
             const isPathLink = selectedId != null && ancestors.has(link.toId);
             // Mismo criterio que en los nodos: una rama que terminó en nada
