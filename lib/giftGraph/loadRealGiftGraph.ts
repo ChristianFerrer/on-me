@@ -45,7 +45,7 @@ export async function loadRealGiftGraph(shopId: string, establishmentName: strin
   const customerIds = customerRows.map((c) => c.id);
 
   const { data: passes, error: passErr } = customerIds.length
-    ? await db().from("passes").select("customer_id, stamps, updated_at").in("customer_id", customerIds)
+    ? await db().from("passes").select("customer_id, stamps, cards_completed, updated_at").in("customer_id", customerIds)
     : { data: [], error: null };
   assertNoQueryError(passErr, `passes.customer_id in shop=${shopId}`);
 
@@ -79,6 +79,7 @@ export async function loadRealGiftGraph(shopId: string, establishmentName: strin
       const attr = attrByAhijado.get(id);
       const pass = passByCustomer.get(id);
       const stamps = pass?.stamps ?? 0;
+      const cardsCompleted = pass?.cards_completed ?? 0;
       const inv = invByChildId.get(id);
 
       let state: NodeState;
@@ -112,6 +113,7 @@ export async function loadRealGiftGraph(shopId: string, establishmentName: strin
         rootId,
         state,
         stamps,
+        cardsCompleted,
         redeemedAt,
         returnedAt,
         lastActivityAt,
@@ -138,6 +140,7 @@ export async function loadRealGiftGraph(shopId: string, establishmentName: strin
       rootId,
       state,
       stamps: 0,
+      cardsCompleted: 0,
       redeemedAt: null,
       returnedAt: null,
       lastActivityAt: inv.opened_at ?? inv.sent_at ?? inv.created_at,

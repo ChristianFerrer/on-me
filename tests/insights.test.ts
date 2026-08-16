@@ -50,6 +50,7 @@ describe("bestPadrinoId", () => {
       rootId: id,
       state,
       stamps: 0,
+      cardsCompleted: 0,
       redeemedAt: null,
       returnedAt: null,
       lastActivityAt: new Date(NOW).toISOString(),

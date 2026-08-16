@@ -13,6 +13,7 @@ function node(id: string, depth: number, rootId: string, childCount = 0, loadedC
     rootId,
     state: "billable" as const,
     stamps: 3,
+    cardsCompleted: 0,
     redeemedAt: "2025-01-01T00:00:00.000Z",
     returnedAt: "2025-01-01T00:00:00.000Z",
     lastActivityAt: "2025-01-01T00:00:00.000Z",

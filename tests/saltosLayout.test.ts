@@ -13,6 +13,7 @@ function node(id: string, invited = 0): Node {
     rootId: id,
     state: "billable",
     stamps: 0,
+    cardsCompleted: 0,
     redeemedAt: null,
     returnedAt: null,
     lastActivityAt: new Date(0).toISOString(),

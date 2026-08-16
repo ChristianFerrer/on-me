@@ -16,8 +16,10 @@ import type { Edge, GiftGraph, Node, NodeState } from "@/lib/giftGraph/types";
 type TreeSpec = {
   name: string;
   state: NodeState;
-  /** Cafés consumidos. Solo tiene sentido si ya es cliente (no sent/opened/expired). */
+  /** Cafés consumidos en la tarjeta actual. Solo tiene sentido si ya es cliente (no sent/opened/expired). */
   stamps?: number;
+  /** Tarjetas completadas antes de la actual, para el total histórico de cafés. */
+  cardsCompleted?: number;
   /** Hace cuántos días fue la última actividad conocida. */
   lastActivityDaysAgo: number;
   /** Solo para sent/opened: dentro de cuántas horas caduca la invitación. */
@@ -36,6 +38,10 @@ const CHAINS: TreeSpec[] = [
     name: "Chris",
     state: "billable",
     stamps: 8,
+    // Cliente de toda la vida: ya completó dos tarjetas antes de esta -el
+    // total histórico (2*10+8=28) tiene que notarse distinto de los 8 de
+    // la tarjeta en curso.
+    cardsCompleted: 2,
     lastActivityDaysAgo: 1,
     children: [
       {
@@ -209,6 +215,7 @@ const CHAINS: TreeSpec[] = [
     name: "Toni",
     state: "billable",
     stamps: 10,
+    cardsCompleted: 1,
     lastActivityDaysAgo: 2,
     children: [
       { name: "Eva", state: "opened", lastActivityDaysAgo: 5, expiresInHours: 400 },
@@ -287,6 +294,7 @@ function buildGraph(): GiftGraph {
       // todavía no tiene identidad.
       claimed: true,
       stamps: customer ? (spec.stamps ?? 0) : 0,
+      cardsCompleted: customer ? (spec.cardsCompleted ?? 0) : 0,
       redeemedAt: hasRedeemed(spec.state) ? lastActivityAt : null,
       returnedAt: hasReturned(spec.state) ? lastActivityAt : null,
       lastActivityAt,

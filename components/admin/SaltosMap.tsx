@@ -358,6 +358,10 @@ export function SaltosMap({
   const layout = useMemo(() => layoutSaltos(graph.nodes, graph.edges, graph.establishment.id), [graph]);
   const byId = useMemo(() => new Map(graph.nodes.map((n) => [n.id, n])), [graph.nodes]);
   const parentOf = useMemo(() => new Map(graph.edges.map((e) => [e.to, e.from])), [graph.edges]);
+  // giftedAt del propio enlace entrante: cuándo se envió la invitación que trajo
+  // a ese nodo -no lastActivityAt, que para un cliente real es su última visita,
+  // no la fecha de envío-.
+  const sentAtById = useMemo(() => new Map(graph.edges.map((e) => [e.to, e.giftedAt])), [graph.edges]);
   const bestPadrino = useMemo(() => bestPadrinoId(graph.nodes, graph.edges), [graph.nodes, graph.edges]);
 
   const positions = useMemo(() => {
@@ -1185,6 +1189,7 @@ export function SaltosMap({
         node={selectedNode}
         giftedByName={giftedByName}
         invitedCount={selectedNode?.childCount ?? 0}
+        sentAt={selectedNode ? (sentAtById.get(selectedNode.id) ?? null) : null}
         color={selectedNode ? safeLineColor(selectedNode) : "var(--color-slate)"}
         stampsGoal={stampsGoal}
         returnWindowDays={returnWindowDays}

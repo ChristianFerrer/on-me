@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { StampCard } from "@/components/ui/StampCard";
 import { cn } from "@/lib/cn";
 import { fill, formatDateTime, type Dict, type Locale } from "@/lib/i18n";
 import type { Node } from "@/lib/giftGraph/types";
@@ -9,18 +10,19 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 
 /**
  * Ficha propia de la constelación de saltos -no la del universo 3D-: la
- * especificación pide una rejilla 2x2 (enviada/canjeado/salto/invitados) y
- * una barra de progreso de la tarjeta que la ficha compartida no tiene.
- * Se mantiene montada siempre -solo se traslada fuera de pantalla al
- * cerrar- para poder animar la salida igual que la entrada; el último nodo
- * mostrado se recuerda en estado -no en un ref, que no se puede leer
- * durante el render- para que el contenido no parpadee a vacío durante
- * esa transición.
+ * especificación pide una línea de invitación, canjeado/consumos/ventana y
+ * la propia tarjeta de sellos -en vez de una barra de progreso genérica-,
+ * que la ficha compartida no tiene. Se mantiene montada siempre -solo se
+ * traslada fuera de pantalla al cerrar- para poder animar la salida igual
+ * que la entrada; el último nodo mostrado se recuerda en estado -no en un
+ * ref, que no se puede leer durante el render- para que el contenido no
+ * parpadee a vacío durante esa transición.
  */
 export function SaltosSheet({
   node,
   giftedByName,
   invitedCount,
+  sentAt,
   color,
   stampsGoal,
   returnWindowDays,
@@ -32,6 +34,8 @@ export function SaltosSheet({
   node: Node | null;
   giftedByName: string;
   invitedCount: number;
+  /** Cuándo se le envió la invitación que trajo a este nodo -viene del propio enlace del grafo, no del nodo-. null en clientes directos, que no vinieron de ninguna invitación. */
+  sentAt: string | null;
   color: string;
   stampsGoal: number;
   returnWindowDays: number;
@@ -40,21 +44,23 @@ export function SaltosSheet({
   t: Dict;
   onClose: () => void;
 }) {
-  const initialSnapshot = node ? { node, giftedByName, invitedCount, color } : null;
+  const initialSnapshot = node ? { node, giftedByName, invitedCount, sentAt, color } : null;
   const [snapshot, setSnapshot] = useState(initialSnapshot);
   useEffect(() => {
     // Diferido a un microtask -como el flag `mounted` de SaltosMap-: evita
     // el aviso de "cascading renders" sin retrasar visualmente el cambio,
     // porque los microtasks corren antes de que el navegador pinte el frame.
-    if (node) queueMicrotask(() => setSnapshot({ node, giftedByName, invitedCount, color }));
-  }, [node, giftedByName, invitedCount, color]);
+    if (node) queueMicrotask(() => setSnapshot({ node, giftedByName, invitedCount, sentAt, color }));
+  }, [node, giftedByName, invitedCount, sentAt, color]);
 
   const open = node != null;
   if (!snapshot) return null;
 
   const shown = snapshot.node;
   const isPending = !shown.claimed;
-  const progress = stampsGoal > 0 ? Math.min(1, Math.max(0, shown.stamps / stampsGoal)) : 0;
+  // Histórico real, no solo la tarjeta en curso: tarjetas completadas antes
+  // de esta -a stampsGoal cada una- más los sellos que lleva ahora mismo.
+  const totalConsumed = shown.cardsCompleted * stampsGoal + shown.stamps;
 
   const daysSinceLastVisit = Math.max(0, Math.floor((nowMs - new Date(shown.lastActivityAt).getTime()) / DAY_MS));
   const lastVisitText =
@@ -64,20 +70,30 @@ export function SaltosSheet({
         ? t.admin.saltosDaysAgoOne
         : fill(t.admin.saltosDaysAgoMany, { n: daysSinceLastVisit });
 
-  // La cuenta atrás solo tiene sentido mientras la ventana sigue abierta -"window"-:
-  // en cualquier otro estado (nuevo verificado, descartada...) ya se resolvió.
-  const windowDaysLeft =
-    shown.state === "window" && shown.redeemedAt
-      ? Math.max(0, returnWindowDays - Math.floor((nowMs - new Date(shown.redeemedAt).getTime()) / DAY_MS))
-      : null;
-  const windowText =
-    windowDaysLeft == null
-      ? "—"
-      : windowDaysLeft === 0
-        ? t.admin.saltosWindowClosed
-        : windowDaysLeft === 1
-          ? t.admin.saltosWindowDaysLeftOne
-          : fill(t.admin.saltosWindowDaysLeftMany, { n: windowDaysLeft });
+  // La cuenta atrás de la ventana solo tiene sentido mientras el cliente
+  // TODAVÍA no es nuevo verificado -sigue en "window", esperando su
+  // segunda compra-: una vez lo es, esa cuenta atrás ya no cuenta nada, así
+  // que el mismo hueco pasa a enseñar hace cuánto fue su última visita.
+  const isWaitingOnWindow = shown.state === "window" && shown.redeemedAt != null;
+  const windowDaysLeft = isWaitingOnWindow
+    ? Math.max(0, returnWindowDays - Math.floor((nowMs - new Date(shown.redeemedAt as string).getTime()) / DAY_MS))
+    : null;
+  const windowOrLastVisitLabel = isWaitingOnWindow ? t.admin.saltosWindowLabel : t.admin.saltosLastVisitLabel;
+  const windowOrLastVisitValue = !isWaitingOnWindow
+    ? lastVisitText
+    : windowDaysLeft === 0
+      ? t.admin.saltosWindowClosed
+      : windowDaysLeft === 1
+        ? t.admin.saltosWindowDaysLeftOne
+        : fill(t.admin.saltosWindowDaysLeftMany, { n: windowDaysLeft as number });
+
+  // Enviada + invitados en una sola frase legible, no dos celdas sueltas sin
+  // contexto: un cliente directo (alta por QR) nunca recibió invitación, así
+  // que para ellos solo tiene sentido la parte de a cuántos han invitado.
+  const sentInvitedLine =
+    snapshot.sentAt && shown.state !== "direct"
+      ? fill(t.admin.saltosSentInvitedLine, { date: formatDateTime(snapshot.sentAt, locale), n: snapshot.invitedCount })
+      : fill(t.admin.saltosInvitedOnlyLine, { n: snapshot.invitedCount });
 
   return (
     <div
@@ -110,50 +126,31 @@ export function SaltosSheet({
           </span>
         </div>
 
-        <dl className="numeral mt-4 grid grid-cols-2 gap-3 text-[0.6875rem]">
-          <div>
-            <dt className="text-chalk/34">{t.admin.saltosSentAt}</dt>
-            <dd className="mt-0.5 text-[0.9375rem] font-semibold text-chalk/90">{formatDateTime(shown.lastActivityAt, locale)}</dd>
-          </div>
-          <div>
-            <dt className="text-chalk/34">{t.admin.attrRedeemed}</dt>
-            <dd className="mt-0.5 text-[0.9375rem] font-semibold text-chalk/90">
-              {shown.redeemedAt ? formatDateTime(shown.redeemedAt, locale) : "—"}
-            </dd>
-          </div>
-          <div>
-            <dt className="text-chalk/34">{t.admin.saltosHopFieldLabel}</dt>
-            <dd className="mt-0.5 text-[0.9375rem] font-semibold text-chalk/90">{shown.depth}</dd>
-          </div>
-          <div>
-            <dt className="text-chalk/34">{t.admin.saltosInvitedLabel}</dt>
-            <dd className="mt-0.5 text-[0.9375rem] font-semibold text-chalk/90">{snapshot.invitedCount}</dd>
-          </div>
-        </dl>
+        <p className="mt-4 text-[0.8125rem] leading-snug text-chalk/75">{sentInvitedLine}</p>
 
         {isPending ? null : (
           <dl className="numeral mt-3 grid grid-cols-3 gap-3 text-[0.6875rem]">
+            <div>
+              <dt className="text-chalk/34">{t.admin.attrRedeemed}</dt>
+              <dd className="mt-0.5 text-[0.9375rem] font-semibold text-chalk/90">
+                {shown.redeemedAt ? formatDateTime(shown.redeemedAt, locale) : "—"}
+              </dd>
+            </div>
             <div>
               <dt className="text-chalk/34">{t.admin.saltosConsumptionsLabel}</dt>
               <dd className="mt-0.5 text-[0.9375rem] font-semibold text-chalk/90">{shown.stamps}</dd>
             </div>
             <div>
-              <dt className="text-chalk/34">{t.admin.saltosLastVisitLabel}</dt>
-              <dd className="mt-0.5 text-[0.9375rem] font-semibold text-chalk/90">{lastVisitText}</dd>
-            </div>
-            <div>
-              <dt className="text-chalk/34">{t.admin.saltosWindowLabel}</dt>
-              <dd className="mt-0.5 text-[0.9375rem] font-semibold text-chalk/90">{windowText}</dd>
+              <dt className="text-chalk/34">{windowOrLastVisitLabel}</dt>
+              <dd className="mt-0.5 text-[0.9375rem] font-semibold text-chalk/90">{windowOrLastVisitValue}</dd>
             </div>
           </dl>
         )}
 
         {isPending ? null : (
-          <div className="mt-4 h-[5px] w-full overflow-hidden rounded-full bg-white/9">
-            <div
-              className="h-full rounded-full bg-lime transition-[width] duration-[700ms] delay-[120ms] ease-[cubic-bezier(0.22,1,0.36,1)]"
-              style={{ width: `${progress * 100}%` }}
-            />
+          <div className="mt-4">
+            <StampCard stamps={shown.stamps} goal={stampsGoal} tone="dark" />
+            <p className="numeral mt-2 text-[0.6875rem] text-chalk/40">{fill(t.admin.saltosTotalConsumedLine, { n: totalConsumed })}</p>
           </div>
         )}
 

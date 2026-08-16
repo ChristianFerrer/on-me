@@ -48,8 +48,10 @@ export type Node = {
    * genérico. false solo para invitaciones sent/opened/expired sin claimed_by.
    */
   claimed: boolean;
-  /** Cafés consumidos hasta ahora. 0 si todavía no es cliente (sent/opened). */
+  /** Cafés consumidos en la tarjeta actual. 0 si todavía no es cliente (sent/opened). */
   stamps: number;
+  /** Tarjetas completadas antes de la actual -para el total histórico de cafés, no solo los de la tarjeta en curso-. 0 si todavía no es cliente. */
+  cardsCompleted: number;
   /** Cuándo canjeó su primer café. null si todavía no es cliente. */
   redeemedAt: string | null;
   /** Cuándo volvió a pagar dentro de la ventana de atribución. null si no ha vuelto. */
