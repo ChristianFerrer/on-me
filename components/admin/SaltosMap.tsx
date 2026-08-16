@@ -91,6 +91,22 @@ function linkWobblePhase(index: number): number {
 }
 
 /**
+ * La curva de arriba solo tenía tres puntos de verdad -los dos extremos y
+ * el abombamiento central-, así que por mucho que respirase se seguía
+ * viendo como un arco rígido. Aquí se muestrea esa misma curva en
+ * LINK_POINT_COUNT puntos y cada uno de los intermedios recibe su propio
+ * vaivén perpendicular, desfasado del siguiente por LINK_POINT_PHASE_STEP:
+ * el resultado es una ondulación que viaja a lo largo de la cuerda, como
+ * una cuerda floja sacudida de verdad, no solo dos extremos que se
+ * bambolean cada uno por su lado con un único bulto en medio. El vaivén se
+ * apaga con Math.sin(u * π) en ambos extremos para que la cuerda no se
+ * despegue nunca de los nodos que conecta.
+ */
+const LINK_POINT_COUNT = 16;
+const LINK_POINT_WOBBLE_AMPLITUDE = 0.05;
+const LINK_POINT_PHASE_STEP = 0.55;
+
+/**
  * Efecto "escena espacial": el fondo de estrellas se desplaza con la
  * inclinación del móvil -o con el cursor en escritorio, que no tiene
  * giroscopio- dando sensación de profundidad, como el fondo animado del
@@ -347,21 +363,6 @@ function linkBezier(
   return { p0, c1, c2, p1 };
 }
 
-function linkPath(
-  layout: SaltosLayout,
-  rotation: number,
-  nowMs: number,
-  fromId: string,
-  toId: string,
-  index = 0,
-  magnetFrom: Magnet = NO_MAGNET,
-  magnetTo: Magnet = NO_MAGNET,
-): string | null {
-  const b = linkBezier(layout, rotation, nowMs, fromId, toId, index, magnetFrom, magnetTo);
-  if (!b) return null;
-  return `M${b.p0.x.toFixed(2)},${b.p0.y.toFixed(2)} C${b.c1.x.toFixed(2)},${b.c1.y.toFixed(2)} ${b.c2.x.toFixed(2)},${b.c2.y.toFixed(2)} ${b.p1.x.toFixed(2)},${b.p1.y.toFixed(2)}`;
-}
-
 /** Punto sobre la curva en el parámetro t -no proporcional a longitud de arco, pero para un pulso pequeño sobre una curva corta la diferencia no se nota, y evita tocar el DOM. */
 function bezierPointAt(b: Bezier, t: number): XY {
   const mt = 1 - t;
@@ -373,6 +374,98 @@ function bezierPointAt(b: Bezier, t: number): XY {
     x: a * b.p0.x + bb * b.c1.x + c * b.c2.x + d * b.p1.x,
     y: a * b.p0.y + bb * b.c1.y + c * b.c2.y + d * b.p1.y,
   };
+}
+
+/**
+ * Los LINK_POINT_COUNT puntos de una cuerda: se muestrea la Bézier
+ * "espina" -linkBezier, que ya trae el abombamiento que respira- en
+ * pasos iguales, y a cada punto intermedio se le suma un vaivén propio,
+ * perpendicular a la línea recta entre extremos, desfasado punto a punto
+ * -LINK_POINT_PHASE_STEP- para que la ondulación viaje a lo largo de la
+ * cuerda en vez de moverse en bloque.
+ */
+function linkOrganicPoints(
+  layout: SaltosLayout,
+  rotation: number,
+  nowMs: number,
+  fromId: string,
+  toId: string,
+  index = 0,
+  magnetFrom: Magnet = NO_MAGNET,
+  magnetTo: Magnet = NO_MAGNET,
+): XY[] | null {
+  const spine = linkBezier(layout, rotation, nowMs, fromId, toId, index, magnetFrom, magnetTo);
+  if (!spine) return null;
+  const dx = spine.p1.x - spine.p0.x;
+  const dy = spine.p1.y - spine.p0.y;
+  const dist = Math.hypot(dx, dy) || 1;
+  const nx = -dy / dist;
+  const ny = dx / dist;
+  const t = nowMs / 1000;
+  const freq = linkWobbleFreq(index);
+  const phase = linkWobblePhase(index);
+  const points: XY[] = [];
+  for (let i = 0; i < LINK_POINT_COUNT; i++) {
+    const u = i / (LINK_POINT_COUNT - 1);
+    const base = bezierPointAt(spine, u);
+    const envelope = Math.sin(u * Math.PI);
+    const sway = dist * LINK_POINT_WOBBLE_AMPLITUDE * envelope * Math.sin(t * freq * 2.6 + phase + i * LINK_POINT_PHASE_STEP);
+    points.push({ x: base.x + nx * sway, y: base.y + ny * sway });
+  }
+  return points;
+}
+
+/** Puntos de control de un tramo Catmull-Rom -tensión estándar 1/6-: a diferencia de una Bézier ajustada a ojo, el trazo pasa exactamente por cada punto de la cuerda, no solo cerca. */
+function catmullRomControlPoints(p0: XY, p1: XY, p2: XY, p3: XY): { c1: XY; c2: XY } {
+  return {
+    c1: { x: p1.x + (p2.x - p0.x) / 6, y: p1.y + (p2.y - p0.y) / 6 },
+    c2: { x: p2.x - (p3.x - p1.x) / 6, y: p2.y - (p3.y - p1.y) / 6 },
+  };
+}
+
+function catmullRomPath(points: XY[]): string {
+  if (points.length === 0) return "";
+  const last = points.length - 1;
+  let d = `M${points[0].x.toFixed(2)},${points[0].y.toFixed(2)}`;
+  for (let i = 0; i < last; i++) {
+    const p0 = points[Math.max(0, i - 1)];
+    const p1 = points[i];
+    const p2 = points[i + 1];
+    const p3 = points[Math.min(last, i + 2)];
+    const { c1, c2 } = catmullRomControlPoints(p0, p1, p2, p3);
+    d += ` C${c1.x.toFixed(2)},${c1.y.toFixed(2)} ${c2.x.toFixed(2)},${c2.y.toFixed(2)} ${p2.x.toFixed(2)},${p2.y.toFixed(2)}`;
+  }
+  return d;
+}
+
+/** Mismo criterio que bezierPointAt -evitar el DOM para el pulso viajero-, pero sobre el tramo Catmull-Rom que le toca a `t`. */
+function catmullRomPointAt(points: XY[], t: number): XY {
+  const segments = points.length - 1;
+  if (segments <= 0) return points[0];
+  const scaled = clamp(t, 0, 1) * segments;
+  const i = Math.min(Math.floor(scaled), segments - 1);
+  const localT = scaled - i;
+  const p0 = points[Math.max(0, i - 1)];
+  const p1 = points[i];
+  const p2 = points[i + 1];
+  const p3 = points[Math.min(segments, i + 2)];
+  const { c1, c2 } = catmullRomControlPoints(p0, p1, p2, p3);
+  return bezierPointAt({ p0: p1, c1, c2, p1: p2 }, localT);
+}
+
+function linkPath(
+  layout: SaltosLayout,
+  rotation: number,
+  nowMs: number,
+  fromId: string,
+  toId: string,
+  index = 0,
+  magnetFrom: Magnet = NO_MAGNET,
+  magnetTo: Magnet = NO_MAGNET,
+): string | null {
+  const points = linkOrganicPoints(layout, rotation, nowMs, fromId, toId, index, magnetFrom, magnetTo);
+  if (!points) return null;
+  return catmullRomPath(points);
 }
 
 function arcPath(a0: number, a1: number, r: number): string {
@@ -759,24 +852,28 @@ export function SaltosMap({
         el.setAttribute("transform", `translate(${x.toFixed(2)},${y.toFixed(2)})`);
       }
 
+      // Los puntos de cada cuerda se calculan una sola vez por fotograma y se
+      // reutilizan para el pulso viajero de más abajo -si no, cada pulso
+      // recalcularía su propia cuerda por separado y podría, por redondeo,
+      // acabar viajando sobre un trazo ligeramente distinto al que se ve.
+      const organicPointsByKey = new Map<string, XY[]>();
       for (const link of layout.links) {
         const key = `${link.fromId}>${link.toId}`;
-        const pathEl = linkRefs.current.get(key);
-        if (!pathEl) continue;
         const index = linkIndexOf.get(key) ?? 0;
-        const d = linkPath(layout, rotation, now, link.fromId, link.toId, index, magnetFor(link.fromId), magnetFor(link.toId));
-        if (d) pathEl.setAttribute("d", d);
+        const points = linkOrganicPoints(layout, rotation, now, link.fromId, link.toId, index, magnetFor(link.fromId), magnetFor(link.toId));
+        if (!points) continue;
+        organicPointsByKey.set(key, points);
+        const pathEl = linkRefs.current.get(key);
+        if (pathEl) pathEl.setAttribute("d", catmullRomPath(points));
       }
 
       pulseT = (pulseT + PULSE_STEP) % 1;
       const pulseOpacity = Math.sin(pulseT * Math.PI) * 0.85;
       for (const [key, groupEl] of pulseDotRefs.current) {
         if (!groupEl) continue;
-        const [fromId, toId] = key.split(">");
-        const index = linkIndexOf.get(key) ?? 0;
-        const bezier = linkBezier(layout, rotation, now, fromId, toId, index, magnetFor(fromId), magnetFor(toId));
-        if (!bezier) continue;
-        const point = bezierPointAt(bezier, pulseT);
+        const points = organicPointsByKey.get(key);
+        if (!points) continue;
+        const point = catmullRomPointAt(points, pulseT);
         groupEl.setAttribute("transform", `translate(${point.x.toFixed(2)},${point.y.toFixed(2)})`);
         groupEl.setAttribute("opacity", pulseOpacity.toFixed(3));
       }
