@@ -62,6 +62,13 @@ const STAR_CORE_MIN_R = 3;
 function starCoreRadius(displayRadius: number): number {
   return Math.max(displayRadius * STAR_CORE_SCALE, STAR_CORE_MIN_R);
 }
+/** Margen del círculo invisible de toque alrededor del núcleo real -no de displayRadius, que crece con la magnitud y ya va topado aparte-, con un mínimo para que una estrella tenue siga siendo fácil de tocar y un máximo para que una grande -justo las que quedan más pegadas al anillo de categorías, en el borde exterior de su profundidad- no le robe el toque al anillo. */
+const STAR_TOUCH_PADDING = 6;
+const STAR_TOUCH_MIN_R = 12;
+const STAR_TOUCH_MAX_R = 16;
+function starTouchRadius(starCoreR: number): number {
+  return Math.min(Math.max(starCoreR + STAR_TOUCH_PADDING, STAR_TOUCH_MIN_R), STAR_TOUCH_MAX_R);
+}
 /** Avance por frame del punto que recorre las cadenas con canje reciente, su radio y el de su halo resplandeciente. */
 const PULSE_STEP = 0.0035;
 const PULSE_DOT_R = 0.95;
@@ -1704,7 +1711,7 @@ export function ConstelacionSolMap({
                   <circle className={isWindow ? "constelacion-window-blink" : undefined} style={windowBlinkStyle} r={starCoreR} fill={color} />
                   <circle r={starCoreR} fill="none" stroke={CONSTELACION_STROKE_COLOR[node.state]} strokeWidth={isMuted ? 0.7 : 0.4} />
                 </g>
-                <circle r={Math.max(displayRadius + 7, 12)} fill="transparent" />
+                <circle r={starTouchRadius(starCoreR)} fill="transparent" />
 
                 {node.claimed ? (
                   <text
