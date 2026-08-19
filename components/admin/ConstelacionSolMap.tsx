@@ -84,7 +84,9 @@ const RECENT_REDEMPTION_MS = 30 * DAY_MS;
  * imitar la física.
  */
 const STAR_MAGNITUDE_CARD_THRESHOLDS = [0, 1, 2, 4, 7];
-const STAR_MAGNITUDE_SIZE_MULTIPLIER = [0.82, 1, 1.22, 1.48, 1.8];
+/** Cuadriplicado a petición: las esferas se veían demasiado pequeñas, sobre todo en móvil. */
+const STAR_SIZE_MULTIPLIER = 4;
+const STAR_MAGNITUDE_SIZE_MULTIPLIER = [0.82, 1, 1.22, 1.48, 1.8].map((m) => m * STAR_SIZE_MULTIPLIER);
 const STAR_MAGNITUDE_RADIUS_OFFSET = [0, 4, 9, 15, 24];
 /** A más magnitud, el nombre se enseña ya a menos zoom -en una carta real solo las estrellas brillantes se etiquetan a simple vista, las tenues piden acercarse-. */
 const STAR_MAGNITUDE_LABEL_SCALE = [LABEL_VISIBLE_SCALE, LABEL_VISIBLE_SCALE, 1.3, 1.15, 1.0];
