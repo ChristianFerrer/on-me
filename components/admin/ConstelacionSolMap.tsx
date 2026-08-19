@@ -641,8 +641,8 @@ function CountUpStat({ value, label, active, delayMs = 0 }: { value: number; lab
 
   return (
     <div className="flex items-baseline justify-end gap-1.5">
-      <span className="numeral text-[1.0625rem] font-medium tracking-tight">{active ? shown : value}</span>
-      <span className="text-[0.5625rem] lowercase text-chalk/40">{label}</span>
+      <span className="numeral text-[1.375rem] font-bold tracking-tight">{active ? shown : value}</span>
+      <span className="text-[0.6875rem] lowercase text-chalk/45">{label}</span>
     </div>
   );
 }
@@ -798,15 +798,12 @@ export function ConstelacionSolMap({
   const customerCount = useMemo(() => graph.nodes.filter((n) => n.claimed).length, [graph.nodes]);
 
   // Encuadre automático: el viewBox es el borde más lejano de todos
-  // -frameRadius- más un margen fijo. Un viewBox cuadrado con "xMidYMid
-  // meet" ya reparte eso solo en cualquier proporción de pantalla, así que
-  // no hace falta recalcular en el resize: es una propiedad de cómo SVG
-  // escala un viewBox, no algo que dependa de los píxeles reales del
-  // contenedor -ni tampoco de la rotación de fondo, que gira dentro de ese
-  // margen sin llegar nunca a asomar fuera de él.
+  // -frameRadius- más un margen fijo, en vertical -`half`/`size` de
+  // siempre-. El ancho real -`halfW`, más abajo, junto a `svgRef`- se
+  // estira aparte para igualar la proporción del propio lienzo en
+  // monitores anchos, en vez de quedarse en el cuadrado de siempre.
   const half = frameRadius + VIEWBOX_PADDING;
   const size = half * 2;
-  const stars = useMemo(() => starfield(half), [half]);
 
   const [pan, setPan] = useState<Pan>({ x: 0, y: 0, scale: 1 });
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -917,6 +914,38 @@ export function ConstelacionSolMap({
   }, [selectedNode, parentOf, byId, graph.establishment]);
 
   const svgRef = useRef<SVGSVGElement>(null);
+
+  // Un viewBox cuadrado con "xMidYMid meet" sobre un monitor ancho de
+  // escritorio deja franjas vacías a los lados en vez de aprovechar el
+  // sitio -"se ve muy chico"-, así que el ancho se estira aparte para
+  // igualar la proporción real del propio lienzo, medida con
+  // ResizeObserver sobre el propio <svg>. En móvil/tablet -aspectRatio <= 1-
+  // `halfW` coincide con `half`: el recuadro sigue siendo el cuadrado de
+  // siempre, sin ningún cambio -por eso `size`/`half` sin más se pueden
+  // seguir usando tal cual en viewPoint/deltaToView más abajo, que ya
+  // asumían el lado corto del contenedor, y ese lado corto sigue siendo
+  // vertical -`half`- tanto en cuadrado como en el rectángulo ancho.
+  const [aspectRatio, setAspectRatio] = useState(1);
+  useEffect(() => {
+    const el = svgRef.current;
+    if (!el) return;
+    const update = () => {
+      const rect = el.getBoundingClientRect();
+      if (rect.height > 0) setAspectRatio(rect.width / rect.height);
+    };
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+  const halfW = half * Math.max(aspectRatio, 1);
+  // El campo de estrellas se reparte en círculo hasta `vb*1.05`: con el
+  // recuadro ya no cuadrado, ese círculo tiene que cubrir hasta la esquina
+  // más lejana -la diagonal, no el lado corto- para no dejar huecos sin
+  // estrellas en los bordes izquierdo/derecho de un monitor ancho.
+  const starRadius = Math.hypot(halfW, half);
+  const stars = useMemo(() => starfield(starRadius), [starRadius]);
+
   const pointers = useRef(new Map<number, PointerState>());
   const dragOrigin = useRef<{ pan: Pan; mid: PointerState; dist: number } | null>(null);
   const tapCandidate = useRef<{ pointerId: number; nodeId: string | null; arcState: NodeState | null; down: PointerPoint } | null>(null);
@@ -1322,7 +1351,7 @@ export function ConstelacionSolMap({
   }
 
   return (
-    <div className="fixed inset-0 aurora-night text-chalk">
+    <div className="fixed inset-0 aurora-night text-chalk transition-[left] duration-200 ease-[var(--ease-out-soft)] lg:left-[var(--admin-sidebar-width,16rem)]">
       {/* Capa de grano: sin ella el degradado nocturno se bandea en pantallas OLED. */}
       <svg className="pointer-events-none fixed inset-0 z-10 h-full w-full opacity-[0.15]" aria-hidden="true">
         <filter id="constelacion-grain">
@@ -1377,7 +1406,7 @@ export function ConstelacionSolMap({
 
       <svg
         ref={svgRef}
-        viewBox={`${-half} ${-half} ${size} ${size}`}
+        viewBox={`${-halfW} ${-half} ${halfW * 2} ${size}`}
         preserveAspectRatio="xMidYMid meet"
         className="relative z-0 h-dvh w-full touch-none select-none"
         onPointerDown={onPointerDown}
@@ -1686,7 +1715,7 @@ export function ConstelacionSolMap({
       {/* z-30, por encima de la leyenda y la columna de iconos (z-20): en viewports
           bajos -móvil en horizontal- la leyenda puede crecer hasta solaparse con la
           cabecera, y el botón de volver tiene que seguir pudiéndose tocar. */}
-      <header className="pointer-events-none fixed inset-x-0 top-0 z-30 flex items-start justify-between gap-3 px-5 pt-[max(1rem,env(safe-area-inset-top))]">
+      <header className="pointer-events-none fixed inset-x-0 top-0 z-30 flex items-start justify-between gap-3 px-5 pt-[max(1rem,env(safe-area-inset-top))] transition-[padding-left] duration-200 ease-[var(--ease-out-soft)] lg:pl-[calc(var(--admin-sidebar-width,16rem)+1.25rem)]">
         {/* A diferencia de ConstelacionMap -la portada del panel-, esta es una
             vista de comparación que cuelga de ella, así que el botón de la
             esquina vuelve a ser "volver a /admin", no el HomeIcon -> /inicio. */}
@@ -1703,9 +1732,9 @@ export function ConstelacionSolMap({
           {/* El nombre del local, fuera del mapa -no escrito encima del sol, como
               en ConstelacionMap-: una placa fija en la esquina, tipo cartela de
               observatorio, ajena al SVG que se pellizca y arrastra. */}
-          <div className="pointer-events-none flex flex-col gap-0.5 pl-1">
-            <p className="text-[0.9375rem] font-semibold leading-tight text-chalk/90">{shopName}</p>
-            <p className="eyebrow text-chalk/40">
+          <div className="pointer-events-none flex flex-col gap-1 pl-1">
+            <p className="text-[1.375rem] font-extrabold leading-none tracking-[-0.01em] text-chalk lg:text-[1.625rem]">{shopName}</p>
+            <p className="eyebrow text-[0.75rem] text-chalk/45">
               {t.admin.referralMap} · {customerCount} {t.admin.constelacionCustomersLabel}
             </p>
           </div>
@@ -1714,7 +1743,7 @@ export function ConstelacionSolMap({
         {/* Misma caja que la leyenda -mismo glass-dark translúcido, mismo tamaño
             de letra-, y ocultable con su propio icono en la columna de la derecha. */}
         {hudVisible ? (
-          <div className="glass-dark pointer-events-none flex flex-col items-end gap-0.5 p-2.5" style={{ background: "rgba(10,14,13,0.32)" }}>
+          <div className="glass-dark pointer-events-none flex flex-col items-end gap-1 p-3.5" style={{ background: "rgba(10,14,13,0.32)" }}>
             <CountUpStat value={hud.sent} label={t.admin.sent} active={mounted} delayMs={0} />
             <CountUpStat value={hud.opened} label={t.admin.opened} active={mounted} delayMs={85} />
             <CountUpStat value={hud.redeemed} label={t.admin.redeemed} active={mounted} delayMs={170} />
