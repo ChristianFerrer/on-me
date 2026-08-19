@@ -50,9 +50,11 @@ const TAP_MAX_DURATION_MS = 400;
 /** Radianes por frame de la rotación de fondo, y cuánto tarda en reanudarse tras soltar. */
 const ROTATION_PER_FRAME = 0.00019;
 const ROTATION_RESUME_DELAY_MS = 2600;
-/** Amplitud del bamboleo de cada nodo: radial (unidades del viewBox) y angular (radianes) -globo de helio en un hilo flojo, no un radio de rueda rígido. */
-const WOBBLE_AMPLITUDE = 6.5;
-const WOBBLE_ANGULAR_AMPLITUDE = 0.075;
+/** Amplitud base del bamboleo de cada nodo: radial (unidades del viewBox) y angular (radianes) -globo de helio en un hilo flojo, no un radio de rueda rígido. Deliberadamente más baja que antes de pensarlo dos veces: es puro ruido decorativo -no cuenta nada del cliente-, así que no debe pesar más que el titileo o el parpadeo, que sí cuentan algo. Ver wobbleRestlessness más abajo -la excepción a "puro ruido"-. */
+const WOBBLE_AMPLITUDE = 4.5;
+const WOBBLE_ANGULAR_AMPLITUDE = 0.05;
+/** Cuánto más se bambolea, sobre la base, un cliente activo cerca de completar su tarjeta actual: inquietud visual como pista de "esto está a punto de moverse de estado" -a más sellos sobre la meta, más bambolea-, no puro decorado. Reutiliza una animación que ya existía para algo con sentido, en vez de sumar una nueva. */
+const WOBBLE_RESTLESS_BOOST = 1.8;
 /** Fracción de displayRadius que ocupa el núcleo sólido de cada estrella -el resto es puro halo, para que el brillo pese más que el propio cuerpo, como una estrella real. */
 const STAR_CORE_SCALE = 0.5;
 /** Tamaño mínimo del núcleo sólido, para que ni siquiera un prospecto de magnitud más baja -sent/opened/descartada, sin apenas consumo- se quede en un punto casi invisible: "cuadriplicar" tiene que notarse en todas, no solo en las de más magnitud. */
@@ -74,6 +76,13 @@ const PULSE_STEP = 0.0035;
 const PULSE_DOT_R = 0.95;
 const PULSE_GLOW_R = PULSE_DOT_R * 3.2;
 const DAY_MS = 24 * 60 * 60 * 1000;
+/** Cada cuánto se vuelve a pedir el grafo entero -esta es la vista pensada para quedarse encendida en el local todo el día, así que no puede quedarse con la foto de cuando se abrió la pestaña-. Ni tan rápido que sea un martilleo a la base de datos, ni tan lento que un sello recién puesto tarde minutos en notarse. */
+const LIVE_POLL_MS = 20_000;
+/** Un sello, un canje o un alta de verdad -no el paso del reloj- disparan un destello de una sola vez, no el aura constante de siempre: un brillo que sube y baja en FLASH_DURATION_MS sobre la propia estrella donde pasó -radio y color de la propia estrella, no genéricos- y otro, más discreto, sobre el sol, para que se note incluso sin mirar ninguna estrella en concreto. Desaparece solo, sin más estado que un ref por fotograma -mismo patrón que el pulso viajero de las cuerdas-. */
+const FLASH_DURATION_MS = 1800;
+const FLASH_MAX_OPACITY = 0.85;
+const SUN_FLASH_DURATION_MS = 2200;
+const SUN_FLASH_MAX_OPACITY = 0.4;
 /** Ventana de "canje reciente" para disparar el pulso: la misma que usa el negocio para el retorno. */
 const RECENT_REDEMPTION_MS = 30 * DAY_MS;
 
@@ -361,6 +370,13 @@ function wobblePhaseAngular(index: number): number {
   return index * 2.63;
 }
 
+/** Multiplicador de amplitud del bamboleo -radial y angular por igual-: 1 en reposo, hasta 1+WOBBLE_RESTLESS_BOOST para un cliente claimed, en estado con peso -no expirado/descartado-, con el consumo de su tarjeta actual cerca de la meta. Cuadrático, no lineal: a mitad de tarjeta apenas se nota más que en reposo, y la inquietud se concentra de verdad cerca del final, justo cuando el canje está a la vuelta de la esquina. */
+function wobbleRestlessness(node: Node | undefined, stampsGoal: number): number {
+  if (!node || !node.claimed || CONSTELACION_MUTED_STATES.has(node.state) || stampsGoal <= 0) return 1;
+  const progress = clamp(node.stamps / stampsGoal, 0, 1);
+  return 1 + progress * progress * WOBBLE_RESTLESS_BOOST;
+}
+
 /**
  * Titileo de cada estrella: una animación CSS pura -constelacion-star-twinkle,
  * ver el <style> más abajo- que cada punto arranca con su propia duración y
@@ -395,11 +411,12 @@ function nodeXY(point: { angle: number; ringRadius: number; depth: number }): XY
  * simple de la posición cartesiana, no polar -el objetivo ya no es "un
  * ángulo a tal radio" como con el anillo, es un punto fijo de la barra.
  */
-function animatedXY(point: ConstelacionPoint, rotation: number, nowMs: number, magnet: Magnet = NO_MAGNET): XY {
+function animatedXY(point: ConstelacionPoint, rotation: number, nowMs: number, magnet: Magnet = NO_MAGNET, restlessness = 1): XY {
   if (point.depth === 0) return { x: 0, y: 0 };
   const t = nowMs / 1000;
-  const radialWobble = Math.sin(t * wobbleFreq(point.index) + wobblePhase(point.index)) * WOBBLE_AMPLITUDE;
-  const angularWobble = Math.sin(t * wobbleFreqAngular(point.index) + wobblePhaseAngular(point.index)) * WOBBLE_ANGULAR_AMPLITUDE;
+  const radialWobble = Math.sin(t * wobbleFreq(point.index) + wobblePhase(point.index)) * WOBBLE_AMPLITUDE * restlessness;
+  const angularWobble =
+    Math.sin(t * wobbleFreqAngular(point.index) + wobblePhaseAngular(point.index)) * WOBBLE_ANGULAR_AMPLITUDE * restlessness;
   const naturalAngle = point.angle + rotation + angularWobble;
   const naturalR = point.ringRadius + radialWobble;
   const naturalX = naturalR * Math.cos(naturalAngle);
@@ -664,6 +681,68 @@ function CountUpStat({ value, label, active, delayMs = 0 }: { value: number; lab
 }
 
 /**
+ * Sondeo periódico (ver LIVE_POLL_MS): el grafo recién llegado sustituye al
+ * que ya había, pero conservando el orden de aparición de los nodos que ya
+ * existían -solo se añaden al final los de verdad nuevos-. `layoutConstelacion`
+ * asigna a cada nodo su índice según su posición en este array, y ese índice
+ * es la semilla del bamboleo y el titileo de cada estrella (wobbleFreq,
+ * twinkleDelayS...); sin este cuidado, un sondeo que llegara en un orden
+ * distinto -nada lo garantiza, la consulta no lleva ORDER BY- reordenaría el
+ * array y cada estrella "saltaría" a una fase de movimiento distinta cada
+ * vez, deshaciendo la sensación de continuidad que precisamente se busca en
+ * una pantalla pensada para quedarse encendida todo el día.
+ */
+function mergeGraphPreservingOrder(prev: GiftGraph, next: GiftGraph): GiftGraph {
+  const nextById = new Map(next.nodes.map((n) => [n.id, n]));
+  const seen = new Set<string>();
+  const merged: Node[] = [];
+  for (const n of prev.nodes) {
+    const fresh = nextById.get(n.id);
+    if (!fresh) continue; // se fue de verdad -no debería pasar hoy, no hay borrado-, no lo arrastramos
+    merged.push(fresh);
+    seen.add(n.id);
+  }
+  for (const n of next.nodes) if (!seen.has(n.id)) merged.push(n);
+  return { ...next, nodes: merged };
+}
+
+/** Un destello por nodo -id, intensidad 0..1- más, si hubo alguno, uno agregado para el sol. */
+type GraphActivity = { nodeFlashes: Map<string, number>; sunIntensity: number };
+
+/**
+ * Compara dos capturas del grafo -la de antes y la recién llegada- y decide
+ * dónde disparar un destello: un sello nuevo, un canje (cardsCompleted sube)
+ * o un alta que acaba de aparecer. No cualquier diferencia -un simple cambio
+ * de `lastActivityAt` sin que suba ni el sello ni el canje no cuenta como
+ * "pasó algo" a efectos de destello, aunque sí siga afectando al titileo por
+ * su cuenta-. Un canje pesa más que un sello suelto, y un sello más que un
+ * alta nueva -la intensidad del destello, no solo su presencia, cuenta algo-.
+ */
+function detectGraphActivity(prevNodes: Node[], nextNodes: Node[]): GraphActivity {
+  const prevById = new Map(prevNodes.map((n) => [n.id, n]));
+  const nodeFlashes = new Map<string, number>();
+  let sunIntensity = 0;
+  for (const node of nextNodes) {
+    const prev = prevById.get(node.id);
+    let intensity = 0;
+    if (!prev) {
+      if (node.claimed) intensity = 0.5; // alta -por invitación reclamada o directa- que no existía en la foto anterior
+    } else if (node.cardsCompleted > prev.cardsCompleted) {
+      intensity = 1; // canje de premio: el evento de más peso en la relación con el local
+    } else if (node.stamps > prev.stamps) {
+      intensity = 0.7; // un café más en la tarjeta actual
+    } else if (node.state !== prev.state && CONSTELACION_POSITIVE_STATES.has(node.state) && !CONSTELACION_POSITIVE_STATES.has(prev.state)) {
+      intensity = 0.6; // pasó a facturable/directo sin que fuera por un sello -p.ej. se resolvió su ventana
+    }
+    if (intensity > 0) {
+      nodeFlashes.set(node.id, intensity);
+      sunIntensity = Math.max(sunIntensity, intensity);
+    }
+  }
+  return { nodeFlashes, sunIntensity };
+}
+
+/**
  * Variante "cielo de verdad" de la constelación, pensada para comparar
  * lado a lado con ConstelacionMap: misma capa de datos, mismo layout
  * radial, mismo gesto de pan/zoom/imán -physically es el mismo mapa-, pero
@@ -677,7 +756,7 @@ function CountUpStat({ value, label, active, delayMs = 0 }: { value: number; lab
  * cuerdas orgánicas que se abomban y ondulan.
  */
 export function ConstelacionSolMap({
-  graph,
+  graph: initialGraph,
   shopName,
   stampsGoal,
   returnWindowDays,
@@ -692,6 +771,15 @@ export function ConstelacionSolMap({
   locale: Locale;
   t: Dict;
 }) {
+  // La página lo carga una vez en el servidor al entrar, pero esta es la
+  // vista pensada para quedarse encendida en el local todo el día -no una
+  // que se recarga-, así que a partir de aquí `graph` es estado local que
+  // el sondeo de más abajo (ver LIVE_POLL_MS) va refrescando solo, sin que
+  // nadie tenga que volver a abrir la pestaña para que un sello nuevo se
+  // note.
+  const [graph, setGraph] = useState(initialGraph);
+  const prevGraphRef = useRef(initialGraph);
+
   // El layout radial en sí -profundidad, ángulo- sigue siendo el mismo que
   // ConstelacionMap; applyStarMagnitude es la pasada propia de esta vista,
   // la que reescribe radio y tamaño según el consumo de cada estrella.
@@ -907,6 +995,69 @@ export function ConstelacionSolMap({
   useEffect(() => {
     nodeRadiusRef.current = nodeRadiusById;
   }, [nodeRadiusById]);
+  // Mismo patrón que nodeRadiusById -memo reactivo, espejado a un ref para
+  // que el bucle de rAF lea siempre el valor fresco sin tener que
+  // reiniciarse en cada render-: cuánto de más bambolea cada estrella,
+  // ver wobbleRestlessness.
+  const wobbleRestlessById = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const node of graph.nodes) map.set(node.id, wobbleRestlessness(node, stampsGoal));
+    return map;
+  }, [graph.nodes, stampsGoal]);
+  const wobbleRestlessRef = useRef(new Map<string, number>());
+  useEffect(() => {
+    wobbleRestlessRef.current = wobbleRestlessById;
+  }, [wobbleRestlessById]);
+
+  // Destellos de una sola vez -uno por estrella donde pasó algo, otro
+  // agregado sobre el sol-, ver detectGraphActivity: mismo patrón de ref
+  // sin estado de React que el resto del movimiento de esta vista, el
+  // bucle de rAF de más abajo los hace crecer y apagarse fotograma a
+  // fotograma sobre su propio elemento del DOM.
+  const nodeFlashRef = useRef(new Map<string, { start: number; intensity: number }>());
+  const sunFlashRef = useRef<{ start: number; intensity: number } | null>(null);
+  const flashGlowRefs = useRef(new Map<string, SVGCircleElement>());
+  const sunFlashElRef = useRef<SVGCircleElement | null>(null);
+
+  // Sondeo periódico del grafo entero (ver LIVE_POLL_MS): compara lo que
+  // acaba de llegar contra la última foto para decidir si algo merece un
+  // destello, y solo entonces sustituye el grafo -conservando el orden de
+  // aparición de los nodos que ya había, ver mergeGraphPreservingOrder-.
+  // Sin destellos si el usuario pidió menos movimiento: el dato en sí se
+  // sigue refrescando -las estrellas cambian de color/tamaño/estado igual-,
+  // solo se omite el brillo de "esto acaba de pasar".
+  useEffect(() => {
+    let cancelled = false;
+    async function poll() {
+      try {
+        const res = await fetch("/api/admin/constelacion", { cache: "no-store" });
+        if (!res.ok || cancelled) return;
+        const data = (await res.json()) as { graph?: GiftGraph };
+        if (cancelled || !data.graph) return;
+        const merged = mergeGraphPreservingOrder(prevGraphRef.current, data.graph);
+        const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+        if (!reduceMotion) {
+          const { nodeFlashes, sunIntensity } = detectGraphActivity(prevGraphRef.current.nodes, merged.nodes);
+          if (nodeFlashes.size > 0 || sunIntensity > 0) {
+            const start = performance.now();
+            for (const [id, intensity] of nodeFlashes) nodeFlashRef.current.set(id, { start, intensity });
+            if (sunIntensity > 0) sunFlashRef.current = { start, intensity: sunIntensity };
+          }
+        }
+        prevGraphRef.current = merged;
+        setGraph(merged);
+      } catch {
+        // Sondeo best-effort: sin conexión un fotograma, la vista se queda
+        // con los últimos datos que tenía en vez de romperse.
+      }
+    }
+    const id = window.setInterval(poll, LIVE_POLL_MS);
+    return () => {
+      cancelled = true;
+      window.clearInterval(id);
+    };
+  }, []);
+
   const [legendOpen, setLegendOpen] = useState(true);
   const [hudVisible, setHudVisible] = useState(true);
   /** Ajuste propio de esta vista -no existe en ConstelacionMap-: oculta los "rayos" -las líneas que van del sol a un cliente sin padrino, alta directa por QR-, que en un local con muchas suelen ser la mayoría del ruido visual alrededor del núcleo. Ocultos por defecto: el sol arranca "apagado", sin rayos, y el propio botón los enciende. */
@@ -1120,7 +1271,7 @@ export function ConstelacionSolMap({
         const magnet = magnetFor(point.id);
         if (magnet.value > COLLISION_MAGNET_THRESHOLD) magnetActive = true;
         nodeIds.push(point.id);
-        nodePositions.push(animatedXY(point, rotation, now, magnet));
+        nodePositions.push(animatedXY(point, rotation, now, magnet, wobbleRestlessRef.current.get(point.id) ?? 1));
         nodeRadii.push(nodeRadiusRef.current.get(point.id) ?? 4);
       }
       if (magnetActive) resolveCollisions(nodePositions, nodeRadii, COLLISION_ITERATIONS, COLLISION_PADDING);
@@ -1179,6 +1330,34 @@ export function ConstelacionSolMap({
       tilt.x += (target.x - tilt.x) * PARALLAX_EASE;
       tilt.y += (target.y - tilt.y) * PARALLAX_EASE;
       starGroupRef.current?.setAttribute("transform", `translate(${tilt.x.toFixed(2)},${tilt.y.toFixed(2)})`);
+
+      // Destellos de "esto acaba de pasar" (ver detectGraphActivity): suben
+      // y bajan en FLASH_DURATION_MS/SUN_FLASH_DURATION_MS con un
+      // desvanecido de salida, no lineal -se apagan más despacio de lo que
+      // suben, como cualquier resplandor real-, y se olvidan solos al
+      // llegar al final en vez de quedar un mapa creciendo sin límite.
+      for (const [id, flash] of nodeFlashRef.current) {
+        const el = flashGlowRefs.current.get(id);
+        const elapsed = now - flash.start;
+        if (elapsed >= FLASH_DURATION_MS) {
+          nodeFlashRef.current.delete(id);
+          el?.setAttribute("fill-opacity", "0");
+          continue;
+        }
+        const decay = Math.sin((1 - elapsed / FLASH_DURATION_MS) * (Math.PI / 2));
+        el?.setAttribute("fill-opacity", (flash.intensity * decay * FLASH_MAX_OPACITY).toFixed(3));
+      }
+      const sunFlash = sunFlashRef.current;
+      if (sunFlash) {
+        const elapsed = now - sunFlash.start;
+        if (elapsed >= SUN_FLASH_DURATION_MS) {
+          sunFlashRef.current = null;
+          sunFlashElRef.current?.setAttribute("fill-opacity", "0");
+        } else {
+          const decay = Math.sin((1 - elapsed / SUN_FLASH_DURATION_MS) * (Math.PI / 2));
+          sunFlashElRef.current?.setAttribute("fill-opacity", (sunFlash.intensity * decay * SUN_FLASH_MAX_OPACITY).toFixed(3));
+        }
+      }
     }
 
     raf = requestAnimationFrame(tick);
@@ -1614,6 +1793,11 @@ export function ConstelacionSolMap({
                 respecto a ConstelacionMap-: el núcleo es solo el sol, el nombre vive
                 fuera, en la esquina -ver la placa fija más abajo en el JSX. */}
             <circle cx={0} cy={0} r={ESTABLISHMENT_RADIUS} fill="url(#constelacion-sun-core)" />
+            {/* Destello de "algo acaba de pasar en el local" -sube y baja una sola vez,
+                ver detectGraphActivity y el paso de destellos en el bucle de rAF-, no la
+                respiración constante de las auras de arriba: opacidad en 0 aquí, el
+                propio bucle la sube cuando el sondeo detecta actividad real. */}
+            <circle ref={sunFlashElRef} cx={0} cy={0} r={ESTABLISHMENT_RADIUS * 5} fill="url(#constelacion-glow)" fillOpacity={0} style={{ color: "var(--color-lime)" }} />
           </g>
 
           {graph.nodes.map((node) => {
@@ -1699,6 +1883,21 @@ export function ConstelacionSolMap({
                   r={displayRadius * haloScale}
                   fill="url(#constelacion-glow)"
                   fillOpacity={haloFillOpacity}
+                  style={{ color }}
+                />
+                {/* Destello de "esto acaba de pasar aquí" -sello, canje o alta nueva
+                    detectados por el sondeo, ver detectGraphActivity-: sube y baja una
+                    sola vez, no en bucle como el resto de esta lista. Opacidad en 0 en
+                    el marcado, el bucle de rAF la mueve fotograma a fotograma sobre su
+                    propio elemento -mismo patrón que el pulso viajero de las cuerdas. */}
+                <circle
+                  ref={(el) => {
+                    if (el) flashGlowRefs.current.set(node.id, el);
+                    else flashGlowRefs.current.delete(node.id);
+                  }}
+                  r={displayRadius * 2.4}
+                  fill="url(#constelacion-glow)"
+                  fillOpacity={0}
                   style={{ color }}
                 />
                 {/* El titileo y el parpadeo de "en ventana" son dos animaciones de
