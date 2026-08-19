@@ -54,7 +54,14 @@ const ROTATION_RESUME_DELAY_MS = 2600;
 const WOBBLE_AMPLITUDE = 6.5;
 const WOBBLE_ANGULAR_AMPLITUDE = 0.075;
 /** Fracción de displayRadius que ocupa el núcleo sólido de cada estrella -el resto es puro halo, para que el brillo pese más que el propio cuerpo, como una estrella real. */
-const STAR_CORE_SCALE = 0.42;
+const STAR_CORE_SCALE = 0.5;
+/** Tamaño mínimo del núcleo sólido, para que ni siquiera un prospecto de magnitud más baja -sent/opened/descartada, sin apenas consumo- se quede en un punto casi invisible: "cuadriplicar" tiene que notarse en todas, no solo en las de más magnitud. */
+const STAR_CORE_MIN_R = 3;
+
+/** El propio núcleo sólido -lo único que de verdad se pinta como círculo lleno, el halo es puro brillo difuso alrededor-: la misma fórmula la usa tanto el radio con el que se recortan las cuerdas y se separan las esferas por imán (nodeRadiusById) como el que de verdad se dibuja en el JSX, para que ninguno de los dos se desincronice del otro -si no, la cuerda se corta donde ya no hay esfera que tocar-. */
+function starCoreRadius(displayRadius: number): number {
+  return Math.max(displayRadius * STAR_CORE_SCALE, STAR_CORE_MIN_R);
+}
 /** Avance por frame del punto que recorre las cadenas con canje reciente, su radio y el de su halo resplandeciente. */
 const PULSE_STEP = 0.0035;
 const PULSE_DOT_R = 0.95;
@@ -869,11 +876,14 @@ export function ConstelacionSolMap({
     categoryMemberRankRef.current = categoryMemberRank;
   }, [categoryMemberRank]);
 
-  // El radio visible de cada esfera -mismo cálculo que displayRadius más
-  // abajo en el JSX, "en ventana" incluido-, para que la pasada de
-  // separación del imán (bucle de rAF) sepa cuánto hueco necesita cada
-  // nodo sin duplicar esa cuenta ni desincronizarse de lo que de verdad
-  // se pinta.
+  // El radio visible de cada esfera -el núcleo sólido de verdad, no el halo
+  // que lo rodea; mismo cálculo que starCoreR más abajo en el JSX, "en
+  // ventana" incluido-, para que la pasada de separación del imán (bucle
+  // de rAF) y el recorte de las cuerdas (linkPath) sepan exactamente hasta
+  // dónde llega la esfera pintada, sin duplicar esa cuenta ni
+  // desincronizarse de lo que de verdad se pinta -antes usaba el radio
+  // completo de "magnitud" (displayRadius, mayor que el propio núcleo), así
+  // que la cuerda se cortaba antes de llegar a tocar la esfera-.
   const nodeRadiusById = useMemo(() => {
     const map = new Map<string, number>();
     for (const node of graph.nodes) {
@@ -881,7 +891,8 @@ export function ConstelacionSolMap({
       if (!pt) continue;
       const isWindow = node.state === "window" && node.redeemedAt != null;
       const daysElapsed = isWindow ? Math.max(0, (nowMs - new Date(node.redeemedAt as string).getTime()) / DAY_MS) : 0;
-      map.set(node.id, pt.nodeRadius * (isWindow ? windowSizeMultiplier(daysElapsed) : 1));
+      const displayRadius = pt.nodeRadius * (isWindow ? windowSizeMultiplier(daysElapsed) : 1);
+      map.set(node.id, starCoreRadius(displayRadius));
     }
     return map;
   }, [graph.nodes, layout, nowMs]);
@@ -1648,7 +1659,7 @@ export function ConstelacionSolMap({
             // más, justo el aspecto "brillo dominante, cuerpo casi invisible" de una
             // estrella real-. El resto de la geometría -halo, parpadeo, blanco de
             // toque- sigue midiéndose sobre displayRadius para no desincronizarse.
-            const starCoreR = Math.max(displayRadius * STAR_CORE_SCALE, 0.7);
+            const starCoreR = starCoreRadius(displayRadius);
             const windowBlinkStyle = isWindow
               ? { animationDuration: `${windowBlinkDurationS(returnWindowDays - daysElapsed, returnWindowDays).toFixed(2)}s` }
               : undefined;
