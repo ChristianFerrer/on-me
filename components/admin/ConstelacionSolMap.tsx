@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowLeftIcon, ChevronDownIcon, CompassIcon, EyeIcon, EyeOffIcon, InfoIcon, PulseIcon, SettingsIcon } from "@/components/ui/Icons";
+import { ArrowLeftIcon, ChevronDownIcon, CompassIcon, EyeIcon, EyeOffIcon, InfoIcon, PulseIcon, SettingsIcon, SparkleIcon } from "@/components/ui/Icons";
 import { BottomNav } from "@/components/admin/BottomNav";
 import { ConstelacionSheet } from "@/components/admin/ConstelacionSheet";
 import { cn } from "@/lib/cn";
@@ -11,6 +11,8 @@ import { type Pan, panBy, pixelsToUnits, zoomAtPoint } from "@/lib/panZoom";
 import { ESTABLISHMENT_RADIUS, layoutConstelacion, CONSTELACION_PHASE_SIZE, type ConstelacionLayout, type ConstelacionPoint } from "@/lib/giftGraph/constelacionLayout";
 import { stateBadgeLabel } from "@/lib/giftGraph/stateBadge";
 import { isTap, type PointerPoint } from "@/lib/giftGraph/tapGesture";
+import { liveEventMessage, type LiveEventKind } from "@/lib/giftGraph/liveEvents";
+import { simulateGraphStep } from "@/lib/giftGraph/simulateActivity";
 import type { GiftGraph, Node, NodeState } from "@/lib/giftGraph/types";
 import type { Dict, Locale } from "@/lib/i18n";
 
@@ -87,6 +89,19 @@ const SUN_FLASH_DURATION_MS = 2200;
 const SUN_FLASH_MAX_OPACITY = 0.4;
 /** Ventana de "canje reciente" para disparar el pulso: la misma que usa el negocio para el retorno. */
 const RECENT_REDEMPTION_MS = 30 * DAY_MS;
+
+/**
+ * Feed de "Action" -burbuja arriba en móvil, panel tipo chat a la izquierda
+ * en escritorio, ver liveEvents.ts para el vocabulario compartido-: cuántos
+ * sucesos recientes se guardan como máximo -más que eso y es scroll sin fin
+ * que nadie va a leer entero, no un chat en vivo-, cuánto dura la burbuja
+ * antes de desvanecerse sola, y cada cuánto el modo simulación fabrica un
+ * suceso nuevo -ni tan rápido que sea ilegible, ni tan lento que parezca
+ * que no está pasando nada.
+ */
+const LIVE_EVENTS_MAX = 40;
+const TOAST_DURATION_MS = 4200;
+const SIMULATION_STEP_MS = 2600;
 
 /**
  * "Magnitud" de cada estrella -tamaño, distancia al núcleo, grosor de su
@@ -709,8 +724,10 @@ function mergeGraphPreservingOrder(prev: GiftGraph, next: GiftGraph): GiftGraph 
   return { ...next, nodes: merged };
 }
 
-/** Un destello por nodo -id, intensidad 0..1- más, si hubo alguno, uno agregado para el sol. */
-type GraphActivity = { nodeFlashes: Map<string, number>; sunIntensity: number };
+/** Lo mismo que dispara un destello, pero con el vocabulario del feed de actividad -ver liveEvents.ts-, para anunciarlo también ahí. */
+type DetectedLiveEvent = { kind: LiveEventKind; name: string };
+/** Un destello por nodo -id, intensidad 0..1- más, si hubo alguno, uno agregado para el sol; y los mismos sucesos, ya etiquetados, para el feed. */
+type GraphActivity = { nodeFlashes: Map<string, number>; sunIntensity: number; events: DetectedLiveEvent[] };
 
 /**
  * Compara dos capturas del grafo -la de antes y la recién llegada- y decide
@@ -720,29 +737,46 @@ type GraphActivity = { nodeFlashes: Map<string, number>; sunIntensity: number };
  * "pasó algo" a efectos de destello, aunque sí siga afectando al titileo por
  * su cuenta-. Un canje pesa más que un sello suelto, y un sello más que un
  * alta nueva -la intensidad del destello, no solo su presencia, cuenta algo-.
+ *
+ * Solo 4 de los 8 sucesos del vocabulario compartido (ver liveEvents.ts) se
+ * anuncian aquí en el feed -new_direct, stamp, redeemed, returned-: son los
+ * únicos que este sondeo puede distinguir de verdad comparando dos fotos del
+ * grafo. Una alta nueva que llegó reclamada por invitación, no por QR
+ * directo, sigue disparando su destello -intensity 0.5- pero sin anuncio en
+ * el feed: no hay en el vocabulario un suceso "cliente nuevo por invitación"
+ * propio, y etiquetarlo como new_direct sería decir algo que no pasó.
  */
 function detectGraphActivity(prevNodes: Node[], nextNodes: Node[]): GraphActivity {
   const prevById = new Map(prevNodes.map((n) => [n.id, n]));
   const nodeFlashes = new Map<string, number>();
+  const events: DetectedLiveEvent[] = [];
   let sunIntensity = 0;
   for (const node of nextNodes) {
     const prev = prevById.get(node.id);
     let intensity = 0;
+    let kind: LiveEventKind | null = null;
     if (!prev) {
-      if (node.claimed) intensity = 0.5; // alta -por invitación reclamada o directa- que no existía en la foto anterior
+      if (node.claimed) {
+        intensity = 0.5; // alta -por invitación reclamada o directa- que no existía en la foto anterior
+        if (node.state === "direct") kind = "new_direct";
+      }
     } else if (node.cardsCompleted > prev.cardsCompleted) {
       intensity = 1; // canje de premio: el evento de más peso en la relación con el local
+      kind = "redeemed";
     } else if (node.stamps > prev.stamps) {
       intensity = 0.7; // un café más en la tarjeta actual
+      kind = "stamp";
     } else if (node.state !== prev.state && CONSTELACION_POSITIVE_STATES.has(node.state) && !CONSTELACION_POSITIVE_STATES.has(prev.state)) {
       intensity = 0.6; // pasó a facturable/directo sin que fuera por un sello -p.ej. se resolvió su ventana
+      kind = "returned";
     }
     if (intensity > 0) {
       nodeFlashes.set(node.id, intensity);
       sunIntensity = Math.max(sunIntensity, intensity);
+      if (kind) events.push({ kind, name: node.name });
     }
   }
-  return { nodeFlashes, sunIntensity };
+  return { nodeFlashes, sunIntensity, events };
 }
 
 /** Margen fijo alrededor de la caja que encierra toda la cadena tocada, en unidades del viewBox -mismo espíritu que VIEWBOX_PADDING, pero propio de este encuadre-. */
@@ -1092,30 +1126,83 @@ export function ConstelacionSolMap({
   const flashGlowRefs = useRef(new Map<string, SVGCircleElement>());
   const sunFlashElRef = useRef<SVGCircleElement | null>(null);
 
+  /**
+   * Feed de "Action": la misma lista de sucesos alimenta la burbuja móvil y
+   * el panel tipo chat de escritorio -ver el JSX más abajo-, así que basta
+   * un único estado. `toastEvent` es el último suceso -el que enseña la
+   * burbuja, que se desvanece sola pasado TOAST_DURATION_MS-; `liveEvents`
+   * es el historial completo, topado a LIVE_EVENTS_MAX, más reciente al
+   * final -como cualquier chat en vivo, se lee de arriba hacia abajo y el
+   * nuevo mensaje entra por abajo-. El mensaje ya traducido no se guarda en
+   * el propio suceso -solo kind/name-, así que si el idioma cambiara a
+   * media sesión el historial entero seguiría leyéndose en el idioma
+   * correcto en vez de quedarse congelado en el de cuando pasó.
+   */
+  type LiveActivityEvent = { id: string; kind: LiveEventKind; name: string; ts: number };
+  const [liveEvents, setLiveEvents] = useState<LiveActivityEvent[]>([]);
+  const [toastEvent, setToastEvent] = useState<LiveActivityEvent | null>(null);
+  const liveEventIdRef = useRef(0);
+  function pushLiveEvent(kind: LiveEventKind, name: string) {
+    liveEventIdRef.current += 1;
+    const entry: LiveActivityEvent = { id: `evt:${Date.now()}:${liveEventIdRef.current}`, kind, name, ts: Date.now() };
+    setLiveEvents((prev) => [...prev, entry].slice(-LIVE_EVENTS_MAX));
+    setToastEvent(entry);
+  }
+  useEffect(() => {
+    if (!toastEvent) return;
+    const timeout = window.setTimeout(() => setToastEvent((cur) => (cur?.id === toastEvent.id ? null : cur)), TOAST_DURATION_MS);
+    return () => window.clearTimeout(timeout);
+  }, [toastEvent]);
+  /** Auto-scroll del panel de escritorio -mismo gesto que cualquier chat en vivo-: cada suceso nuevo entra por abajo, la vista sigue pegada al fondo sola. */
+  const liveFeedScrollRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = liveFeedScrollRef.current;
+    if (!el) return;
+    el.scrollTop = el.scrollHeight;
+  }, [liveEvents]);
+
+  /**
+   * Modo simulación: fabrica actividad de mentira -ver simulateActivity.ts-
+   * para poder ver el universo "vivo" -destellos, HUD, el propio feed- sin
+   * esperar a que pasen cosas de verdad. Espejado a un ref -mismo patrón
+   * que selectedIdRef- porque el sondeo real, más abajo, vive en un efecto
+   * con dependencias vacías y necesita saber si está encendido sin volver a
+   * montarse en cada cambio.
+   */
+  const [simulating, setSimulating] = useState(false);
+  const simulatingRef = useRef(false);
+  useEffect(() => {
+    simulatingRef.current = simulating;
+  }, [simulating]);
+
   // Sondeo periódico del grafo entero (ver LIVE_POLL_MS): compara lo que
   // acaba de llegar contra la última foto para decidir si algo merece un
   // destello, y solo entonces sustituye el grafo -conservando el orden de
   // aparición de los nodos que ya había, ver mergeGraphPreservingOrder-.
   // Sin destellos si el usuario pidió menos movimiento: el dato en sí se
   // sigue refrescando -las estrellas cambian de color/tamaño/estado igual-,
-  // solo se omite el brillo de "esto acaba de pasar".
+  // solo se omite el brillo de "esto acaba de pasar". Se salta entero
+  // mientras el modo simulación está encendido -el sondeo real pisaría la
+  // actividad fabricada en cuanto llegara, deshaciendo la demo a medias-.
   useEffect(() => {
     let cancelled = false;
     async function poll() {
+      if (simulatingRef.current) return;
       try {
         const res = await fetch("/api/admin/constelacion", { cache: "no-store" });
-        if (!res.ok || cancelled) return;
+        if (!res.ok || cancelled || simulatingRef.current) return;
         const data = (await res.json()) as { graph?: GiftGraph };
         if (cancelled || !data.graph) return;
         const merged = mergeGraphPreservingOrder(prevGraphRef.current, data.graph);
         const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
         if (!reduceMotion) {
-          const { nodeFlashes, sunIntensity } = detectGraphActivity(prevGraphRef.current.nodes, merged.nodes);
+          const { nodeFlashes, sunIntensity, events } = detectGraphActivity(prevGraphRef.current.nodes, merged.nodes);
           if (nodeFlashes.size > 0 || sunIntensity > 0) {
             const start = performance.now();
             for (const [id, intensity] of nodeFlashes) nodeFlashRef.current.set(id, { start, intensity });
             if (sunIntensity > 0) sunFlashRef.current = { start, intensity: sunIntensity };
           }
+          for (const event of events) pushLiveEvent(event.kind, event.name);
         }
         prevGraphRef.current = merged;
         setGraph(merged);
@@ -1129,7 +1216,59 @@ export function ConstelacionSolMap({
       cancelled = true;
       window.clearInterval(id);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // El propio paso de simulación: un cambio de mentira cada SIMULATION_STEP_MS
+  // mientras `simulating` está encendido, con el mismo tratamiento que un
+  // suceso real -destello más anuncio en el feed-, para que la demo se vea
+  // exactamente igual que la actividad de verdad, no como una vista aparte.
+  // El primer paso se dispara al momento de encender -no solo tras el primer
+  // intervalo-, para que la demo se note nada más tocar el botón.
+  useEffect(() => {
+    if (!simulating) return;
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    function step() {
+      const result = simulateGraphStep(prevGraphRef.current, stampsGoal);
+      if (!result) return;
+      if (!reduceMotion) {
+        const start = performance.now();
+        const intensity =
+          result.event.kind === "redeemed" ? 1 : result.event.kind === "stamp" ? 0.7 : result.event.kind === "returned" ? 0.6 : 0.5;
+        nodeFlashRef.current.set(result.event.nodeId, { start, intensity });
+        sunFlashRef.current = { start, intensity };
+      }
+      pushLiveEvent(result.event.kind, result.event.name);
+      prevGraphRef.current = result.graph;
+      setGraph(result.graph);
+    }
+    step();
+    const id = window.setInterval(step, SIMULATION_STEP_MS);
+    return () => window.clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [simulating, stampsGoal]);
+
+  // Al apagar la simulación, no esperar hasta LIVE_POLL_MS para que el
+  // sondeo real vuelva a tomar el mando: se pide el grafo de verdad al
+  // momento, sin destellos ni anuncio en el feed -es solo resincronizar la
+  // foto de referencia con lo real, no un suceso que contar-, así la
+  // siguiente comparación real (ver el efecto de sondeo, arriba) parte de
+  // los datos de verdad y no de los últimos inventados por la demo.
+  const wasSimulatingRef = useRef(false);
+  useEffect(() => {
+    if (wasSimulatingRef.current && !simulating) {
+      fetch("/api/admin/constelacion", { cache: "no-store" })
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data: { graph?: GiftGraph } | null) => {
+          if (!data?.graph) return;
+          const merged = mergeGraphPreservingOrder(prevGraphRef.current, data.graph);
+          prevGraphRef.current = merged;
+          setGraph(merged);
+        })
+        .catch(() => {});
+    }
+    wasSimulatingRef.current = simulating;
+  }, [simulating]);
 
   // Apagadas por defecto -a petición-: la leyenda y el HUD tapan mapa útil
   // nada más entrar, así que arrancan cerradas y es el propio botón el que
@@ -2267,6 +2406,32 @@ export function ConstelacionSolMap({
         ) : null}
       </header>
 
+      {/* Burbuja de "Action" en móvil/tablet -ver liveEvents.ts para el
+          vocabulario y pushLiveEvent más arriba para quién la dispara-: el
+          mismo suceso que alimenta el panel de escritorio (más abajo, en la
+          columna izquierda), aquí como un aviso pasajero en la parte
+          superior de la pantalla en vez de un historial permanente -en una
+          pantalla tan chica un chat entero no cabría sin tapar el mapa-.
+          Debajo de la fila de la cabecera -no encima-, con su propio offset
+          fijo: la cabecera es de alto constante, no medido, así que no hace
+          falta un ResizeObserver como el de la ficha. Oculta en escritorio
+          -lg:hidden-, ahí ya está el panel de al lado. */}
+      <div
+        className="pointer-events-none fixed inset-x-0 z-40 flex justify-center px-5 lg:hidden"
+        style={{ top: "calc(max(1rem,env(safe-area-inset-top)) + 3.5rem)" }}
+      >
+        <div
+          className="glass-dark max-w-[min(22rem,calc(100vw-2.5rem))] px-4 py-2.5 text-center text-[0.75rem] leading-snug text-chalk transition-[transform,opacity] duration-300 ease-[var(--ease-out-soft)]"
+          style={{
+            background: "rgba(10,14,13,0.6)",
+            transform: toastEvent ? "translateY(0)" : "translateY(-14px)",
+            opacity: toastEvent ? 1 : 0,
+          }}
+        >
+          {toastEvent ? liveEventMessage(toastEvent.kind, toastEvent.name, t) : ""}
+        </div>
+      </div>
+
       {/* La leyenda vive en el lateral izquierdo, suelta de la columna de
           iconos -que se queda a la derecha, junto al resto de controles-:
           son contenedores fixed independientes, no un único bloque
@@ -2274,8 +2439,36 @@ export function ConstelacionSolMap({
           efecto imán- vive dentro del SVG de arriba, no aquí: pertenece
           al mundo que se pellizca y arrastra, no a este overlay fijo. */}
       <div
-        className="pointer-events-none fixed inset-y-0 left-3 z-20 flex flex-col justify-end pt-[max(1.25rem,env(safe-area-inset-bottom))] pb-[calc(3.375rem+env(safe-area-inset-bottom)+1.25rem)] transition-[left] duration-200 ease-[var(--ease-out-soft)] lg:left-[calc(var(--admin-sidebar-width,16rem)+0.75rem)] lg:pb-[max(1.25rem,env(safe-area-inset-bottom))]"
+        className="pointer-events-none fixed inset-y-0 left-3 z-20 flex flex-col justify-end pt-[max(1.25rem,env(safe-area-inset-top))] pb-[calc(3.375rem+env(safe-area-inset-bottom)+1.25rem)] transition-[left] duration-200 ease-[var(--ease-out-soft)] lg:left-[calc(var(--admin-sidebar-width,16rem)+0.75rem)] lg:pb-[max(1.25rem,env(safe-area-inset-bottom))]"
       >
+        {/* Panel de escritorio -"como si fuera un chat en vivo"-: mismos
+            sucesos que la burbuja de arriba, pero como historial que se
+            queda, no un aviso que se desvanece. Solo `lg:`, y solo entonces
+            participa del layout -`hidden` en el resto de anchos no le resta
+            ni un píxel a la leyenda/ficha que le siguen debajo-. `flex-1
+            min-h-0` dentro de esta misma columna -ya `justify-end`- para que
+            crezca ocupando justo el hueco libre por encima de la
+            leyenda/ficha, nunca empujándolas ni desbordando la pantalla por
+            arriba. */}
+        <div className="hidden min-h-0 lg:flex lg:flex-1 lg:flex-col">
+          <div
+            className="glass-dark pointer-events-auto flex min-h-0 flex-1 flex-col p-3"
+            style={{ background: "rgba(10,14,13,0.32)" }}
+          >
+            <p className="eyebrow shrink-0 text-chalk/40">{t.admin.constelacionActionFeedTitle}</p>
+            <div ref={liveFeedScrollRef} className="mt-2 flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto pr-1">
+              {liveEvents.length === 0 ? (
+                <p className="text-[0.6875rem] text-chalk/35">{t.admin.constelacionActionFeedEmpty}</p>
+              ) : (
+                liveEvents.map((event) => (
+                  <p key={event.id} className="text-[0.6875rem] leading-snug text-chalk/70">
+                    {liveEventMessage(event.kind, event.name, t)}
+                  </p>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
         <div
           className="glass-dark pointer-events-auto max-w-[min(15rem,calc(100vw-6rem))] p-3 transition-transform duration-300 ease-[var(--ease-out-soft)] sm:max-w-[16rem] sm:p-3.5"
           style={{
@@ -2352,7 +2545,7 @@ export function ConstelacionSolMap({
           esta columna: los botones se quedan visibles y usables aunque haya
           un nodo seleccionado. */}
       <div
-        className="pointer-events-none fixed inset-y-0 right-3 z-20 flex flex-col items-center justify-end gap-2 pt-[max(1.25rem,env(safe-area-inset-bottom))] pb-[calc(3.375rem+env(safe-area-inset-bottom)+1.25rem)] lg:pb-[max(1.25rem,env(safe-area-inset-bottom))]"
+        className="pointer-events-none fixed inset-y-0 right-3 z-20 flex flex-col items-end justify-end gap-2 pt-[max(1.25rem,env(safe-area-inset-top))] pb-[calc(3.375rem+env(safe-area-inset-bottom)+1.25rem)] lg:pb-[max(1.25rem,env(safe-area-inset-bottom))]"
       >
         <div className="pointer-events-none flex flex-col items-end gap-2">
           {/* Número y descripción de la categoría del anillo tocada, con el
@@ -2369,13 +2562,24 @@ export function ConstelacionSolMap({
                 background: "rgba(10,14,13,0.32)",
               }}
             >
-              <p className="numeral text-[1.5rem] font-extrabold leading-none" style={{ color: CONSTELACION_ACCENT_COLOR[lastCategory] }}>
+              <p className="numeral text-[1.5rem] font-extrabold leading-none sm:text-[1.75rem]" style={{ color: CONSTELACION_ACCENT_COLOR[lastCategory] }}>
                 {funnelCounts.get(lastCategory) ?? 0}
               </p>
-              <p className="mt-1 text-[0.6875rem] leading-snug text-chalk/70">{stateBadgeLabel(lastCategory, t)}</p>
+              <p className="mt-1 text-[0.6875rem] leading-snug text-chalk/70 sm:text-[0.75rem]">{stateBadgeLabel(lastCategory, t)}</p>
             </div>
           ) : null}
         </div>
+        {/* `items-end` en el contenedor (arriba), no `items-center`: antes, en
+            cuanto se tocaba alguna vez una sección del anillo, la burbuja de
+            categoría -que se queda montada para siempre, solo se desliza
+            fuera con translateX, ver más arriba- ensanchaba este contenedor
+            de ajuste-a-contenido (fixed, solo `right-3`, sin `left`) y
+            `items-center` recentraba el botón de desplegar en medio de ese
+            hueco más ancho -un salto visible hacia la izquierda que parecía
+            venir de abrir/cerrar los controles, pero en realidad venía de
+            haber tocado el anillo antes-. Con `items-end` cada hijo se pega
+            siempre al borde derecho real, sin que el ancho del hermano lo
+            mueva. */}
         <div className="pointer-events-auto flex flex-col items-center gap-2">
           {/* Los cinco botones de siempre, ahora plegados detrás de un único
               interruptor -ver más abajo-: de entrada solo hay un botón a la
@@ -2433,6 +2637,21 @@ export function ConstelacionSolMap({
                 >
                   <SettingsIcon className="size-5" />
                 </button>
+                {/* Modo simulación -ver simulateGraphStep/simulateActivity.ts-:
+                    fabrica actividad de mentira cada SIMULATION_STEP_MS para ver
+                    el universo "vivo" sin esperar a que pasen cosas de verdad. En
+                    lima mientras está encendido, igual que el resto de
+                    interruptores de esta columna. */}
+                <button
+                  type="button"
+                  onClick={() => setSimulating((v) => !v)}
+                  aria-pressed={simulating}
+                  aria-label={t.admin.constelacionSimulateToggle}
+                  title={t.admin.constelacionSimulateToggle}
+                  className={cn("btn size-11", simulating ? "bg-lime text-ink" : "glass-dark text-chalk")}
+                >
+                  <SparkleIcon className="size-5" />
+                </button>
                 {/* Como en ConstelacionMap: esta vista tampoco lleva su propia barra
                     inferior -es igualmente "una exploración a pantalla completa, no
                     una tarjeta más"-, así que este icono sigue siendo el camino
@@ -2456,7 +2675,7 @@ export function ConstelacionSolMap({
       </div>
 
       <footer
-        className="pointer-events-none fixed inset-x-0 bottom-0 z-20 flex flex-col items-center gap-3 px-5 pb-[calc(3.375rem+env(safe-area-inset-bottom)+1.25rem)] transition-[padding-left] duration-200 ease-[var(--ease-out-soft)] lg:pb-[max(1.25rem,env(safe-area-inset-bottom))] lg:pl-[var(--admin-sidebar-width,16rem)]"
+        className="pointer-events-none fixed inset-x-0 bottom-0 z-20 flex flex-col items-center gap-3 px-5 pb-[calc(3.375rem+env(safe-area-inset-bottom)+1.25rem)] transition-[padding-left] duration-200 ease-[var(--ease-out-soft)] lg:pb-[max(1.25rem,env(safe-area-inset-bottom))] lg:pl-[calc(var(--admin-sidebar-width,16rem)+1.25rem)]"
       >
         {!selectedNode && !touched ? (
           <p className="text-[0.65625rem] text-chalk/32 transition-opacity duration-300">
