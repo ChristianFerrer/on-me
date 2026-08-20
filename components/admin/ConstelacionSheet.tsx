@@ -210,7 +210,7 @@ export function ConstelacionSheet({
             </div>
             <div>
               <dt className="text-chalk/34">{t.admin.constelacionConsumptionsLabel}</dt>
-              <dd className={cn("mt-0.5 font-semibold text-chalk/90", compact ? "text-[0.75rem]" : "text-[0.9375rem]")}>{shown.stamps}</dd>
+              <dd className={cn("mt-0.5 font-semibold text-chalk/90", compact ? "text-[0.75rem]" : "text-[0.9375rem]")}>{totalConsumed}</dd>
             </div>
             <div>
               <dt className="text-chalk/34">{windowOrLastVisitLabel}</dt>
@@ -223,7 +223,7 @@ export function ConstelacionSheet({
           <div className={compact ? "mt-2" : "mt-3"}>
             <StampCard stamps={shown.stamps} goal={stampsGoal} tone="dark" />
             <p className={cn("numeral mt-1.5 text-chalk/40", compact ? "text-[0.5625rem]" : "text-[0.6875rem]")}>
-              {fill(t.admin.constelacionTotalConsumedLine, { n: totalConsumed })}
+              {fill(t.admin.constelacionCardsCompletedLine, { n: shown.cardsCompleted })}
             </p>
           </div>
         )}
