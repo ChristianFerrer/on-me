@@ -63,7 +63,13 @@ export function simulateGraphStep(graph: GiftGraph, stampsGoal: number): { graph
   // pares padrino/ahijado, un alta directa nunca pasa por ahí.
   const stampable = graph.nodes.filter((n) => n.claimed && (n.state === "direct" || n.state === "billable" || n.state === "claimed"));
   const windowNodes = graph.nodes.filter((n) => n.claimed && n.state === "window");
-  const referrers = graph.nodes.filter((n) => n.claimed);
+  // Mismo cupo que el negocio real -ver pendingGrants en lib/card.ts-: una
+  // invitación de derecho por cada tarjeta completada, y ese cupo se
+  // acumula pero no se regala de más -childCount cuenta TODAS las que ya
+  // mandó, estén como estén-. Sin este filtro la simulación podía hacer que
+  // alguien enviara su 3ª invitación con solo 2 tarjetas completadas, algo
+  // que en el negocio real no puede pasar.
+  const referrers = graph.nodes.filter((n) => n.claimed && n.childCount < n.cardsCompleted);
 
   /** Completa una tarjeta sobre `target`: solo "claimed" entra en ventana de retorno -ver el comentario de `stampable` arriba-, "direct"/"billable" se quedan en su propio estado para siempre, solo crecen en sellos/tarjetas. */
   function redeemCard(target: Node): Node {
@@ -86,7 +92,7 @@ export function simulateGraphStep(graph: GiftGraph, stampsGoal: number): { graph
   // filter ya no encajaba con Scenario[].
   const allScenarios: Scenario[] = [
     { kind: "new_direct", weight: 2 },
-    { kind: "new_invite", weight: 2 },
+    { kind: "new_invite", weight: referrers.length > 0 ? 2 : 0 },
     { kind: "invite_opened", weight: pendingSent.length > 0 ? 2 : 0 },
     { kind: "invite_expiring", weight: pendingAny.length > 0 ? 1 : 0 },
     { kind: "invite_expired", weight: pendingAny.length > 0 ? 1 : 0 },
@@ -142,14 +148,19 @@ export function simulateGraphStep(graph: GiftGraph, stampsGoal: number): { graph
       return { graph: { ...graph, nodes, edges, roots }, event: { kind: "new_direct", nodeId: id, name, state: node.state } };
     }
     case "new_invite": {
-      const parent = pick(referrers) ?? null;
-      const parentId = parent?.id ?? graph.establishment.id;
+      // Siempre desde un cliente de verdad con cupo -nunca desde el
+      // establecimiento-: una invitación enviada solo puede salir de
+      // alguien que ya completó una tarjeta, ver `referrers` arriba. Si no
+      // hay ninguno con cupo, este suceso ni se elige -el peso ya está a 0-,
+      // así que esta guarda es solo una red de seguridad.
+      const parent = pick(referrers);
+      if (!parent) return null;
       const id = nextSimId();
       const node: Node = {
         id,
         name: "",
-        depth: parent ? parent.depth + 1 : 1,
-        rootId: parent ? parent.rootId : id,
+        depth: parent.depth + 1,
+        rootId: parent.rootId,
         state: "sent",
         claimed: false,
         stamps: 0,
@@ -162,11 +173,9 @@ export function simulateGraphStep(graph: GiftGraph, stampsGoal: number): { graph
         loadedChildCount: 0,
       };
       nodes.push(node);
-      edges.push({ from: parentId, to: id, giftedAt: now });
-      if (parent) {
-        replaceNode({ ...parent, childCount: parent.childCount + 1, loadedChildCount: parent.loadedChildCount + 1 });
-      }
-      return { graph: { ...graph, nodes, edges }, event: { kind: "new_invite", nodeId: id, name: parent?.name ?? "", state: node.state } };
+      edges.push({ from: parent.id, to: id, giftedAt: now });
+      replaceNode({ ...parent, childCount: parent.childCount + 1, loadedChildCount: parent.loadedChildCount + 1 });
+      return { graph: { ...graph, nodes, edges }, event: { kind: "new_invite", nodeId: id, name: parent.name, state: node.state } };
     }
     case "invite_opened": {
       const target = pick(pendingSent);
