@@ -55,6 +55,8 @@ const WOBBLE_AMPLITUDE = 4.5;
 const WOBBLE_ANGULAR_AMPLITUDE = 0.05;
 /** Cuánto más se bambolea, sobre la base, un cliente activo cerca de completar su tarjeta actual: inquietud visual como pista de "esto está a punto de moverse de estado" -a más sellos sobre la meta, más bambolea-, no puro decorado. Reutiliza una animación que ya existía para algo con sentido, en vez de sumar una nueva. */
 const WOBBLE_RESTLESS_BOOST = 1.8;
+/** Con una cadena tocada -zoom cerrado, muchas esferas cerca unas de otras- el propio bamboleo dificulta tocar la esfera vecina que se quiere ver a continuación: el reloj que alimenta el vaivén avanza a este ritmo, no al real, mientras haya algo seleccionado -1 = normal, más bajo = más lento, nunca 0: sigue siendo un gráfico vivo, solo menos inquieto-. */
+const WOBBLE_FOCUS_SPEED = 0.2;
 /** Fracción de displayRadius que ocupa el núcleo sólido de cada estrella -el resto es puro halo, para que el brillo pese más que el propio cuerpo, como una estrella real. */
 const STAR_CORE_SCALE = 0.5;
 /** Tamaño mínimo del núcleo sólido, para que ni siquiera un prospecto de magnitud más baja -sent/opened/descartada, sin apenas consumo- se quede en un punto casi invisible: "cuadriplicar" tiene que notarse en todas, no solo en las de más magnitud. */
@@ -747,7 +749,8 @@ const CHAIN_ZOOM_PADDING = 50;
 
 /**
  * Encuadre automático de toda una cadena -las esferas que devuelve
- * `ancestors`, del nodo tocado hasta el sol- dentro del viewBox: la misma
+ * `chainMembers`, la constelación entera del nodo tocado, root y
+ * descendientes de cualquier profundidad- dentro del viewBox: la misma
  * caja que ya usa el auto-fit inicial de la vista entera, aquí sobre un
  * puñado de puntos en vez de todos. Topado a `maxScale` para que una
  * cadena de dos esferas casi pegadas no acabe llenando la pantalla entera
@@ -942,6 +945,13 @@ export function ConstelacionSolMap({
 
   const [pan, setPan] = useState<Pan>({ x: 0, y: 0, scale: 1 });
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  // Mismo patrón que selectedCategoryRef, justo abajo: el bucle de rAF
+  // necesita saber si hay una esfera tocada -para relentizar el bamboleo,
+  // ver WOBBLE_FOCUS_SPEED- sin volver a montarse cada vez que cambia.
+  const selectedIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    selectedIdRef.current = selectedId;
+  }, [selectedId]);
   // Categoría del anillo tocada, para el efecto imán: se lee dentro del
   // bucle de rAF -que no vuelve a montarse en cada cambio de estado, solo
   // cuando cambia `layout`-, así que también vive en un ref sincronizado.
@@ -1078,30 +1088,38 @@ export function ConstelacionSolMap({
   const [hideDirectLinks, setHideDirectLinks] = useState(true);
   const [touched, setTouched] = useState(false);
 
-  const ancestors = useMemo(() => {
+  // Toda la cadena -no solo los antepasados hasta el sol: TODAS las esferas
+  // unidas directa o indirectamente al nodo tocado, sus hermanos y los
+  // invitados de sus invitados incluidos- comparte el mismo rootId -lo
+  // asigna loadRealGiftGraph a cada nodo de un mismo árbol, raíz incluida-,
+  // así que agrupar por ese campo trae la constelación entera de una vez,
+  // no solo el camino recto hasta el sol. El sol se añade a mano -no tiene
+  // rootId propio- porque sigue siendo el punto de referencia del encuadre.
+  const chainMembers = useMemo(() => {
     const set = new Set<string>();
-    let cur = selectedId;
-    let guard = 0;
-    while (cur && guard++ < 64) {
-      set.add(cur);
-      cur = parentOf.get(cur) ?? null;
+    if (!selectedId) return set;
+    const selected = byId.get(selectedId);
+    if (!selected) return set;
+    set.add(graph.establishment.id);
+    for (const node of graph.nodes) {
+      if (node.rootId === selected.rootId) set.add(node.id);
     }
     return set;
-  }, [selectedId, parentOf]);
+  }, [selectedId, byId, graph.nodes, graph.establishment.id]);
 
-  // Zoom automático: SIEMPRE que se toca una esfera, encuadra toda su cadena
-  // -de ella hasta el sol, ancestors ya la trae completa- en vez de dejar al
-  // cliente adivinar dónde cae cada antepasado en el resto del mapa; tocar
-  // una sección del anillo sigue encuadrando esa sección, igual que antes.
-  // Los dos casos comparten un único efecto -y no dos compitiendo por
-  // `pan`- porque selectedCategory y selectedId ahora son mutuamente
-  // excluyentes (ver endPointer): nunca hay dos zooms queriendo mandar a
-  // la vez.
+  // Zoom automático: SIEMPRE que se toca una esfera, encuadra la constelación
+  // entera a la que pertenece -chainMembers ya la trae completa, root y
+  // descendientes de cualquier profundidad- en vez de dejar al cliente
+  // adivinar dónde cae el resto de la cadena fuera de encuadre; tocar una
+  // sección del anillo sigue encuadrando esa sección, igual que antes. Los
+  // dos casos comparten un único efecto -y no dos compitiendo por `pan`-
+  // porque selectedCategory y selectedId ahora son mutuamente excluyentes
+  // (ver endPointer): nunca hay dos zooms queriendo mandar a la vez.
   useEffect(() => {
     const range = selectedCategory ? arcAngleRangeByState.get(selectedCategory) : undefined;
     const chainPoints = selectedCategory
       ? []
-      : [...ancestors].map((id) => positions.get(id)).filter((p): p is XY => p != null);
+      : [...chainMembers].map((id) => positions.get(id)).filter((p): p is XY => p != null);
     // Diferido a un microtask -mismo patrón que el snapshot de lastCategory
     // más abajo-: evita el aviso de "cascading renders" sin retrasar
     // visualmente el zoom.
@@ -1121,7 +1139,7 @@ export function ConstelacionSolMap({
     });
     const timeout = window.setTimeout(() => setAutoZooming(false), 500);
     return () => window.clearTimeout(timeout);
-  }, [selectedCategory, selectedId, ancestors, positions, arcAngleRangeByState, frameRadius, size]);
+  }, [selectedCategory, selectedId, chainMembers, positions, arcAngleRangeByState, frameRadius, size]);
 
   const selectedNode = selectedId ? (byId.get(selectedId) ?? null) : null;
   const giftedByName = useMemo(() => {
@@ -1178,6 +1196,14 @@ export function ConstelacionSolMap({
   const rotationRef = useRef(0);
   const pausedRef = useRef(false);
   const resumeTimer = useRef<number | null>(null);
+  // Reloj propio del bamboleo -no el `performance.now()` real-: avanza a
+  // ritmo normal salvo mientras hay una cadena tocada (ver WOBBLE_FOCUS_SPEED),
+  // momento en que se relentiza para que tocar la esfera vecina en el mismo
+  // encuadre cerrado no sea una lotería. Con delta real de fotograma a
+  // fotograma -no un paso fijo-, así el vaivén sigue leyéndose suave sin
+  // importar la tasa de refresco.
+  const wobbleClockRef = useRef(0);
+  const lastFrameTimeRef = useRef<number | null>(null);
   /** Valor de imán ya suavizado por nodo -ver MAGNET_EASE-, para no saltar de golpe al elegir/quitar una categoría. */
   const magnetRef = useRef(new Map<string, number>());
   /** Índice estable de cada enlace dentro de layout.links, semilla de la respiración de su curva -ver linkBezier-. */
@@ -1274,6 +1300,17 @@ export function ConstelacionSolMap({
       const rotation = rotationRef.current;
       const now = performance.now();
 
+      // El reloj del bamboleo avanza con el delta real entre fotogramas -no
+      // uno fijo, para no depender de la tasa de refresco-, pero a
+      // WOBBLE_FOCUS_SPEED en vez de a 1 mientras haya una cadena tocada: así
+      // las esferas siguen vivas, solo mucho más quietas, y tocar la vecina
+      // en el mismo encuadre cerrado deja de ser una lotería.
+      const frameDelta = lastFrameTimeRef.current == null ? 0 : now - lastFrameTimeRef.current;
+      lastFrameTimeRef.current = now;
+      const wobbleSpeed = selectedIdRef.current ? WOBBLE_FOCUS_SPEED : 1;
+      wobbleClockRef.current += frameDelta * wobbleSpeed;
+      const wobbleNow = wobbleClockRef.current;
+
       // Imán: objetivo 0/1 según si el nodo es de la categoría tocada,
       // suavizado hacia ese objetivo en vez de saltar de golpe. Las que no
       // son de la categoría elegida se quedan en 0 -su órbita natural, sin
@@ -1319,7 +1356,7 @@ export function ConstelacionSolMap({
         const magnet = magnetFor(point.id);
         if (magnet.value > COLLISION_MAGNET_THRESHOLD) magnetActive = true;
         nodeIds.push(point.id);
-        nodePositions.push(animatedXY(point, rotation, now, magnet, wobbleRestlessRef.current.get(point.id) ?? 1));
+        nodePositions.push(animatedXY(point, rotation, wobbleNow, magnet, wobbleRestlessRef.current.get(point.id) ?? 1));
         nodeRadii.push(nodeRadiusRef.current.get(point.id) ?? 4);
       }
       if (magnetActive) resolveCollisions(nodePositions, nodeRadii, COLLISION_ITERATIONS, COLLISION_PADDING);
@@ -1529,7 +1566,7 @@ export function ConstelacionSolMap({
         if (isTap(pending.down, up, TAP_MAX_DISTANCE_PX, TAP_MAX_DURATION_MS)) {
           // Un anillo tocado y una cadena tocada son dos modos de zoom
           // automático distintos -ver el efecto combinado más arriba, junto
-          // a `ancestors`-, así que mutuamente excluyentes: elegir uno
+          // a `chainMembers`-, así que mutuamente excluyentes: elegir uno
           // suelta el otro, nunca compiten los dos por el mismo `pan`.
           if (pending.arcState) {
             setSelectedCategory((prev) => (prev === pending.arcState ? null : pending.arcState));
@@ -1765,7 +1802,7 @@ export function ConstelacionSolMap({
             const toNode = byId.get(link.toId);
             const d = linkPath(layout, 0, 0, link.fromId, link.toId, linkIndex, NO_MAGNET, NO_MAGNET, nodeRadiusById);
             if (!d) return null;
-            const isPathLink = selectedId != null && ancestors.has(link.toId);
+            const isPathLink = selectedId != null && chainMembers.has(link.toId);
             // Mismo criterio que en los nodos: una rama que terminó en nada
             // -caducada, descartada- se retira visualmente en vez de pesar
             // igual que una que sigue viva.
@@ -1864,8 +1901,8 @@ export function ConstelacionSolMap({
             const pos = positions.get(node.id);
             if (!pt || !pos) return null;
             const isSelected = node.id === selectedId;
-            const isAncestor = ancestors.has(node.id);
-            const dimmed = selectedId != null && !isSelected && !isAncestor;
+            const isChainMember = chainMembers.has(node.id);
+            const dimmed = selectedId != null && !isChainMember;
             const isBest = node.id === bestPadrino;
             const isExpiringNode = expiringIds.has(node.id);
             const color = constelacionNodeColor(node);
@@ -1875,7 +1912,7 @@ export function ConstelacionSolMap({
             // qué tan viva titila.
             const magnitudeTier = starMagnitudeTier(node, stampsGoal);
             const labelScale = STAR_MAGNITUDE_LABEL_SCALE[magnitudeTier];
-            const showLabel = node.claimed && (pan.scale >= labelScale || isSelected || isAncestor);
+            const showLabel = node.claimed && (pan.scale >= labelScale || isSelected || isChainMember);
             // Jerarquía visual: lo bueno pesa más, lo perdido se retira -no
             // compiten por la atención a partes iguales-. Ver el comentario
             // de CONSTELACION_POSITIVE_STATES/CONSTELACION_MUTED_STATES más arriba.
@@ -1936,9 +1973,9 @@ export function ConstelacionSolMap({
                 {isBest ? (
                   <circle r={displayRadius * 2.1} fill="url(#constelacion-glow)" fillOpacity={0.16} style={{ color: "var(--color-amber)" }} />
                 ) : null}
-                {/* "Estás viendo esta" -toda la cadena (ancestors, ver más arriba) se
-                    resalta igual, sin dimming, así que sin esto no habría forma de
-                    distinguir la esfera tocada de sus antepasados en la misma cadena:
+                {/* "Estás viendo esta" -toda la constelación (chainMembers, ver más
+                    arriba) se resalta igual, sin dimming, y con muchas esferas a la vez
+                    a la vista no habría forma de distinguir la tocada del resto sin esto:
                     un anillo neto, no un halo difuso -eso ya lo usan isBest/isExpiringNode
                     para otra cosa-, para que se lea como "aquí" y no como otro estado más. */}
                 {isSelected ? (
