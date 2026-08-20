@@ -181,6 +181,23 @@
     background: rgba(255, 255, 255, 0.3);
   }
 
+  /* Para el panel de insights de la vista sol -"lo que ninguna tarjeta te
+     dice"-: dos rondas intentando encajar la barra de scroll -.scrollbar-glass-
+     dentro de las esquinas redondeadas de glass-dark sin que asomara por la
+     curva, sin conseguirlo -el hueco entre la barra y el radio de la
+     esquina es un pulso fino que varía según cómo pinte cada navegador su
+     propio scroll, no algo que un padding fijo pueda garantizar siempre-.
+     Aquí directamente no se pinta ninguna barra -sigue siendo desplazable
+     con la rueda, el trackpad o el dedo, solo sin el adorno visual-, así
+     no hay nada que pueda asomar por ningún lado.  */
+  .scrollbar-hidden {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .scrollbar-hidden::-webkit-scrollbar {
+    display: none;
+  }
+
   /* .slab es el mismo material que .glass-dark, con nombre propio porque es
      la superficie que usa <Slab> -el bloque de contenido genérico-, no el
      chrome flotante. */

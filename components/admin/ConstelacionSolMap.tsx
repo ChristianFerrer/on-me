@@ -2077,6 +2077,22 @@ export function ConstelacionSolMap({
             <stop offset="0%" stopColor="currentColor" stopOpacity={1} />
             <stop offset="100%" stopColor="currentColor" stopOpacity={0} />
           </radialGradient>
+          {/* El mismo criterio que constelacion-sun-core -claro en el centro,
+              hacia el propio color y más oscuro en el borde, no un círculo
+              plano-, pero uno por estado -no genérico con currentColor: un
+              degradado con `currentColor` dentro de un `<defs>` no siempre
+              hereda el `color` de quien lo usa -según el navegador puede
+              quedarse en un gris sin relación con el estado-, mientras que
+              color-mix() con un color literal pinta siempre bien. Solo 8
+              estados -CONSTELACION_PHASE_COLOR- así que 8 degradados fijos
+              cuestan poco y no hace falta ninguno por nodo. */}
+          {Object.entries(CONSTELACION_PHASE_COLOR).map(([state, hex]) => (
+            <radialGradient key={state} id={`constelacion-sphere-${state}`}>
+              <stop offset="0%" stopColor={`color-mix(in srgb, ${hex} 40%, white)`} />
+              <stop offset="55%" stopColor={hex} />
+              <stop offset="100%" stopColor={`color-mix(in srgb, ${hex} 65%, black)`} />
+            </radialGradient>
+          ))}
         </defs>
 
         {/* Fuera del grupo de zoom: no escala con el pellizco, como pide la especificación.
@@ -2392,7 +2408,17 @@ export function ConstelacionSolMap({
                     parpadeo en el propio círculo de dentro; sus opacidades se
                     multiplican al componerse, así que ambas se ven a la vez. */}
                 <g className="constelacion-star-twinkle" style={twinkleStyle}>
-                  <circle className={isWindow ? "constelacion-window-blink" : undefined} style={windowBlinkStyle} r={starCoreR} fill={color} />
+                  {/* `constelacion-sphere-${node.state}` -uno de los 8 degradados
+                      fijos de arriba, no un color plano-: mismo criterio que el
+                      propio sol (constelacion-sun-core), claro en el centro y
+                      más oscuro en el borde, para que cada estrella se lea como
+                      una esfera de verdad, no una pastilla. */}
+                  <circle
+                    className={isWindow ? "constelacion-window-blink" : undefined}
+                    style={windowBlinkStyle}
+                    r={starCoreR}
+                    fill={`url(#constelacion-sphere-${node.state})`}
+                  />
                   <circle r={starCoreR} fill="none" stroke={CONSTELACION_STROKE_COLOR[node.state]} strokeWidth={isMuted ? 0.7 : 0.4} />
                 </g>
                 <circle r={starTouchRadius(starCoreR)} fill="transparent" />
@@ -2599,27 +2625,22 @@ export function ConstelacionSolMap({
             enseñando cuenta de clientes por separado. */}
         {hudVisible ? (
           <div className="hidden min-h-0 w-full lg:flex lg:flex-1 lg:flex-col">
-            {/* `overflow-hidden` en esta caja -no en la que de verdad hace
-                scroll, justo debajo- porque las esquinas redondeadas de
-                glass-dark y la propia barra de scroll no se llevan bien en
-                el mismo elemento: el navegador no recorta la barra al
-                radio del borde, así que asomaba recta por encima de la
-                esquina curva de arriba y de abajo. Separando "quién
-                redondea y recorta" de "quién hace scroll" -mismo patrón que
-                ya usa el panel de actividad de la columna izquierda- la
-                barra queda contenida siempre dentro del recuadro. */}
+            {/* Dos rondas intentando que la barra de scroll -.scrollbar-glass-
+                quedara dentro de las esquinas redondeadas de glass-dark sin
+                asomar por la curva -primero separando quién redondea de
+                quién hace scroll, luego dándole más aire al lado derecho-
+                y ninguna lo resolvió de verdad: el hueco que hace falta
+                varía según cómo pinte cada navegador su propio scroll, no
+                es algo que se pueda fijar con un padding. Así que aquí
+                directamente no se pinta ninguna barra -.scrollbar-hidden,
+                el panel sigue siendo desplazable con la rueda/el dedo,
+                solo sin el adorno visual-: sin barra que dibujar, no hay
+                nada que pueda salirse del panel. */}
             <div
               className="glass-dark pointer-events-auto flex min-h-0 flex-1 flex-col overflow-hidden"
               style={{ background: "rgba(10,14,13,0.32)" }}
             >
-            {/* `pr-7` -no `p-3` parejo en los cuatro lados-: --radius-card son
-                1.75rem (28px), bastante más que el hueco de 12px que dejaba
-                un padding uniforme, así que la barra -pegada al borde
-                derecho de esta caja- quedaba dentro del recorte del padre
-                pero rozando/asomando sobre la propia curva de la esquina.
-                28px de aire a la derecha -el mismo radio- garantiza que la
-                barra nunca entre en la zona curva, arriba ni abajo. */}
-            <div className="scrollbar-glass flex min-h-0 flex-1 flex-col overflow-y-auto py-3 pl-3 pr-7">
+            <div className="scrollbar-hidden flex min-h-0 flex-1 flex-col overflow-y-auto p-3">
               <p className="eyebrow shrink-0 text-chalk/40">{t.admin.constelacionInsightsTitle}</p>
               <div className="mt-2 shrink-0 rounded-2xl p-3" style={{ background: "rgba(233,255,114,0.1)" }}>
                 <p className="numeral text-[1.75rem] font-extrabold leading-none text-lime">{insights.referredPct}%</p>
