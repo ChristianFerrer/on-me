@@ -25,7 +25,7 @@ import { getI18n } from "@/lib/i18n/server";
  */
 export default async function MetricsPage() {
   const ctx = await getAdminContext();
-  if (!ctx) redirect("/admin");
+  if (!ctx) redirect("/admin/constelacion-sol");
 
   const { t } = await getI18n();
   const data = await loadFunnel(ctx.shop.id);

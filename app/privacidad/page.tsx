@@ -26,7 +26,7 @@ export default async function PrivacyPage({
     <Screen tone="quiet" className="gap-7">
       {fromAdmin ? (
         <Link
-          href="/admin"
+          href="/admin/constelacion-sol"
           prefetch={false}
           className="flex items-center gap-2 pt-2 text-[0.9375rem] font-medium text-ink/60 transition-colors hover:text-ink"
         >

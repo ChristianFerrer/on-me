@@ -9,13 +9,13 @@ import { loadRealGiftGraph } from "@/lib/giftGraph/loadRealGiftGraph";
 import { getI18n } from "@/lib/i18n/server";
 
 /**
- * Vista de comparación de ConstelacionMap -no la portada del panel, cuelga
- * de ella-: mismos datos, mismo layout, mismo gesto de pan/zoom/imán, pero
- * pintada como un cielo de verdad -sol en el núcleo, clientes como
- * estrellas, líneas rectas de carta estelar- en vez del diagrama de
- * burbujas de color plano. Vive en su propia ruta para poder abrirla al
- * lado de /admin y comparar las dos, en vez de un modo/toggle sobre la
- * misma pantalla.
+ * La portada del panel: lo primero que ve el dueño al entrar -/admin ahora
+ * solo redirige aquí, ver app/admin/page.tsx-. Mismos datos, mismo layout,
+ * mismo gesto de pan/zoom/imán que el viejo ConstelacionMap -ya retirado
+ * de aquí, sigue existiendo como componente por si hiciera falta
+ * recuperarlo-, pero pintada como un cielo de verdad: sol en el núcleo,
+ * clientes como estrellas, líneas rectas de carta estelar en vez del
+ * diagrama de burbujas de color plano.
  */
 export default async function ConstelacionSolPage() {
   const { locale, t } = await getI18n();

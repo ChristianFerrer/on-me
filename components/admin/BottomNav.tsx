@@ -63,7 +63,7 @@ export function BottomNav({
   }, [isCollapsed]);
 
   const items: { key: AdminSection; href: string; label: string; icon: React.ReactNode }[] = [
-    { key: "constelacion", href: "/admin", label: t.referralMap, icon: <OrbitIcon className="size-5" /> },
+    { key: "constelacion", href: "/admin/constelacion-sol", label: t.referralMap, icon: <OrbitIcon className="size-5" /> },
     { key: "metricas", href: "/admin/metricas", label: t.navMetrics, icon: <PulseIcon className="size-5" /> },
     {
       key: "dispositivos",

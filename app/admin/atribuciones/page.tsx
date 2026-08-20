@@ -17,7 +17,7 @@ import { firstName } from "@/lib/scan-service";
  */
 export default async function AttributionsPage() {
   const ctx = await getAdminContext();
-  if (!ctx) redirect("/admin");
+  if (!ctx) redirect("/admin/constelacion-sol");
 
   const { locale, t } = await getI18n();
 

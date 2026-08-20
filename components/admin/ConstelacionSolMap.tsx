@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowLeftIcon, ChevronDownIcon, CompassIcon, EyeIcon, EyeOffIcon, InfoIcon, PulseIcon, SettingsIcon, SparkleIcon } from "@/components/ui/Icons";
+import { ChevronDownIcon, CompassIcon, EyeIcon, EyeOffIcon, HomeIcon, InfoIcon, PulseIcon, SettingsIcon, SparkleIcon } from "@/components/ui/Icons";
 import { BottomNav } from "@/components/admin/BottomNav";
 import { ConstelacionSheet } from "@/components/admin/ConstelacionSheet";
 import { cn } from "@/lib/cn";
@@ -2422,9 +2422,11 @@ export function ConstelacionSolMap({
           bajos -móvil en horizontal- la leyenda puede crecer hasta solaparse con la
           cabecera, y el botón de volver tiene que seguir pudiéndose tocar. */}
       <header className="pointer-events-none fixed inset-x-0 top-0 z-30 flex items-start justify-between gap-3 px-5 pt-[max(1rem,env(safe-area-inset-top))] transition-[padding-left] duration-200 ease-[var(--ease-out-soft)] lg:pl-[calc(var(--admin-sidebar-width,16rem)+1.25rem)]">
-        {/* A diferencia de ConstelacionMap -la portada del panel-, esta es una
-            vista de comparación que cuelga de ella, así que el botón de la
-            esquina vuelve a ser "volver a /admin", no el HomeIcon -> /inicio. */}
+        {/* Esta es ahora la portada del panel -no cuelga de ninguna otra
+            pantalla-, así que el botón de la esquina no es "volver" sino el
+            mismo HomeIcon -> /inicio que llevan el resto de pantallas del
+            panel en su cabecera -mismo criterio que ConstelacionMap cuando
+            era ella la portada. */}
         {/* Flecha y placa en la misma fila, no una encima de la otra: una vista
             pensada para dejar ver el mapa de fondo no puede gastarse dos
             líneas de alto en su propia cabecera si con una le basta -y la
@@ -2432,12 +2434,12 @@ export function ConstelacionSolMap({
             menos-. */}
         <div className="flex items-center gap-2.5">
           <Link
-            href="/admin"
+            href="/inicio"
             prefetch={false}
             className="btn glass-dark pointer-events-auto size-11 shrink-0 text-chalk"
-            aria-label={t.admin.constelacionSolBack}
+            aria-label={t.home.eyebrow}
           >
-            <ArrowLeftIcon className="size-5" />
+            <HomeIcon className="size-5" />
           </Link>
 
           {/* El nombre del local, fuera del mapa -no escrito encima del sol, como
@@ -2502,22 +2504,29 @@ export function ConstelacionSolMap({
           efecto imán- vive dentro del SVG de arriba, no aquí: pertenece
           al mundo que se pellizca y arrastra, no a este overlay fijo. */}
       <div
-        className="pointer-events-none fixed inset-y-0 left-3 z-20 pt-[max(1.25rem,env(safe-area-inset-top))] pb-[calc(3.375rem+env(safe-area-inset-bottom)+1.25rem)] transition-[left] duration-200 ease-[var(--ease-out-soft)] lg:left-[calc(var(--admin-sidebar-width,16rem)+0.75rem)] lg:pb-[max(1.25rem,env(safe-area-inset-bottom))]"
+        className="pointer-events-none fixed inset-y-0 left-3 z-20 flex flex-col justify-end pt-[max(1.25rem,env(safe-area-inset-top))] pb-[calc(3.375rem+env(safe-area-inset-bottom)+1.25rem)] transition-[left] duration-200 ease-[var(--ease-out-soft)] lg:left-[calc(var(--admin-sidebar-width,16rem)+0.75rem)] lg:flex-row lg:items-end lg:justify-start lg:gap-3 lg:pb-[max(1.25rem,env(safe-area-inset-bottom))] lg:pt-16"
       >
         {/* Panel de escritorio -"como si fuera un chat en vivo"-: mismos
             sucesos que la burbuja de arriba, pero como historial que se
             queda, no un aviso que se desvanece. Solo `lg:`, y solo entonces
-            participa del layout -`hidden` en el resto de anchos no le resta
-            ni un píxel a la leyenda/ficha, que ahora viven en su propio
-            `absolute inset-x-0 bottom-0` -ver más abajo-, fuera del flujo:
-            así este panel puede ocupar `h-full`, el alto completo del
-            contenedor -de la cabecera al pie-, sin que la leyenda/ficha
-            -aunque estén "cerradas", su caja sigue contando para el alto
-            mientras no se desmonten- le sigan robando espacio. Se solapan
-            visualmente con la leyenda/ficha cuando están abiertas -ya
-            vienen después en el DOM, por encima-, el mismo compromiso que
-            ya acepta la burbuja de categoría en la columna derecha. */}
-        <div className="hidden h-full min-h-0 lg:flex lg:flex-col">
+            participa del layout -`hidden` fuera de `lg` no le resta ni un
+            píxel a la leyenda/ficha-. A partir de `lg` el contenedor pasa a
+            fila (`lg:flex-row`), así que este panel y la leyenda/ficha son
+            columnas UNA AL LADO DE LA OTRA, no una encima de la otra: la
+            ficha de detalle ya no tapa el feed al abrirse, aparece a su
+            lado. `lg:self-stretch` -contra el `items-end` del padre, que
+            deja a la leyenda/ficha su alto de contenido normal- para que
+            SOLO este panel ocupe el alto completo, de la cabecera al pie;
+            `lg:w-64` porque sin un ancho propio un panel de texto en flujo
+            no tiene con qué anclarse dentro de un contenedor `fixed` sin
+            ancho explícito -se iría al max-content de sus frases, mucho
+            más ancho de lo que conviene-.
+            `lg:pt-16` en el contenedor -en vez del pt-[1.25rem] de
+            siempre- para que este panel no arranque justo debajo del
+            título del local: la cabecera fija (flecha + placa) vive en su
+            propio overlay encima de este, y sin ese margen extra el panel
+            a toda pantalla quedaba justo debajo tapándolo visualmente. */}
+        <div className="hidden min-h-0 lg:flex lg:w-64 lg:flex-col lg:self-stretch">
           <div
             className="glass-dark pointer-events-auto flex h-full min-h-0 flex-col p-3"
             style={{ background: "rgba(10,14,13,0.32)" }}
@@ -2530,7 +2539,7 @@ export function ConstelacionSolMap({
                 no al final-, así el suceso que acaba de pasar se ve sin tener
                 que desplazar nada; scrollTop se fuerza a 0 en cada suceso nuevo
                 por si el propio usuario se había desplazado a leer el historial. */}
-            <div ref={liveFeedScrollRef} className="mt-2 flex min-h-0 flex-1 flex-col gap-2.5 overflow-y-auto pr-1">
+            <div ref={liveFeedScrollRef} className="scrollbar-glass mt-2 flex min-h-0 flex-1 flex-col gap-2.5 overflow-y-auto pr-1">
               {liveEvents.length === 0 ? (
                 <p className="text-[0.6875rem] text-chalk/35">{t.admin.constelacionActionFeedEmpty}</p>
               ) : (
@@ -2564,15 +2573,14 @@ export function ConstelacionSolMap({
           </div>
         </div>
 
-        {/* Leyenda + ficha: fuera del flujo -absolute, no flex-col justify-end
-            como antes- para no restarle alto al panel de actividad de
-            arriba, ver su comentario. Envueltas juntas en un único
-            contenedor para que su orden/espaciado relativo -leyenda arriba,
-            ficha debajo con su propio `mt-2`- se mantenga igual que antes,
-            todo ese bloque anclado como una unidad al borde inferior real
-            del contenedor -`bottom-0` respeta el `pb-[...]` del padre, el
-            mismo sitio donde `justify-end` los dejaba antes. */}
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 flex flex-col">
+        {/* Leyenda + ficha: en flujo normal, ya no `absolute` -con el panel de
+            actividad ahora en su propia columna (`lg:self-stretch`, ancho
+            fijo) en vez de compartir la misma columna vertical, no hace
+            falta sacarlas del flujo para protegerle el alto: cada una tiene
+            su propio espacio, sin robárselo a la otra. En móvil -sin la fila
+            de `lg:`- el `justify-end` del contenedor las sigue empujando al
+            fondo de la pantalla como siempre. */}
+        <div className="pointer-events-none flex flex-col">
           <div
             className="glass-dark pointer-events-auto max-w-[min(15rem,calc(100vw-6rem))] p-3 transition-transform duration-300 ease-[var(--ease-out-soft)] sm:max-w-[16rem] sm:p-3.5"
             style={{
@@ -2649,7 +2657,7 @@ export function ConstelacionSolMap({
       <div
         className={cn(
           "pointer-events-none fixed inset-y-0 right-3 z-20 flex flex-col items-end justify-end gap-2 pt-[max(1.25rem,env(safe-area-inset-top))] pb-[calc(3.375rem+env(safe-area-inset-bottom)+1.25rem)] lg:pb-[max(1.25rem,env(safe-area-inset-bottom))]",
-          hudVisible ? "lg:w-72" : "",
+          hudVisible ? "lg:w-56" : "",
         )}
       >
         {/* "Lo que ninguna tarjeta te dice": lecturas de toda la red a la vez,
@@ -2665,7 +2673,7 @@ export function ConstelacionSolMap({
         {hudVisible ? (
           <div className="hidden min-h-0 w-full lg:flex lg:flex-1 lg:flex-col">
             <div
-              className="glass-dark pointer-events-auto flex min-h-0 flex-1 flex-col overflow-y-auto p-3"
+              className="glass-dark scrollbar-glass pointer-events-auto flex min-h-0 flex-1 flex-col overflow-y-auto p-3"
               style={{ background: "rgba(10,14,13,0.32)" }}
             >
               <p className="eyebrow shrink-0 text-chalk/40">{t.admin.constelacionInsightsTitle}</p>
@@ -2832,7 +2840,7 @@ export function ConstelacionSolMap({
         className="pointer-events-none fixed inset-x-0 bottom-0 z-20 flex flex-col items-center gap-3 px-5 pb-[calc(3.375rem+env(safe-area-inset-bottom)+1.25rem)] transition-[padding-left] duration-200 ease-[var(--ease-out-soft)] lg:pb-[max(1.25rem,env(safe-area-inset-bottom))] lg:pl-[calc(var(--admin-sidebar-width,16rem)+1.25rem)]"
       >
         {!selectedNode && !touched ? (
-          <p className="text-[0.65625rem] text-chalk/32 transition-opacity duration-300">
+          <p className="text-[0.65625rem] text-chalk/32 transition-opacity duration-300 lg:hidden">
             {funnelTotal === 0 ? t.admin.referralMapEmpty : t.admin.referralMapHint}
           </p>
         ) : null}

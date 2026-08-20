@@ -58,7 +58,7 @@ export default async function InicioPage() {
             body={t.home.scannerBody}
           />
           <Tile
-            href="/admin"
+            href="/admin/constelacion-sol"
             icon={<PanelIcon className="size-6 sm:size-7" />}
             title={t.home.panel}
             body={t.home.panelBody}

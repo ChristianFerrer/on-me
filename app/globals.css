@@ -158,6 +158,29 @@
     border-radius: var(--radius-card);
   }
 
+  /* Barra de scroll a juego con el resto del material oscuro -grafito
+     translúcido, fina, sin flechas- para los paneles con overflow-y-auto
+     (feed de actividad y panel de insights de la vista sol): la barra por
+     defecto del navegador -gris claro y cuadrada- desentonaba con el resto
+     del chrome de esta vista. */
+  .scrollbar-glass {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.18) transparent;
+  }
+  .scrollbar-glass::-webkit-scrollbar {
+    width: 6px;
+  }
+  .scrollbar-glass::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .scrollbar-glass::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.18);
+    border-radius: 999px;
+  }
+  .scrollbar-glass::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.3);
+  }
+
   /* .slab es el mismo material que .glass-dark, con nombre propio porque es
      la superficie que usa <Slab> -el bloque de contenido genérico-, no el
      chrome flotante. */
