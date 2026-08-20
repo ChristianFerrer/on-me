@@ -333,8 +333,11 @@ function constelacionNodeColor(node: Node): string {
 }
 
 /** Igual que constelacionNodeColor, pero segura para trazo/texto: el negro de descartada/caducada no se ve sobre un fondo igual de oscuro. */
+function safeStateColor(state: NodeState): string {
+  return CONSTELACION_MUTED_STATES.has(state) ? CONSTELACION_ACCENT_COLOR[state] : CONSTELACION_PHASE_COLOR[state];
+}
 function safeLineColor(node: Node): string {
-  return CONSTELACION_MUTED_STATES.has(node.state) ? CONSTELACION_ACCENT_COLOR[node.state] : constelacionNodeColor(node);
+  return safeStateColor(node.state);
 }
 
 /**
@@ -724,8 +727,8 @@ function mergeGraphPreservingOrder(prev: GiftGraph, next: GiftGraph): GiftGraph 
   return { ...next, nodes: merged };
 }
 
-/** Lo mismo que dispara un destello, pero con el vocabulario del feed de actividad -ver liveEvents.ts-, para anunciarlo también ahí. */
-type DetectedLiveEvent = { kind: LiveEventKind; name: string };
+/** Lo mismo que dispara un destello, pero con el vocabulario del feed de actividad -ver liveEvents.ts-, para anunciarlo también ahí. `state` es el de la estrella tras el cambio -el punto de color de la burbuja/panel pinta ese, no uno genérico. */
+type DetectedLiveEvent = { kind: LiveEventKind; name: string; nodeId: string; state: NodeState };
 /** Un destello por nodo -id, intensidad 0..1- más, si hubo alguno, uno agregado para el sol; y los mismos sucesos, ya etiquetados, para el feed. */
 type GraphActivity = { nodeFlashes: Map<string, number>; sunIntensity: number; events: DetectedLiveEvent[] };
 
@@ -773,7 +776,7 @@ function detectGraphActivity(prevNodes: Node[], nextNodes: Node[]): GraphActivit
     if (intensity > 0) {
       nodeFlashes.set(node.id, intensity);
       sunIntensity = Math.max(sunIntensity, intensity);
-      if (kind) events.push({ kind, name: node.name });
+      if (kind) events.push({ kind, name: node.name, nodeId: node.id, state: node.state });
     }
   }
   return { nodeFlashes, sunIntensity, events };
@@ -1136,15 +1139,28 @@ export function ConstelacionSolMap({
    * nuevo mensaje entra por abajo-. El mensaje ya traducido no se guarda en
    * el propio suceso -solo kind/name-, así que si el idioma cambiara a
    * media sesión el historial entero seguiría leyéndose en el idioma
-   * correcto en vez de quedarse congelado en el de cuando pasó.
+   * correcto en vez de quedarse congelado en el de cuando pasó. `color` -el
+   * mismo que pinta la propia estrella, ver safeStateColor- sí se congela
+   * al momento de anunciar el suceso, no se recalcula después: si esa misma
+   * estrella cambia de estado más tarde -otro suceso posterior sobre ella-
+   * las entradas ya viejas del historial siguen enseñando el color de
+   * cuando de verdad pasó, no el color actual, que ya no sería el mismo
+   * suceso que están contando.
    */
-  type LiveActivityEvent = { id: string; kind: LiveEventKind; name: string; ts: number };
+  type LiveActivityEvent = { id: string; kind: LiveEventKind; name: string; nodeId: string; color: string; ts: number };
   const [liveEvents, setLiveEvents] = useState<LiveActivityEvent[]>([]);
   const [toastEvent, setToastEvent] = useState<LiveActivityEvent | null>(null);
   const liveEventIdRef = useRef(0);
-  function pushLiveEvent(kind: LiveEventKind, name: string) {
+  function pushLiveEvent(kind: LiveEventKind, name: string, nodeId: string, state: NodeState) {
     liveEventIdRef.current += 1;
-    const entry: LiveActivityEvent = { id: `evt:${Date.now()}:${liveEventIdRef.current}`, kind, name, ts: Date.now() };
+    const entry: LiveActivityEvent = {
+      id: `evt:${Date.now()}:${liveEventIdRef.current}`,
+      kind,
+      name,
+      nodeId,
+      color: safeStateColor(state),
+      ts: Date.now(),
+    };
     setLiveEvents((prev) => [...prev, entry].slice(-LIVE_EVENTS_MAX));
     setToastEvent(entry);
   }
@@ -1202,7 +1218,7 @@ export function ConstelacionSolMap({
             for (const [id, intensity] of nodeFlashes) nodeFlashRef.current.set(id, { start, intensity });
             if (sunIntensity > 0) sunFlashRef.current = { start, intensity: sunIntensity };
           }
-          for (const event of events) pushLiveEvent(event.kind, event.name);
+          for (const event of events) pushLiveEvent(event.kind, event.name, event.nodeId, event.state);
         }
         prevGraphRef.current = merged;
         setGraph(merged);
@@ -1238,7 +1254,7 @@ export function ConstelacionSolMap({
         nodeFlashRef.current.set(result.event.nodeId, { start, intensity });
         sunFlashRef.current = { start, intensity };
       }
-      pushLiveEvent(result.event.kind, result.event.name);
+      pushLiveEvent(result.event.kind, result.event.name, result.event.nodeId, result.event.state);
       prevGraphRef.current = result.graph;
       setGraph(result.graph);
     }
@@ -2087,10 +2103,19 @@ export function ConstelacionSolMap({
             const isMutedLink = toNode != null && CONSTELACION_MUTED_STATES.has(toNode.state);
             const restOpacity = isMutedLink ? 0.14 : 0.3;
             const restWidth = isMutedLink ? 0.9 : 1.3;
-            // Alta directa por QR, sin padrino real: el ajuste de la columna de
-            // iconos puede apagar del todo estas líneas -son puro ruido alrededor
-            // del sol en un local con muchas-, y da igual qué más esté pasando.
-            const isDirectLink = toNode?.state === "direct";
+            // Rayo del sol -cliente sin padrino real, ver loadRealGiftGraph.ts:
+            // todo el que no es claimed_by de ninguna invitación recibe un
+            // enlace directo del establecimiento, tenga o no una fila en
+            // attributions que le dé un estado normal de la cadena (claimed,
+            // window...) además de "direct"-: el ajuste de la columna de
+            // iconos puede apagar del todo estas líneas -son puro ruido
+            // alrededor del sol en un local con muchas-, da igual qué más
+            // esté pasando. Se mira el ORIGEN del enlace, no el estado del
+            // destino -toNode?.state === "direct" se quedaba corto: un
+            // cliente sin padrino con canje ya registrado sigue sin padrino,
+            // aunque su estado ya no sea "direct" (window/claimed/billable),
+            // y su rayo debía seguir gobernado por este mismo interruptor-.
+            const isDirectLink = link.fromId === graph.establishment.id;
             // Al tocar una sección del anillo, las líneas desaparecen del todo
             // -no solo se atenúan- mientras las esferas convergen: así se ve con
             // claridad quién va hacia dónde, sin cuerdas cruzándose por encima.
@@ -2123,11 +2148,12 @@ export function ConstelacionSolMap({
           {[...pulseLinkKeys]
             .filter((key) => {
               // Ningún pulso viajero flotando sobre una cuerda que ya no se ve:
-              // mismo criterio de ocultación que la propia línea, arriba.
+              // mismo criterio de ocultación que la propia línea, arriba -el
+              // ORIGEN del enlace, no el estado actual del destino.
               if (selectedCategory != null) return false;
               if (!hideDirectLinks) return true;
               const childId = key.split(">")[1];
-              return byId.get(childId ?? "")?.state !== "direct";
+              return parentOf.get(childId ?? "") !== graph.establishment.id;
             })
             .map((key) => {
             // Del mismo color que la cuerda por la que viaja, no de uno fijo:
@@ -2415,20 +2441,36 @@ export function ConstelacionSolMap({
           Debajo de la fila de la cabecera -no encima-, con su propio offset
           fijo: la cabecera es de alto constante, no medido, así que no hace
           falta un ResizeObserver como el de la ficha. Oculta en escritorio
-          -lg:hidden-, ahí ya está el panel de al lado. */}
+          -lg:hidden-, ahí ya está el panel de al lado.
+
+          Como una notificación de verdad, no solo un texto flotando: el
+          punto a la izquierda lleva el mismo color que la propia estrella
+          -ver LiveActivityEvent.color, congelado al momento del suceso-,
+          así de un vistazo se sabe qué clase de cliente lo protagonizó
+          antes de leer una sola palabra; un segundo punto detrás, con
+          animate-ping, le da el pulso de "esto acaba de pasar" que un
+          simple texto centrado no transmite. */}
       <div
         className="pointer-events-none fixed inset-x-0 z-40 flex justify-center px-5 lg:hidden"
         style={{ top: "calc(max(1rem,env(safe-area-inset-top)) + 3.5rem)" }}
       >
         <div
-          className="glass-dark max-w-[min(22rem,calc(100vw-2.5rem))] px-4 py-2.5 text-center text-[0.75rem] leading-snug text-chalk transition-[transform,opacity] duration-300 ease-[var(--ease-out-soft)]"
+          className="glass-dark flex max-w-[min(24rem,calc(100vw-2.5rem))] items-center gap-3 px-4 py-3 text-left text-[0.8125rem] leading-snug text-chalk transition-[transform,opacity] duration-300 ease-[var(--ease-out-soft)]"
           style={{
-            background: "rgba(10,14,13,0.6)",
+            background: "rgba(10,14,13,0.68)",
             transform: toastEvent ? "translateY(0)" : "translateY(-14px)",
             opacity: toastEvent ? 1 : 0,
           }}
         >
-          {toastEvent ? liveEventMessage(toastEvent.kind, toastEvent.name, t) : ""}
+          {toastEvent ? (
+            <>
+              <span className="relative flex size-2.5 shrink-0">
+                <span className="absolute inline-flex size-full animate-ping rounded-full opacity-60" style={{ background: toastEvent.color }} />
+                <span className="relative inline-flex size-2.5 rounded-full" style={{ background: toastEvent.color }} />
+              </span>
+              <span>{liveEventMessage(toastEvent.kind, toastEvent.name, t)}</span>
+            </>
+          ) : null}
         </div>
       </div>
 
@@ -2461,9 +2503,10 @@ export function ConstelacionSolMap({
                 <p className="text-[0.6875rem] text-chalk/35">{t.admin.constelacionActionFeedEmpty}</p>
               ) : (
                 liveEvents.map((event) => (
-                  <p key={event.id} className="text-[0.6875rem] leading-snug text-chalk/70">
-                    {liveEventMessage(event.kind, event.name, t)}
-                  </p>
+                  <div key={event.id} className="flex items-start gap-2">
+                    <span className="mt-[0.3125rem] size-1.5 shrink-0 rounded-full" style={{ background: event.color }} />
+                    <p className="text-[0.6875rem] leading-snug text-chalk/70">{liveEventMessage(event.kind, event.name, t)}</p>
+                  </div>
                 ))
               )}
             </div>

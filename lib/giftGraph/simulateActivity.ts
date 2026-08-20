@@ -1,4 +1,4 @@
-import type { GiftGraph, Node } from "@/lib/giftGraph/types";
+import type { GiftGraph, Node, NodeState } from "@/lib/giftGraph/types";
 import type { LiveEventKind } from "@/lib/giftGraph/liveEvents";
 
 /**
@@ -37,7 +37,8 @@ function pick<T>(items: T[]): T | null {
   return items.length > 0 ? items[Math.floor(Math.random() * items.length)] : null;
 }
 
-export type SimulatedEvent = { kind: LiveEventKind; nodeId: string; name: string };
+/** `state` es el de LA ESTRELLA tras aplicar el paso -no antes-: la burbuja/panel del feed pinta un punto de ese color, así que tiene que ser el que de verdad se ve en el mapa después de este suceso. */
+export type SimulatedEvent = { kind: LiveEventKind; nodeId: string; name: string; state: NodeState };
 
 /**
  * Un paso de simulación: elige al azar, entre los sucesos que ahora mismo
@@ -117,7 +118,7 @@ export function simulateGraphStep(graph: GiftGraph, stampsGoal: number): { graph
       nodes.push(node);
       edges.push({ from: graph.establishment.id, to: id, giftedAt: now });
       roots.push(id);
-      return { graph: { ...graph, nodes, edges, roots }, event: { kind: "new_direct", nodeId: id, name } };
+      return { graph: { ...graph, nodes, edges, roots }, event: { kind: "new_direct", nodeId: id, name, state: node.state } };
     }
     case "new_invite": {
       const parent = pick(referrers) ?? null;
@@ -144,25 +145,25 @@ export function simulateGraphStep(graph: GiftGraph, stampsGoal: number): { graph
       if (parent) {
         replaceNode({ ...parent, childCount: parent.childCount + 1, loadedChildCount: parent.loadedChildCount + 1 });
       }
-      return { graph: { ...graph, nodes, edges }, event: { kind: "new_invite", nodeId: id, name: parent?.name ?? "" } };
+      return { graph: { ...graph, nodes, edges }, event: { kind: "new_invite", nodeId: id, name: parent?.name ?? "", state: node.state } };
     }
     case "invite_opened": {
       const target = pick(pendingSent);
       if (!target) return null;
       replaceNode({ ...target, state: "opened", lastActivityAt: now });
-      return { graph: { ...graph, nodes }, event: { kind: "invite_opened", nodeId: target.id, name: "" } };
+      return { graph: { ...graph, nodes }, event: { kind: "invite_opened", nodeId: target.id, name: "", state: "opened" } };
     }
     case "invite_expiring": {
       const target = pick(pendingAny);
       if (!target) return null;
       replaceNode({ ...target, expiresAt: new Date(Date.now() + 3 * 3_600_000).toISOString() });
-      return { graph: { ...graph, nodes }, event: { kind: "invite_expiring", nodeId: target.id, name: "" } };
+      return { graph: { ...graph, nodes }, event: { kind: "invite_expiring", nodeId: target.id, name: "", state: target.state } };
     }
     case "invite_expired": {
       const target = pick(pendingAny);
       if (!target) return null;
       replaceNode({ ...target, state: "expired", expiresAt: null, lastActivityAt: now });
-      return { graph: { ...graph, nodes }, event: { kind: "invite_expired", nodeId: target.id, name: "" } };
+      return { graph: { ...graph, nodes }, event: { kind: "invite_expired", nodeId: target.id, name: "", state: "expired" } };
     }
     case "stamp": {
       const target = pick(activeClaimed);
@@ -180,10 +181,10 @@ export function simulateGraphStep(graph: GiftGraph, stampsGoal: number): { graph
           returnedAt: null,
           lastActivityAt: now,
         });
-        return { graph: { ...graph, nodes }, event: { kind: "redeemed", nodeId: target.id, name: target.name } };
+        return { graph: { ...graph, nodes }, event: { kind: "redeemed", nodeId: target.id, name: target.name, state: "window" } };
       }
       replaceNode({ ...target, stamps: nextStamps, lastActivityAt: now });
-      return { graph: { ...graph, nodes }, event: { kind: "stamp", nodeId: target.id, name: target.name } };
+      return { graph: { ...graph, nodes }, event: { kind: "stamp", nodeId: target.id, name: target.name, state: target.state } };
     }
     case "redeemed": {
       const target = pick(activeClaimed);
@@ -197,13 +198,13 @@ export function simulateGraphStep(graph: GiftGraph, stampsGoal: number): { graph
         returnedAt: null,
         lastActivityAt: now,
       });
-      return { graph: { ...graph, nodes }, event: { kind: "redeemed", nodeId: target.id, name: target.name } };
+      return { graph: { ...graph, nodes }, event: { kind: "redeemed", nodeId: target.id, name: target.name, state: "window" } };
     }
     case "returned": {
       const target = pick(windowNodes);
       if (!target) return null;
       replaceNode({ ...target, state: "billable", returnedAt: now, lastActivityAt: now });
-      return { graph: { ...graph, nodes }, event: { kind: "returned", nodeId: target.id, name: target.name } };
+      return { graph: { ...graph, nodes }, event: { kind: "returned", nodeId: target.id, name: target.name, state: "billable" } };
     }
   }
 }
