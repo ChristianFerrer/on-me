@@ -2612,7 +2612,14 @@ export function ConstelacionSolMap({
               className="glass-dark pointer-events-auto flex min-h-0 flex-1 flex-col overflow-hidden"
               style={{ background: "rgba(10,14,13,0.32)" }}
             >
-            <div className="scrollbar-glass flex min-h-0 flex-1 flex-col overflow-y-auto p-3">
+            {/* `pr-7` -no `p-3` parejo en los cuatro lados-: --radius-card son
+                1.75rem (28px), bastante más que el hueco de 12px que dejaba
+                un padding uniforme, así que la barra -pegada al borde
+                derecho de esta caja- quedaba dentro del recorte del padre
+                pero rozando/asomando sobre la propia curva de la esquina.
+                28px de aire a la derecha -el mismo radio- garantiza que la
+                barra nunca entre en la zona curva, arriba ni abajo. */}
+            <div className="scrollbar-glass flex min-h-0 flex-1 flex-col overflow-y-auto py-3 pl-3 pr-7">
               <p className="eyebrow shrink-0 text-chalk/40">{t.admin.constelacionInsightsTitle}</p>
               <div className="mt-2 shrink-0 rounded-2xl p-3" style={{ background: "rgba(233,255,114,0.1)" }}>
                 <p className="numeral text-[1.75rem] font-extrabold leading-none text-lime">{insights.referredPct}%</p>
