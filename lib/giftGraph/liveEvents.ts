@@ -13,6 +13,7 @@ export type LiveEventKind =
   | "new_direct"
   | "new_invite"
   | "invite_opened"
+  | "claimed"
   | "invite_expiring"
   | "invite_expired"
   | "stamp"
@@ -21,11 +22,12 @@ export type LiveEventKind =
 
 /**
  * Frase legible de un suceso, ya traducida. `name` es quien protagoniza el
- * suceso -el propio cliente para new_direct/stamp/redeemed/returned, quien
- * invita para new_invite-; las tres fases de una invitación sin reclamar
- * -opened/expiring/expired- no llevan nombre -una invitación sin reclamar
- * no tiene ficha propia, ver Node.claimed en lib/giftGraph/types.ts-, así
- * que esas tres frases se quedan genéricas a propósito. `stampNumber` -solo
+ * suceso -el propio cliente para new_direct/claimed/stamp/redeemed/returned,
+ * quien invita para new_invite-; "opened"/"expiring"/"expired" no llevan
+ * nombre -una invitación sin reclamar no tiene ficha propia, ver
+ * Node.claimed en lib/giftGraph/types.ts-, así que esas tres frases se
+ * quedan genéricas a propósito; "claimed" es justo el momento en que esa
+ * invitación deja de ser anónima y por fin tiene nombre. `stampNumber` -solo
  * para "stamp"- es qué número de sello acaba de ganar, no cuántos van en
  * total: sin él el mensaje decía "ganó un sello" sin más contexto, aunque
  * llevara la tarjeta a la mitad o casi completa.
@@ -38,6 +40,8 @@ export function liveEventMessage(kind: LiveEventKind, name: string, t: Dict, sta
       return fill(t.admin.constelacionActionNewInvite, { name });
     case "invite_opened":
       return t.admin.constelacionActionInviteOpened;
+    case "claimed":
+      return fill(t.admin.constelacionActionClaimed, { name });
     case "invite_expiring":
       return t.admin.constelacionActionInviteExpiring;
     case "invite_expired":
@@ -69,6 +73,8 @@ export function liveEventDetail(kind: LiveEventKind, t: Dict, ctx: { state: Node
       return t.admin.constelacionActionDetailNewInvite;
     case "invite_opened":
       return t.admin.constelacionActionDetailInviteOpened;
+    case "claimed":
+      return t.admin.constelacionActionDetailClaimed;
     case "invite_expiring":
       return t.admin.constelacionActionDetailInviteExpiring;
     case "invite_expired":

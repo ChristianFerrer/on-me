@@ -53,6 +53,7 @@ export function simulateGraphStep(graph: GiftGraph, stampsGoal: number): { graph
   const takenNames = new Set(graph.nodes.filter((n) => n.claimed).map((n) => n.name));
 
   const pendingSent = graph.nodes.filter((n) => !n.claimed && n.state === "sent");
+  const pendingOpened = graph.nodes.filter((n) => !n.claimed && n.state === "opened");
   const pendingAny = graph.nodes.filter((n) => !n.claimed && (n.state === "sent" || n.state === "opened"));
   // Quién puede sumar un sello más: "direct"/"billable" son estados finales
   // -nunca cambian de color, ver CONSTELACION_PHASE_COLOR- así que completar
@@ -94,6 +95,10 @@ export function simulateGraphStep(graph: GiftGraph, stampsGoal: number): { graph
     { kind: "new_direct", weight: 2 },
     { kind: "new_invite", weight: referrers.length > 0 ? 2 : 0 },
     { kind: "invite_opened", weight: pendingSent.length > 0 ? 2 : 0 },
+    // Peso alto a propósito: es la transición que faltaba -invitación
+    // abierta que se convierte en cliente nuevo verificado-, sin ella la
+    // simulación se quedaba atascada en "enviada"/"abierta" para siempre.
+    { kind: "claimed", weight: pendingOpened.length > 0 ? 3 : 0 },
     { kind: "invite_expiring", weight: pendingAny.length > 0 ? 1 : 0 },
     { kind: "invite_expired", weight: pendingAny.length > 0 ? 1 : 0 },
     { kind: "stamp", weight: stampable.length > 0 ? 3 : 0 },
@@ -133,7 +138,10 @@ export function simulateGraphStep(graph: GiftGraph, stampsGoal: number): { graph
         rootId: id,
         state: "direct",
         claimed: true,
-        stamps: 0,
+        // Con su primer café ya en mano -no en 0-: un cliente nuevo se ve
+        // recién llegado a la tarjeta, no como si aún no hubiera consumido
+        // nada a pesar de aparecer ya de alta.
+        stamps: 1,
         cardsCompleted: 0,
         redeemedAt: null,
         returnedAt: null,
@@ -182,6 +190,28 @@ export function simulateGraphStep(graph: GiftGraph, stampsGoal: number): { graph
       if (!target) return null;
       replaceNode({ ...target, state: "opened", lastActivityAt: now });
       return { graph: { ...graph, nodes }, event: { kind: "invite_opened", nodeId: target.id, name: "", state: "opened" } };
+    }
+    case "claimed": {
+      // La invitación abierta se convierte en un cliente de verdad -deja de
+      // ser un `inv:` sin nombre y pasa a tener nombre, `claimed: true` y su
+      // propia tarjeta arrancando-: el mismo hueco que en loadRealGiftGraph
+      // (el swap de id de invitación a id de cliente) no aplica aquí porque
+      // en simulación el id ya es propio (`sim:...`) desde que se creó.
+      const target = pick(pendingOpened);
+      if (!target) return null;
+      const name = randomName(takenNames);
+      const next: Node = {
+        ...target,
+        name,
+        claimed: true,
+        state: "claimed",
+        // Con su primer café ya en mano, igual que un alta directa -ver el
+        // comentario de "new_direct"-, nunca con la tarjeta a medias o llena.
+        stamps: 1,
+        lastActivityAt: now,
+      };
+      replaceNode(next);
+      return { graph: { ...graph, nodes }, event: { kind: "claimed", nodeId: target.id, name, state: "claimed" } };
     }
     case "invite_expiring": {
       const target = pick(pendingAny);

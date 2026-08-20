@@ -3,9 +3,9 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import {
-  ArrowLeftIcon,
-  ArrowRightIcon,
   ChartIcon,
+  ChevronDownIcon,
+  HomeIcon,
   OrbitIcon,
   PulseIcon,
   TabletIcon,
@@ -83,6 +83,21 @@ export function BottomNav({
     <>
       <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-white/8 bg-black lg:hidden">
         <div className="mx-auto flex w-full max-w-[30rem] items-stretch justify-between px-1 pb-[env(safe-area-inset-bottom)] sm:max-w-[34rem] lg:max-w-[38rem]">
+          {/* En escritorio el logo del sidebar ya hace de enlace a /inicio -ver
+              más abajo-; en móvil no había forma de volver al portal salvo
+              con el botón que cada pantalla llevaba por su cuenta en su
+              propia cabecera. Se muda aquí, a la propia barra, para que las
+              cuatro pantallas del panel lo compartan en vez de reinventarlo
+              cada una -nunca "activo": /inicio no es ninguna de las cuatro
+              secciones del panel. */}
+          <Link
+            href="/inicio"
+            prefetch={false}
+            className="flex min-w-0 flex-1 flex-col items-center gap-1 px-1 py-2.5 text-chalk/45 transition-colors hover:text-chalk/70"
+          >
+            <HomeIcon className="size-5" />
+            <span className="w-full truncate text-center text-[0.625rem] font-semibold leading-none">{t.navHome}</span>
+          </Link>
           {items.map((item) => (
             <Link
               key={item.key}
@@ -109,18 +124,6 @@ export function BottomNav({
           isCollapsed && "items-center px-2",
         )}
       >
-        {collapsible ? (
-          <button
-            type="button"
-            onClick={() => setCollapsed((v) => !v)}
-            aria-pressed={isCollapsed}
-            aria-label={isCollapsed ? t.constelacionExpandSidebar : t.constelacionCollapseSidebar}
-            className="btn glass-dark absolute -right-3 top-6 size-6 shrink-0 text-chalk/60 hover:text-chalk"
-          >
-            {isCollapsed ? <ArrowRightIcon className="size-3.5" /> : <ArrowLeftIcon className="size-3.5" />}
-          </button>
-        ) : null}
-
         <Link href="/inicio" prefetch={false} className={cn("pb-6 pt-2", isCollapsed ? "px-0" : "px-2")}>
           {isCollapsed ? <Mark className="size-3.5" /> : <Logo tone="chalk" />}
         </Link>
@@ -142,6 +145,24 @@ export function BottomNav({
             {isCollapsed ? null : item.label}
           </Link>
         ))}
+
+        {/* Plegar/desplegar: abajo del todo -no junto al logo, arriba- y con
+            una flecha tipo chevron -el mismo ChevronDownIcon que ya usa el
+            interruptor de controles de la vista sol, rotado- en vez de las
+            flechas rectas de antes: "<" mientras el sidebar está desplegado
+            -empuja hacia la izquierda para plegarlo-, ">" cuando ya está
+            plegado -empuja hacia la derecha para desplegarlo de nuevo-. */}
+        {collapsible ? (
+          <button
+            type="button"
+            onClick={() => setCollapsed((v) => !v)}
+            aria-pressed={isCollapsed}
+            aria-label={isCollapsed ? t.constelacionExpandSidebar : t.constelacionCollapseSidebar}
+            className="btn glass-dark absolute -right-3 bottom-6 size-6 shrink-0 text-chalk/60 hover:text-chalk"
+          >
+            <ChevronDownIcon className={cn("size-3.5 transition-transform duration-200 ease-[var(--ease-out-soft)]", isCollapsed ? "-rotate-90" : "rotate-90")} />
+          </button>
+        ) : null}
       </nav>
     </>
   );

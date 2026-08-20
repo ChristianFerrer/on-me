@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ChevronDownIcon, CompassIcon, EyeIcon, EyeOffIcon, HomeIcon, InfoIcon, PulseIcon, SettingsIcon, SparkleIcon } from "@/components/ui/Icons";
+import { ChevronDownIcon, CompassIcon, EyeIcon, EyeOffIcon, PulseIcon, SettingsIcon, SparkleIcon } from "@/components/ui/Icons";
 import { BottomNav } from "@/components/admin/BottomNav";
 import { ConstelacionSheet } from "@/components/admin/ConstelacionSheet";
 import { cn } from "@/lib/cn";
@@ -714,13 +714,13 @@ type GraphActivity = { nodeFlashes: Map<string, number>; events: DetectedLiveEve
  * su cuenta-. Un canje pesa más que un sello suelto, y un sello más que un
  * alta nueva -la intensidad del destello, no solo su presencia, cuenta algo-.
  *
- * Solo 4 de los 8 sucesos del vocabulario compartido (ver liveEvents.ts) se
- * anuncian aquí en el feed -new_direct, stamp, redeemed, returned-: son los
- * únicos que este sondeo puede distinguir de verdad comparando dos fotos del
- * grafo. Una alta nueva que llegó reclamada por invitación, no por QR
- * directo, sigue disparando su destello -intensity 0.5- pero sin anuncio en
- * el feed: no hay en el vocabulario un suceso "cliente nuevo por invitación"
- * propio, y etiquetarlo como new_direct sería decir algo que no pasó.
+ * Solo 5 de los 9 sucesos del vocabulario compartido (ver liveEvents.ts) se
+ * anuncian aquí en el feed -new_direct, claimed, stamp, redeemed, returned-:
+ * son los únicos que este sondeo puede distinguir de verdad comparando dos
+ * fotos del grafo. Una alta nueva reclamada por invitación llega con
+ * `state: "claimed"` y, gracias al swap de id de invitación a id de cliente
+ * en loadRealGiftGraph, tampoco tiene `prev` -es indistinguible de una alta
+ * directa a estos efectos-, así que cae en la misma rama de abajo.
  */
 function detectGraphActivity(prevNodes: Node[], nextNodes: Node[]): GraphActivity {
   const prevById = new Map(prevNodes.map((n) => [n.id, n]));
@@ -734,6 +734,7 @@ function detectGraphActivity(prevNodes: Node[], nextNodes: Node[]): GraphActivit
       if (node.claimed) {
         intensity = 0.5; // alta -por invitación reclamada o directa- que no existía en la foto anterior
         if (node.state === "direct") kind = "new_direct";
+        else if (node.state === "claimed") kind = "claimed";
       }
     } else if (node.cardsCompleted > prev.cardsCompleted) {
       intensity = 1; // canje de premio: el evento de más peso en la relación con el local
@@ -1193,19 +1194,13 @@ export function ConstelacionSolMap({
   }, [liveEvents]);
 
   /**
-   * Reloj propio del feed -no el `nowMs` de arriba, congelado al montar-:
-   * "hace X min" tiene que ir avanzando de verdad mientras la pestaña se
-   * queda abierta todo el día, sin necesidad de que llegue un suceso nuevo
-   * para refrescarse. Cada 15s basta -la propia etiqueta redondea a minutos.
+   * Hora exacta del suceso -no relativa-: "hace X min" solo se refrescaba
+   * cada 15s, así que en una sesión corta -toda la actividad cabe en esa
+   * ventana- el feed entero se leía como "ahora mismo" sin serlo. La hora
+   * de reloj no tiene esa ambigüedad y no depende de ningún intervalo.
    */
-  const [feedNowMs, setFeedNowMs] = useState(() => Date.now());
-  useEffect(() => {
-    const id = window.setInterval(() => setFeedNowMs(Date.now()), 15_000);
-    return () => window.clearInterval(id);
-  }, []);
-  function relativeTimeLabel(tsMs: number): string {
-    const minutes = Math.floor((feedNowMs - tsMs) / 60_000);
-    return minutes <= 0 ? t.admin.constelacionJustNow : fill(t.admin.constelacionMinutesAgo, { n: minutes });
+  function eventTimeLabel(tsMs: number): string {
+    return new Date(tsMs).toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" });
   }
 
   /**
@@ -1341,18 +1336,17 @@ export function ConstelacionSolMap({
     wasSimulatingRef.current = simulating;
   }, [simulating]);
 
-  // Apagadas por defecto -a petición-: la leyenda y el HUD tapan mapa útil
-  // nada más entrar, así que arrancan cerradas y es el propio botón el que
-  // las enciende, igual que ya pasa con los rayos del sol (hideDirectLinks).
-  const [legendOpen, setLegendOpen] = useState(false);
+  // Apagado por defecto -a petición-: el HUD tapa mapa útil nada más entrar,
+  // así que arranca cerrado y es el propio botón el que lo enciende, igual
+  // que ya pasa con los rayos del sol (hideDirectLinks).
   const [hudVisible, setHudVisible] = useState(false);
   /** Ajuste propio de esta vista -no existe en ConstelacionMap-: oculta los "rayos" -las líneas que van del sol a un cliente sin padrino, alta directa por QR-, que en un local con muchas suelen ser la mayoría del ruido visual alrededor del núcleo. Ocultos por defecto: el sol arranca "apagado", sin rayos, y el propio botón los enciende. */
   const [hideDirectLinks, setHideDirectLinks] = useState(true);
   const [touched, setTouched] = useState(false);
-  // Misma filosofía que legendOpen/hudVisible -apagado por defecto, es el
-  // propio botón el que lo enciende-: la columna de iconos de la derecha
-  // entera se pliega detrás de un único botón, así que de entrada solo hay
-  // un botón a la vista en vez de cinco.
+  // Misma filosofía que hudVisible -apagado por defecto, es el propio botón
+  // el que lo enciende-: la columna de iconos de la derecha entera se
+  // pliega detrás de un único botón, así que de entrada solo hay un botón a
+  // la vista en vez de cuatro.
   const [controlsOpen, setControlsOpen] = useState(false);
 
   // Toda la cadena -no solo los antepasados hasta el sol: TODAS las esferas
@@ -2422,37 +2416,16 @@ export function ConstelacionSolMap({
           bajos -móvil en horizontal- la leyenda puede crecer hasta solaparse con la
           cabecera, y el botón de volver tiene que seguir pudiéndose tocar. */}
       <header className="pointer-events-none fixed inset-x-0 top-0 z-30 flex items-start justify-between gap-3 px-5 pt-[max(1rem,env(safe-area-inset-top))] transition-[padding-left] duration-200 ease-[var(--ease-out-soft)] lg:pl-[calc(var(--admin-sidebar-width,16rem)+1.25rem)]">
-        {/* Esta es ahora la portada del panel -no cuelga de ninguna otra
-            pantalla-, así que el botón de la esquina no es "volver" sino el
-            mismo HomeIcon -> /inicio que llevan el resto de pantallas del
-            panel en su cabecera -mismo criterio que ConstelacionMap cuando
-            era ella la portada. */}
-        {/* Flecha y placa en la misma fila, no una encima de la otra: una vista
-            pensada para dejar ver el mapa de fondo no puede gastarse dos
-            líneas de alto en su propia cabecera si con una le basta -y la
-            placa, más pequeña que antes, gana la misma legibilidad ocupando
-            menos-. */}
-        <div className="flex items-center gap-2.5">
-          <Link
-            href="/inicio"
-            prefetch={false}
-            className="btn glass-dark pointer-events-auto size-11 shrink-0 text-chalk"
-            aria-label={t.home.eyebrow}
-          >
-            <HomeIcon className="size-5" />
-          </Link>
-
-          {/* El nombre del local, fuera del mapa -no escrito encima del sol, como
-              en ConstelacionMap-: una placa fija en la esquina, tipo cartela de
-              observatorio, ajena al SVG que se pellizca y arrastra. */}
-          <div className="pointer-events-none flex min-w-0 flex-col gap-0.5">
-            <p className="truncate text-[1rem] font-extrabold leading-none tracking-[-0.01em] text-chalk">{shopName}</p>
-            <p className="eyebrow truncate text-[0.625rem] text-chalk/45">
-              {t.admin.referralMap} · {customerCount} {t.admin.constelacionCustomersLabel}
-            </p>
-          </div>
+        {/* El botón de inicio se mudó a BottomNav -el logo del sidebar en
+            escritorio, un icono propio en la barra inferior de móvil-,
+            compartido por las cuatro pantallas del panel en vez de que esta
+            vista reinvente el suyo: aquí ya solo queda la placa del local. */}
+        <div className="pointer-events-none flex min-w-0 flex-col gap-0.5">
+          <p className="truncate text-[1rem] font-extrabold leading-none tracking-[-0.01em] text-chalk">{shopName}</p>
+          <p className="eyebrow truncate text-[0.625rem] text-chalk/45">
+            {t.admin.referralMap} · {customerCount} {t.admin.constelacionCustomersLabel}
+          </p>
         </div>
-
       </header>
 
       {/* Burbuja de "Action" en móvil/tablet -ver liveEvents.ts para el
@@ -2563,7 +2536,7 @@ export function ConstelacionSolMap({
                             {liveEventDetail(event.kind, t, { state: event.state, stampsGoal, stampNumber: event.stampNumber })}
                           </span>
                         </p>
-                        <p className="mt-0.5 text-[0.5625rem] text-chalk/35">{relativeTimeLabel(event.ts)}</p>
+                        <p className="mt-0.5 text-[0.5625rem] text-chalk/35">{eventTimeLabel(event.ts)}</p>
                       </div>
                     </div>
                   );
@@ -2573,64 +2546,14 @@ export function ConstelacionSolMap({
           </div>
         </div>
 
-        {/* Leyenda + ficha: en flujo normal, ya no `absolute` -con el panel de
-            actividad ahora en su propia columna (`lg:self-stretch`, ancho
-            fijo) en vez de compartir la misma columna vertical, no hace
-            falta sacarlas del flujo para protegerle el alto: cada una tiene
-            su propio espacio, sin robárselo a la otra. En móvil -sin la fila
-            de `lg:`- el `justify-end` del contenedor las sigue empujando al
-            fondo de la pantalla como siempre. */}
+        {/* La leyenda de estados se mudó al panel "Lo que ninguna tarjeta te
+            dice" -ver la columna derecha, más abajo-: ya no hace falta esta
+            caja aparte ni su propio interruptor, era la misma cuenta por
+            estado repetida en dos sitios. Esta columna ahora es solo la
+            ficha del nodo seleccionado, en flujo normal -ya no `absolute`-,
+            empujada al fondo por el `justify-end` del contenedor en móvil. */}
         <div className="pointer-events-none flex flex-col">
-          <div
-            className="glass-dark pointer-events-auto max-w-[min(15rem,calc(100vw-6rem))] p-3 transition-transform duration-300 ease-[var(--ease-out-soft)] sm:max-w-[16rem] sm:p-3.5"
-            style={{
-              transform: legendOpen ? "translateX(0)" : "translateX(-120%)",
-              // Más transparente que el glass-dark de siempre -0.62 de opacidad-:
-              // esta caja tapa buena parte de la constelación, así que deja
-              // pasar más del mapa de detrás sin perder legibilidad -el blur
-              // y el borde de glass-dark se quedan igual.
-              background: "rgba(10,14,13,0.32)",
-            }}
-          >
-            <p className="eyebrow text-chalk/40">{t.admin.constelacionLegendTitle}</p>
-            <p className="mt-0.5 text-[0.625rem] leading-snug text-chalk/30 sm:text-[0.6875rem]">{t.admin.constelacionLegendDesc}</p>
-            <div className="mt-2 flex flex-col gap-1.5">
-              {FUNNEL_ORDER.map((state) => {
-                const isMutedRow = CONSTELACION_MUTED_STATES.has(state);
-                // El propio punto de la leyenda ya es la burbuja a escala -mismo
-                // multiplicador que dibuja el mapa-, así que enseña de un
-                // vistazo que el tamaño también cuenta la fase del cliente.
-                const swatchPx = 5 + CONSTELACION_PHASE_SIZE[state] * 6.5;
-                return (
-                  <div key={state} className={cn("flex items-center gap-2 text-[0.6875rem] sm:text-[0.75rem]", isMutedRow ? "text-chalk/45" : "text-chalk/75")}>
-                    <span
-                      className="flex shrink-0 items-center justify-center"
-                      style={{ width: 21, height: 21 }}
-                    >
-                      <span
-                        className="block rounded-full"
-                        style={{
-                          width: swatchPx,
-                          height: swatchPx,
-                          background: CONSTELACION_PHASE_COLOR[state],
-                          opacity: isMutedRow ? 0.55 : 1,
-                          border: isMutedRow ? `1px solid ${CONSTELACION_STROKE_COLOR[state]}` : undefined,
-                        }}
-                      />
-                    </span>
-                    <span className="min-w-0 flex-1 truncate">{stateBadgeLabel(state, t)}</span>
-                    <span className="numeral text-[0.625rem] text-chalk/40 sm:text-[0.6875rem]">{funnelCounts.get(state) ?? 0}</span>
-                  </div>
-                );
-              })}
-            </div>
-            <p className="mt-2.5 border-t border-white/8 pt-2.5 text-[0.5625rem] leading-tight text-chalk/40 sm:text-[0.625rem]">{t.admin.constelacionSizeLegend}</p>
-            <p className="mt-1.5 text-[0.5625rem] leading-tight text-chalk/40 sm:text-[0.625rem]">{t.admin.constelacionBrightnessLegend}</p>
-          </div>
-
-          {/* La ficha vive en esta misma columna, justo debajo de la leyenda -no
-              en su propio overlay a pantalla completa como en ConstelacionMap. */}
-          <div ref={cardWrapRef} className="mt-2 pointer-events-none">
+          <div ref={cardWrapRef} className="pointer-events-none">
             <ConstelacionSheet
               variant="corner"
               node={selectedNode}
@@ -2657,7 +2580,7 @@ export function ConstelacionSolMap({
       <div
         className={cn(
           "pointer-events-none fixed inset-y-0 right-3 z-20 flex flex-col items-end justify-end gap-2 pt-[max(1.25rem,env(safe-area-inset-top))] pb-[calc(3.375rem+env(safe-area-inset-bottom)+1.25rem)] lg:pb-[max(1.25rem,env(safe-area-inset-bottom))]",
-          hudVisible ? "lg:w-56" : "",
+          hudVisible ? "lg:w-72" : "",
         )}
       >
         {/* "Lo que ninguna tarjeta te dice": lecturas de toda la red a la vez,
@@ -2706,6 +2629,44 @@ export function ConstelacionSolMap({
                   </div>
                 ))}
               </dl>
+
+              {/* Leyenda de estados, plegada aquí dentro -ya no una caja
+                  aparte con su propio interruptor: era la misma cuenta por
+                  estado que ya vive en `dl` de arriba, repetida en dos
+                  sitios distintos de la pantalla. */}
+              <div className="mt-3 shrink-0 border-t border-white/8 pt-3">
+                <p className="eyebrow text-chalk/40">{t.admin.constelacionLegendTitle}</p>
+                <p className="mt-0.5 text-[0.625rem] leading-snug text-chalk/30">{t.admin.constelacionLegendDesc}</p>
+                <div className="mt-2 flex flex-col gap-1.5">
+                  {FUNNEL_ORDER.map((state) => {
+                    const isMutedRow = CONSTELACION_MUTED_STATES.has(state);
+                    // El propio punto de la leyenda ya es la burbuja a escala -mismo
+                    // multiplicador que dibuja el mapa-, así que enseña de un
+                    // vistazo que el tamaño también cuenta la fase del cliente.
+                    const swatchPx = 5 + CONSTELACION_PHASE_SIZE[state] * 6.5;
+                    return (
+                      <div key={state} className={cn("flex items-center gap-2 text-[0.6875rem]", isMutedRow ? "text-chalk/45" : "text-chalk/75")}>
+                        <span className="flex shrink-0 items-center justify-center" style={{ width: 21, height: 21 }}>
+                          <span
+                            className="block rounded-full"
+                            style={{
+                              width: swatchPx,
+                              height: swatchPx,
+                              background: CONSTELACION_PHASE_COLOR[state],
+                              opacity: isMutedRow ? 0.55 : 1,
+                              border: isMutedRow ? `1px solid ${CONSTELACION_STROKE_COLOR[state]}` : undefined,
+                            }}
+                          />
+                        </span>
+                        <span className="min-w-0 flex-1 truncate">{stateBadgeLabel(state, t)}</span>
+                        <span className="numeral text-[0.625rem] text-chalk/40">{funnelCounts.get(state) ?? 0}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+                <p className="mt-2.5 border-t border-white/8 pt-2.5 text-[0.5625rem] leading-tight text-chalk/40">{t.admin.constelacionSizeLegend}</p>
+                <p className="mt-1.5 text-[0.5625rem] leading-tight text-chalk/40">{t.admin.constelacionBrightnessLegend}</p>
+              </div>
             </div>
           </div>
         ) : null}
@@ -2763,15 +2724,6 @@ export function ConstelacionSolMap({
                   opacity: controlsOpen ? 1 : 0,
                 }}
               >
-                <button
-                  type="button"
-                  onClick={() => setLegendOpen((v) => !v)}
-                  aria-pressed={legendOpen}
-                  aria-label={t.admin.legend}
-                  className={cn("btn size-11", legendOpen ? "bg-lime text-ink" : "glass-dark text-chalk")}
-                >
-                  <InfoIcon className="size-5" />
-                </button>
                 <button type="button" onClick={resetView} aria-label={t.admin.resetView} className="btn glass-dark size-11 text-chalk">
                   <CompassIcon className="size-5" />
                 </button>
