@@ -1103,19 +1103,23 @@ export function ConstelacionSolMap({
   // invitados de sus invitados incluidos- comparte el mismo rootId -lo
   // asigna loadRealGiftGraph a cada nodo de un mismo árbol, raíz incluida-,
   // así que agrupar por ese campo trae la constelación entera de una vez,
-  // no solo el camino recto hasta el sol. El sol se añade a mano -no tiene
-  // rootId propio- porque sigue siendo el punto de referencia del encuadre.
+  // no solo el camino recto hasta el sol. El sol NO se incluye aquí -a
+  // propósito, aunque sea "el punto de referencia" en otro sentido-: como
+  // vive en el centro (0,0) y una cadena real cuelga a su propio radio de
+  // anillo, bastante lejos del centro, meterlo en la caja que se encuadra
+  // arrastraba el encuadre a abarcar desde el sol hasta la cadena entera
+  // -medio mapa vacío en medio- en vez de encuadrar solo la cadena, que es
+  // lo que de verdad se quiere ver de cerca.
   const chainMembers = useMemo(() => {
     const set = new Set<string>();
     if (!selectedId) return set;
     const selected = byId.get(selectedId);
     if (!selected) return set;
-    set.add(graph.establishment.id);
     for (const node of graph.nodes) {
       if (node.rootId === selected.rootId) set.add(node.id);
     }
     return set;
-  }, [selectedId, byId, graph.nodes, graph.establishment.id]);
+  }, [selectedId, byId, graph.nodes]);
 
   // Zoom automático: SIEMPRE que se toca una esfera, encuadra la constelación
   // entera a la que pertenece -chainMembers ya la trae completa, root y
@@ -1907,10 +1911,16 @@ export function ConstelacionSolMap({
                 borde ondula con un vaivén de aspecto aleatorio en vez de "respirar"
                 de forma pareja en bloque. Movimiento e intensidad deliberadamente
                 sutiles: es un aura, no un foco. */}
-            <circle className="constelacion-sun-aura-a" r={ESTABLISHMENT_RADIUS * 3.1} fill="url(#constelacion-glow)" fillOpacity={0.1} style={{ color: "var(--color-lime)" }} />
-            <circle className="constelacion-sun-aura-b" r={ESTABLISHMENT_RADIUS * 3.6} fill="url(#constelacion-glow)" fillOpacity={0.07} style={{ color: "var(--color-lime)" }} />
-            <circle className="constelacion-sun-aura-c" r={ESTABLISHMENT_RADIUS * 4.1} fill="url(#constelacion-glow)" fillOpacity={0.05} style={{ color: "var(--color-lime)" }} />
-            <circle cx={0} cy={0} r={ESTABLISHMENT_RADIUS * 2.5} fill="url(#constelacion-hub-glow)" />
+            {/* pointerEvents="none" en toda el aura -mismo motivo que en las
+                estrellas, ver el comentario en el bucle de nodos más abajo-: la del
+                destello llega a 5x ESTABLISHMENT_RADIUS, y sin esto se comía los
+                toques de cualquier nodo raíz cercano que cayera dentro sin que
+                hubiera nada visible ahí -el sol ya es opaco a los toques por su
+                propio núcleo, no le hace falta también el aura. */}
+            <circle className="constelacion-sun-aura-a" r={ESTABLISHMENT_RADIUS * 3.1} fill="url(#constelacion-glow)" fillOpacity={0.1} style={{ color: "var(--color-lime)" }} pointerEvents="none" />
+            <circle className="constelacion-sun-aura-b" r={ESTABLISHMENT_RADIUS * 3.6} fill="url(#constelacion-glow)" fillOpacity={0.07} style={{ color: "var(--color-lime)" }} pointerEvents="none" />
+            <circle className="constelacion-sun-aura-c" r={ESTABLISHMENT_RADIUS * 4.1} fill="url(#constelacion-glow)" fillOpacity={0.05} style={{ color: "var(--color-lime)" }} pointerEvents="none" />
+            <circle cx={0} cy={0} r={ESTABLISHMENT_RADIUS * 2.5} fill="url(#constelacion-hub-glow)" pointerEvents="none" />
             {/* Sin nombre del local escrito encima -eso es justo lo que este mapa cambia
                 respecto a ConstelacionMap-: el núcleo es solo el sol, el nombre vive
                 fuera, en la esquina -ver la placa fija más abajo en el JSX. */}
@@ -1919,7 +1929,16 @@ export function ConstelacionSolMap({
                 ver detectGraphActivity y el paso de destellos en el bucle de rAF-, no la
                 respiración constante de las auras de arriba: opacidad en 0 aquí, el
                 propio bucle la sube cuando el sondeo detecta actividad real. */}
-            <circle ref={sunFlashElRef} cx={0} cy={0} r={ESTABLISHMENT_RADIUS * 5} fill="url(#constelacion-glow)" fillOpacity={0} style={{ color: "var(--color-lime)" }} />
+            <circle
+              ref={sunFlashElRef}
+              cx={0}
+              cy={0}
+              r={ESTABLISHMENT_RADIUS * 5}
+              fill="url(#constelacion-glow)"
+              fillOpacity={0}
+              style={{ color: "var(--color-lime)" }}
+              pointerEvents="none"
+            />
           </g>
 
           {graph.nodes.map((node) => {
@@ -1993,11 +2012,34 @@ export function ConstelacionSolMap({
                 opacity={dimmed ? 0.11 : restOpacity}
                 transform={`translate(${pos.x.toFixed(2)},${pos.y.toFixed(2)})`}
               >
+                {/* pointerEvents="none" en todo lo decorativo de aquí abajo -halos,
+                    auras, anillos-: un <circle> con fill, aunque sea un degradado
+                    casi del todo transparente o en fillOpacity={0}, sigue siendo
+                    tocable en toda su área geométrica -el navegador no mira el alfa
+                    real del píxel-. Sin este atributo el aura de una estrella grande
+                    -haloScale, hasta 2.6x displayRadius- se comía los toques
+                    destinados a una vecina más pequeña que cae dentro de ese círculo
+                    invisible, aunque a la vista pareciera claramente "la otra
+                    esfera". Solo el núcleo sólido y el círculo de toque dedicado
+                    -starTouchRadius, más abajo- deben seguir respondiendo. */}
                 {isExpiringNode ? (
-                  <circle className="constelacion-alert-ring" r={displayRadius + 6} fill="none" stroke="var(--color-coral)" strokeWidth={1} />
+                  <circle
+                    className="constelacion-alert-ring"
+                    r={displayRadius + 6}
+                    fill="none"
+                    stroke="var(--color-coral)"
+                    strokeWidth={1}
+                    pointerEvents="none"
+                  />
                 ) : null}
                 {isBest ? (
-                  <circle r={displayRadius * 2.1} fill="url(#constelacion-glow)" fillOpacity={0.16} style={{ color: "var(--color-amber)" }} />
+                  <circle
+                    r={displayRadius * 2.1}
+                    fill="url(#constelacion-glow)"
+                    fillOpacity={0.16}
+                    style={{ color: "var(--color-amber)" }}
+                    pointerEvents="none"
+                  />
                 ) : null}
                 {/* "Estás viendo esta" -toda la constelación (chainMembers, ver más
                     arriba) se resalta igual, sin dimming, y con muchas esferas a la vez
@@ -2005,7 +2047,14 @@ export function ConstelacionSolMap({
                     un anillo neto, no un halo difuso -eso ya lo usan isBest/isExpiringNode
                     para otra cosa-, para que se lea como "aquí" y no como otro estado más. */}
                 {isSelected ? (
-                  <circle r={displayRadius + 4.5} fill="none" stroke="var(--color-chalk)" strokeWidth={1.3} strokeOpacity={0.92} />
+                  <circle
+                    r={displayRadius + 4.5}
+                    fill="none"
+                    stroke="var(--color-chalk)"
+                    strokeWidth={1.3}
+                    strokeOpacity={0.92}
+                    pointerEvents="none"
+                  />
                 ) : null}
 
                 <circle
@@ -2014,6 +2063,7 @@ export function ConstelacionSolMap({
                   fill="url(#constelacion-glow)"
                   fillOpacity={haloFillOpacity}
                   style={{ color }}
+                  pointerEvents="none"
                 />
                 {/* Destello de "esto acaba de pasar aquí" -sello, canje o alta nueva
                     detectados por el sondeo, ver detectGraphActivity-: sube y baja una
@@ -2029,6 +2079,7 @@ export function ConstelacionSolMap({
                   fill="url(#constelacion-glow)"
                   fillOpacity={0}
                   style={{ color }}
+                  pointerEvents="none"
                 />
                 {/* El titileo y el parpadeo de "en ventana" son dos animaciones de
                     `opacity` distintas: en un mismo elemento, la última declarada en
@@ -2182,6 +2233,7 @@ export function ConstelacionSolMap({
             locale={locale}
             t={t}
             onClose={() => setSelectedId(null)}
+            ignoreOutsideClickRef={svgRef}
           />
         </div>
       </div>

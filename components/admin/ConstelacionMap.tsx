@@ -1723,6 +1723,7 @@ export function ConstelacionMap({
         locale={locale}
         t={t}
         onClose={() => setSelectedId(null)}
+        ignoreOutsideClickRef={svgRef}
       />
     </div>
   );

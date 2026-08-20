@@ -32,6 +32,7 @@ export function ConstelacionSheet({
   t,
   onClose,
   variant = "sheet",
+  ignoreOutsideClickRef,
 }: {
   node: Node | null;
   giftedByName: string;
@@ -53,6 +54,18 @@ export function ConstelacionSheet({
    * y deslizándose desde la izquierda en vez de desde abajo.
    */
   variant?: "sheet" | "corner";
+  /**
+   * El propio lienzo del mapa (su `<svg>`): un toque ahí dentro NUNCA debe
+   * cerrar por "fuera", aunque el punto tocado no sea la tarjeta -el mapa ya
+   * decide por su cuenta qué hacer con ese toque (seleccionar otra esfera,
+   * una sección del anillo, o deseleccionar en vacío), en su propio
+   * `pointerup`. Sin excluirlo, el cierre por fuera -en `pointerdown`, antes
+   * de que el mapa resuelva el gesto en `pointerup`- deseleccionaba primero
+   * y el mapa reseleccionaba después: dos renders separados con `null` en
+   * medio, que se veía como si el zoom se deshiciera y volviera a hacerse
+   * de golpe al tocar una esfera vecina.
+   */
+  ignoreOutsideClickRef?: React.RefObject<Element | null>;
 }) {
   const initialSnapshot = node ? { node, giftedByName, invitedCount, sentAt, color } : null;
   const [snapshot, setSnapshot] = useState(initialSnapshot);
@@ -79,11 +92,14 @@ export function ConstelacionSheet({
       // `as globalThis.Node`, no `as Node` -este archivo importa `Node` como
       // el tipo del grafo (@/lib/giftGraph/types), que le tapa el nombre al
       // `Node` del DOM que `contains()` de verdad espera-.
-      if (cardRef.current && !cardRef.current.contains(event.target as globalThis.Node)) onClose();
+      const target = event.target as globalThis.Node;
+      if (cardRef.current?.contains(target)) return;
+      if (ignoreOutsideClickRef?.current?.contains(target)) return;
+      onClose();
     }
     document.addEventListener("pointerdown", handlePointerDown);
     return () => document.removeEventListener("pointerdown", handlePointerDown);
-  }, [open, onClose]);
+  }, [open, onClose, ignoreOutsideClickRef]);
 
   if (!snapshot) return null;
 
