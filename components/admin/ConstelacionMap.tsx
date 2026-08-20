@@ -162,29 +162,33 @@ const FUNNEL_ORDER: NodeState[] = ["sent", "expired", "opened", "claimed", "wind
  * esta vista pide valores exactos, propios de la constelación, que no
  * tienen por qué existir en la paleta del resto del panel.
  *
- * Blanco (prospecto) → cian vivo -38E1FF- (ya es cliente real, pero
- * todavía provisional: se dio de alta o está en ventana) → ámbar -FBBF24-
- * (abrió el enlace: ya demostró interés, pero sigue siendo un
- * prospecto, no comparte color con nada verificado) → magenta -FF00F9-
- * (nuevo verificado: hizo su primer consumo pagado después de canjear la
+ * Blanco (prospecto) → ámbar -FBBF24- (abrió el enlace: ya demostró
+ * interés, pero sigue siendo un prospecto, no comparte color con nada
+ * verificado) → verde -4ADE80, el mismo verde de --color-mint- (se dio de
+ * alta desde la invitación: ya es cliente real, pero todavía provisional,
+ * aún no ha canjeado en barra) → cian vivo -38E1FF- (en ventana: ya
+ * canjeó, esperando su próxima visita) → magenta -FF00F9- (nuevo
+ * verificado: hizo su primer consumo pagado después de canjear la
  * invitación -la definición exacta de "Cliente Nuevo Verificado" de
  * lib/attribution.ts-, el hito que de verdad factura al local, así que
- * lleva el color más alto de contraste de todo el mapa) → verde -4ADE80,
- * el mismo verde de --color-mint- (alta directa, siempre en primera
- * línea, se dio de alta él solo) → negro con borde blanco -descartada,
- * sin historia que seguir contando, el borde es el que la hace visible
- * sobre un fondo igual de oscuro que su propio relleno- o negro con
- * borde rojo -caducada: el rojo, no el blanco neutro, marca que ahí sí
- * hubo una invitación real que se dejó morir, a diferencia de una
- * simplemente descartada-.
+ * lleva el color más alto de contraste de todo el mapa) → verde lima
+ * -E9FF72- (alta directa, siempre en primera línea) → negro con borde
+ * blanco -descartada, sin historia que seguir contando, el borde es el
+ * que la hace visible sobre un fondo igual de oscuro que su propio
+ * relleno- o negro con borde rojo -caducada: el rojo, no el blanco
+ * neutro, marca que ahí sí hubo una invitación real que se dejó morir, a
+ * diferencia de una simplemente descartada-. "se dio de alta" y "alta
+ * directa" llevan cada uno su propio verde -distintos entre sí, 4ADE80 vs
+ * E9FF72- a propósito: son dos caminos distintos hacia ser cliente, no el
+ * mismo hito.
  */
 const CONSTELACION_PHASE_COLOR: Record<NodeState, string> = {
   sent: "#FFFFFF",
   opened: "#FBBF24",
-  claimed: "#38E1FF",
+  claimed: "#4ADE80",
   window: "#38E1FF",
   billable: "#FF00F9",
-  direct: "#4ADE80",
+  direct: "#E9FF72",
   discarded: "#000000",
   expired: "#000000",
 };
