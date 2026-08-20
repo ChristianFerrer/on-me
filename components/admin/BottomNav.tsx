@@ -151,14 +151,20 @@ export function BottomNav({
             interruptor de controles de la vista sol, rotado- en vez de las
             flechas rectas de antes: "<" mientras el sidebar está desplegado
             -empuja hacia la izquierda para plegarlo-, ">" cuando ya está
-            plegado -empuja hacia la derecha para desplegarlo de nuevo-. */}
+            plegado -empuja hacia la derecha para desplegarlo de nuevo-.
+            `right-3`, no `-right-3`: el negativo lo sacaba medio botón fuera
+            del propio borde derecho del sidebar, asomando sobre el lienzo
+            de al lado -parecía un control ajeno al panel, no parte de él-.
+            Dentro del propio recuadro, pegado a su borde, se lee como lo
+            que es: un control del sidebar, no un botón suelto encima del
+            mapa. */}
         {collapsible ? (
           <button
             type="button"
             onClick={() => setCollapsed((v) => !v)}
             aria-pressed={isCollapsed}
             aria-label={isCollapsed ? t.constelacionExpandSidebar : t.constelacionCollapseSidebar}
-            className="btn glass-dark absolute -right-3 bottom-6 size-6 shrink-0 text-chalk/60 hover:text-chalk"
+            className="btn glass-dark absolute right-3 bottom-6 size-6 shrink-0 text-chalk/60 hover:text-chalk"
           >
             <ChevronDownIcon className={cn("size-3.5 transition-transform duration-200 ease-[var(--ease-out-soft)]", isCollapsed ? "-rotate-90" : "rotate-90")} />
           </button>

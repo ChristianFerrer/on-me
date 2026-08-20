@@ -162,7 +162,14 @@ export function ConstelacionSheet({
       )}
       aria-hidden={compact ? !open : undefined}
       style={{
-        transform: open ? "translate(0, 0)" : compact ? "translateX(-120%)" : "translateY(102%)",
+        // -120% de su propio ancho -no de la pantalla- alcanzaba cuando esta
+        // columna vivía pegada al borde izquierdo; ahora que comparte fila
+        // con el panel de actividad (`lg:w-64` a su izquierda, ver
+        // ConstelacionSolMap) la tarjeta arranca más a la derecha, y ese
+        // mismo -120% ya no la saca de la pantalla -se quedaba asomando,
+        // visible, junto al panel de actividad-. -200vw sí lo garantiza
+        // siempre, sea cual sea la posición de partida de esta columna.
+        transform: open ? "translate(0, 0)" : compact ? "translateX(-200vw)" : "translateY(102%)",
       }}
     >
         {variant === "sheet" ? <div className="mx-auto mb-3 h-[3.5px] w-[34px] rounded-full bg-white/16" /> : null}

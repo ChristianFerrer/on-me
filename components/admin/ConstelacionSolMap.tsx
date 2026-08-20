@@ -8,7 +8,7 @@ import { ConstelacionSheet } from "@/components/admin/ConstelacionSheet";
 import { cn } from "@/lib/cn";
 import { bestPadrinoId, isExpiringSoon } from "@/lib/giftGraph/insights";
 import { type Pan, panBy, pixelsToUnits, zoomAtPoint } from "@/lib/panZoom";
-import { ESTABLISHMENT_RADIUS, layoutConstelacion, CONSTELACION_PHASE_SIZE, type ConstelacionLayout, type ConstelacionPoint } from "@/lib/giftGraph/constelacionLayout";
+import { ESTABLISHMENT_RADIUS, layoutConstelacion, type ConstelacionLayout, type ConstelacionPoint } from "@/lib/giftGraph/constelacionLayout";
 import { stateBadgeLabel } from "@/lib/giftGraph/stateBadge";
 import { isTap, type PointerPoint } from "@/lib/giftGraph/tapGesture";
 import { liveEventDetail, liveEventMessage, type LiveEventKind } from "@/lib/giftGraph/liveEvents";
@@ -2275,7 +2275,11 @@ export function ConstelacionSolMap({
             // también de lejos, no solo por estar más separada del sol-.
             const fanoutBoost = node.depth === 1 ? clamp((node.childCount - 1) / 5, 0, 1) : 0;
             const haloFillOpacity = Math.min(0.6, (isPositive ? 0.24 : 0.13) * (1 + visitBoost * 0.9 + fanoutBoost * 0.8));
-            const haloScale = (isPositive ? 2.15 : 1.85) * (1 + visitBoost * 0.35 + fanoutBoost * 0.4);
+            // Mínimo a propósito -antes hasta 2.6x displayRadius-: un halo tan
+            // grande se comía buena parte del mapa con varias esferas cerca.
+            // Mismo tope (Math.min) que haloFillOpacity, para que ni el boost
+            // por visitas ni por fan-out puedan devolverlo a un tamaño grande.
+            const haloScale = Math.min(1.8, (isPositive ? 1.4 : 1.2) * (1 + visitBoost * 0.35 + fanoutBoost * 0.4));
             const restOpacity = isMuted ? 0.55 : 1;
 
             // "En ventana" se encoge y parpadea cada vez más rápido cuantos
@@ -2317,7 +2321,7 @@ export function ConstelacionSolMap({
                     casi del todo transparente o en fillOpacity={0}, sigue siendo
                     tocable en toda su área geométrica -el navegador no mira el alfa
                     real del píxel-. Sin este atributo el aura de una estrella grande
-                    -haloScale, hasta 2.6x displayRadius- se comía los toques
+                    -haloScale, hasta 1.8x displayRadius- se comía los toques
                     destinados a una vecina más pequeña que cae dentro de ese círculo
                     invisible, aunque a la vista pareciera claramente "la otra
                     esfera". Solo el núcleo sólido y el círculo de toque dedicado
@@ -2375,7 +2379,7 @@ export function ConstelacionSolMap({
                     if (el) flashGlowRefs.current.set(node.id, el);
                     else flashGlowRefs.current.delete(node.id);
                   }}
-                  r={displayRadius * 2.4}
+                  r={displayRadius * 1.6}
                   fill="url(#constelacion-glow)"
                   fillOpacity={0}
                   style={{ color }}
@@ -2595,10 +2599,20 @@ export function ConstelacionSolMap({
             enseñando cuenta de clientes por separado. */}
         {hudVisible ? (
           <div className="hidden min-h-0 w-full lg:flex lg:flex-1 lg:flex-col">
+            {/* `overflow-hidden` en esta caja -no en la que de verdad hace
+                scroll, justo debajo- porque las esquinas redondeadas de
+                glass-dark y la propia barra de scroll no se llevan bien en
+                el mismo elemento: el navegador no recorta la barra al
+                radio del borde, así que asomaba recta por encima de la
+                esquina curva de arriba y de abajo. Separando "quién
+                redondea y recorta" de "quién hace scroll" -mismo patrón que
+                ya usa el panel de actividad de la columna izquierda- la
+                barra queda contenida siempre dentro del recuadro. */}
             <div
-              className="glass-dark scrollbar-glass pointer-events-auto flex min-h-0 flex-1 flex-col overflow-y-auto p-3"
+              className="glass-dark pointer-events-auto flex min-h-0 flex-1 flex-col overflow-hidden"
               style={{ background: "rgba(10,14,13,0.32)" }}
             >
+            <div className="scrollbar-glass flex min-h-0 flex-1 flex-col overflow-y-auto p-3">
               <p className="eyebrow shrink-0 text-chalk/40">{t.admin.constelacionInsightsTitle}</p>
               <div className="mt-2 shrink-0 rounded-2xl p-3" style={{ background: "rgba(233,255,114,0.1)" }}>
                 <p className="numeral text-[1.75rem] font-extrabold leading-none text-lime">{insights.referredPct}%</p>
@@ -2640,18 +2654,18 @@ export function ConstelacionSolMap({
                 <div className="mt-2 flex flex-col gap-1.5">
                   {FUNNEL_ORDER.map((state) => {
                     const isMutedRow = CONSTELACION_MUTED_STATES.has(state);
-                    // El propio punto de la leyenda ya es la burbuja a escala -mismo
-                    // multiplicador que dibuja el mapa-, así que enseña de un
-                    // vistazo que el tamaño también cuenta la fase del cliente.
-                    const swatchPx = 5 + CONSTELACION_PHASE_SIZE[state] * 6.5;
                     return (
                       <div key={state} className={cn("flex items-center gap-2 text-[0.6875rem]", isMutedRow ? "text-chalk/45" : "text-chalk/75")}>
+                        {/* Mismo tamaño para las 8 -antes a escala real del mapa, ver
+                            constelacionSizeLegend más abajo para esa variación-: en
+                            una lista tan compacta un swatch que cambia de tamaño fila
+                            a fila se lee como una jerarquía de importancia entre
+                            estados que no existe, no como "así de grande se ve en el
+                            mapa". */}
                         <span className="flex shrink-0 items-center justify-center" style={{ width: 21, height: 21 }}>
                           <span
-                            className="block rounded-full"
+                            className="block size-2.5 rounded-full"
                             style={{
-                              width: swatchPx,
-                              height: swatchPx,
                               background: CONSTELACION_PHASE_COLOR[state],
                               opacity: isMutedRow ? 0.55 : 1,
                               border: isMutedRow ? `1px solid ${CONSTELACION_STROKE_COLOR[state]}` : undefined,
@@ -2666,7 +2680,9 @@ export function ConstelacionSolMap({
                 </div>
                 <p className="mt-2.5 border-t border-white/8 pt-2.5 text-[0.5625rem] leading-tight text-chalk/40">{t.admin.constelacionSizeLegend}</p>
                 <p className="mt-1.5 text-[0.5625rem] leading-tight text-chalk/40">{t.admin.constelacionBrightnessLegend}</p>
+                <p className="mt-1.5 text-[0.5625rem] leading-tight text-chalk/40">{t.admin.constelacionHaloLegend}</p>
               </div>
+            </div>
             </div>
           </div>
         ) : null}
