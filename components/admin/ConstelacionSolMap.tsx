@@ -399,9 +399,10 @@ function twinkleDelayS(index: number): number {
   return ((index * 47) % 23) / 6.2;
 }
 
-function nodeXY(point: { angle: number; ringRadius: number; depth: number }): XY {
+/** `rotation` opcional -0 por defecto, la posición de siempre-: para el barrido de ángulos candidatos del encuadre de cadena (ver fitChainRotationAndPan) hace falta poder preguntar "¿dónde caería este punto si el mapa estuviera girado tantos radianes más?" sin tocar el `<g>` de verdad. */
+function nodeXY(point: { angle: number; ringRadius: number; depth: number }, rotation = 0): XY {
   if (point.depth === 0) return { x: 0, y: 0 };
-  return { x: point.ringRadius * Math.cos(point.angle), y: point.ringRadius * Math.sin(point.angle) };
+  return { x: point.ringRadius * Math.cos(point.angle + rotation), y: point.ringRadius * Math.sin(point.angle + rotation) };
 }
 
 /**
@@ -746,17 +747,14 @@ function detectGraphActivity(prevNodes: Node[], nextNodes: Node[]): GraphActivit
 
 /** Margen fijo alrededor de la caja que encierra toda la cadena tocada, en unidades del viewBox -mismo espíritu que VIEWBOX_PADDING, pero propio de este encuadre-. */
 const CHAIN_ZOOM_PADDING = 50;
+/** Franja reservada arriba -en píxeles de pantalla, no unidades del viewBox: se convierte con pixelsToUnits al vuelo- para que la cadena encuadrada no quede tapada por la cabecera fija: botón de volver + placa del local, con su margen de zona segura. Un valor fijo, no medido -a diferencia de la ficha, ver cardHeightPx-: la cabecera no cambia de alto según qué cadena se toque. */
+const HEADER_ZOOM_INSET_PX = 90;
+/** Igual que arriba, pero abajo: lo que hay por debajo de la propia ficha de detalle -BottomNav en móvil/tablet más su zona segura y los márgenes fijos del contenedor- y que cardHeightPx, medido de verdad, no incluye por sí solo. */
+const BOTTOM_CHROME_BUFFER_PX = 90;
+/** Ángulos candidatos -relativos a la rotación actual del mapa- que se prueban antes de encuadrar una cadena: cada uno es una orientación distinta de su caja envolvente, y se elige la que mejor aprovecha el hueco disponible. 4 bastan -0/45/90/135°, el ajuste de una caja a un rectángulo se repite cada 180°- para que una cadena con forma alargada -la mayoría, ver captura real- pueda caer con su lado largo alineado al hueco alto y estrecho entre la cabecera y la tarjeta, en vez de quedarse siempre a la orientación en la que el mapa iba girando por su cuenta en ese momento. */
+const CHAIN_ROTATION_CANDIDATES = [0, Math.PI / 4, Math.PI / 2, (Math.PI * 3) / 4];
 
-/**
- * Encuadre automático de toda una cadena -las esferas que devuelve
- * `chainMembers`, la constelación entera del nodo tocado, root y
- * descendientes de cualquier profundidad- dentro del viewBox: la misma
- * caja que ya usa el auto-fit inicial de la vista entera, aquí sobre un
- * puñado de puntos en vez de todos. Topado a `maxScale` para que una
- * cadena de dos esferas casi pegadas no acabe llenando la pantalla entera
- * de zoom -leer la caja completa importa más que verla grande-.
- */
-function fitChainPan(points: XY[], size: number, maxScale: number): Pan {
+function chainBoundingBox(points: XY[]): { cx: number; cy: number; spanX: number; spanY: number } {
   let minX = Infinity;
   let maxX = -Infinity;
   let minY = Infinity;
@@ -767,13 +765,57 @@ function fitChainPan(points: XY[], size: number, maxScale: number): Pan {
     minY = Math.min(minY, p.y);
     maxY = Math.max(maxY, p.y);
   }
-  const cx = (minX + maxX) / 2;
-  const cy = (minY + maxY) / 2;
-  const spanX = Math.max(maxX - minX, 1);
-  const spanY = Math.max(maxY - minY, 1);
-  const available = Math.max(size - CHAIN_ZOOM_PADDING * 2, 1);
-  const scale = clamp(Math.min(available / spanX, available / spanY), MIN_SCALE, maxScale);
-  return { x: -cx * scale, y: -cy * scale, scale };
+  return { cx: (minX + maxX) / 2, cy: (minY + maxY) / 2, spanX: Math.max(maxX - minX, 1), spanY: Math.max(maxY - minY, 1) };
+}
+
+/**
+ * Encuadre automático de toda una cadena -las esferas que devuelve
+ * `chainMembers`, la constelación entera del nodo tocado, root y
+ * descendientes de cualquier profundidad- dentro del hueco de verdad
+ * disponible: no todo el viewBox por igual, `topInset`/`bottomInset`
+ * -en sus mismas unidades- reservan la franja que tapan la cabecera fija
+ * arriba y la ficha de detalle abajo, para que la propia cadena tocada no
+ * termine escondida bajo la ficha que la enseña. Topado a `maxScale` para
+ * que una cadena de dos esferas casi pegadas no acabe llenando la
+ * pantalla entera de zoom -leer la caja completa importa más que verla
+ * grande-.
+ *
+ * También prueba unos pocos ángulos de rotación -ver
+ * CHAIN_ROTATION_CANDIDATES- sobre la propia rotación actual del mapa
+ * (`baseRotation`) y se queda con el que mejor llena ese hueco: una
+ * cadena alargada cabe mucho mejor con su lado largo alineado al hueco
+ * alto y estrecho entre cabecera y ficha que a la orientación en la que
+ * el mapa iba girando por su cuenta en el momento de tocarla.
+ */
+function fitChainRotationAndPan(
+  layoutPoints: ConstelacionPoint[],
+  baseRotation: number,
+  halfW: number,
+  half: number,
+  maxScale: number,
+  topInset: number,
+  bottomInset: number,
+): { rotationDelta: number; pan: Pan } {
+  const availW = Math.max(halfW * 2 - CHAIN_ZOOM_PADDING * 2, 1);
+  const availH = Math.max(half * 2 - topInset - bottomInset - CHAIN_ZOOM_PADDING * 2, 1);
+  // Centro vertical del hueco disponible, no del viewBox entero -0-: el
+  // propio viewBox va de -half (arriba) a +half (abajo), así que un margen
+  // de más arriba que abajo (o al revés) desplaza ese centro en la misma
+  // proporción.
+  const safeCenterY = (topInset - bottomInset) / 2;
+
+  let best: { rotationDelta: number; pan: Pan } | null = null;
+  for (const delta of CHAIN_ROTATION_CANDIDATES) {
+    const rotation = baseRotation + delta;
+    const box = chainBoundingBox(layoutPoints.map((p) => nodeXY(p, rotation)));
+    const scale = clamp(Math.min(availW / box.spanX, availH / box.spanY), MIN_SCALE, maxScale);
+    if (!best || scale > best.pan.scale) {
+      best = { rotationDelta: delta, pan: { x: -box.cx * scale, y: safeCenterY - box.cy * scale, scale } };
+    }
+  }
+  // layoutPoints nunca llega vacío -el efecto que llama a esto ya comprueba
+  // chainPoints.length > 0-, así que `best` siempre queda asignado.
+  return best as { rotationDelta: number; pan: Pan };
 }
 
 /**
@@ -987,7 +1029,7 @@ export function ConstelacionSolMap({
   const AUTO_ZOOM_MAX_SCALE = 2.2;
   /** Duración de la animación del zoom automático al tocar una sección del anillo: rápida, el objetivo ya se conoce -siempre el mismo punto del arco-. */
   const CATEGORY_ZOOM_DURATION_MS = 450;
-  /** La cadena, en cambio, suele acercarse mucho más -sin tope, ver fitChainPan más abajo-, así que un salto tan rápido como el de categoría marea y no deja tiempo de leer qué esfera es cuál según se van separando; más lento a propósito, para poder seguir con la vista cuál es cuál mientras el mapa se acerca. */
+  /** La cadena, en cambio, suele acercarse mucho más -sin tope, ver fitChainRotationAndPan más abajo-, así que un salto tan rápido como el de categoría marea y no deja tiempo de leer qué esfera es cuál según se van separando; más lento a propósito, para poder seguir con la vista cuál es cuál mientras el mapa se acerca. */
   const CHAIN_ZOOM_DURATION_MS = 1100;
   /** Solo mientras dura la animación del zoom automático: fuera de esa ventana el `<g>` no lleva transición, para no competir con el pellizco/arrastre manual, que actualiza `pan` en cada frame. */
   const [autoZooming, setAutoZooming] = useState(false);
@@ -1121,50 +1163,6 @@ export function ConstelacionSolMap({
     return set;
   }, [selectedId, byId, graph.nodes]);
 
-  // Zoom automático: SIEMPRE que se toca una esfera, encuadra la constelación
-  // entera a la que pertenece -chainMembers ya la trae completa, root y
-  // descendientes de cualquier profundidad- en vez de dejar al cliente
-  // adivinar dónde cae el resto de la cadena fuera de encuadre; tocar una
-  // sección del anillo sigue encuadrando esa sección, igual que antes. Los
-  // dos casos comparten un único efecto -y no dos compitiendo por `pan`-
-  // porque selectedCategory y selectedId ahora son mutuamente excluyentes
-  // (ver endPointer): nunca hay dos zooms queriendo mandar a la vez.
-  useEffect(() => {
-    const range = selectedCategory ? arcAngleRangeByState.get(selectedCategory) : undefined;
-    const chainPoints = selectedCategory
-      ? []
-      : [...chainMembers].map((id) => positions.get(id)).filter((p): p is XY => p != null);
-    // chainPoints solo trae algo cuando NO hay categoría tocada -ver su
-    // propia definición, arriba-, así que su longitud ya basta para elegir.
-    const durationMs = chainPoints.length > 0 ? CHAIN_ZOOM_DURATION_MS : CATEGORY_ZOOM_DURATION_MS;
-    // Diferido a un microtask -mismo patrón que el snapshot de lastCategory
-    // más abajo-: evita el aviso de "cascading renders" sin retrasar
-    // visualmente el zoom.
-    queueMicrotask(() => {
-      setAutoZoomDurationMs(durationMs);
-      setAutoZooming(true);
-      if (range) {
-        const angle = (range.start + range.end) / 2;
-        const targetRadius = frameRadius * MAGNET_TARGET_RADIUS_FACTOR;
-        const cx = targetRadius * Math.cos(angle);
-        const cy = targetRadius * Math.sin(angle);
-        setPan({ x: -cx * AUTO_ZOOM_MAX_SCALE, y: -cy * AUTO_ZOOM_MAX_SCALE, scale: AUTO_ZOOM_MAX_SCALE });
-      } else if (chainPoints.length > 0) {
-        // Sin tope de escala -Infinity, solo MIN_SCALE de suelo dentro de
-        // fitChainPan-: "el máximo posible para aprovechar la pantalla" es
-        // justo eso, no un techo fijo pensado para otro caso. Una cadena
-        // pequeña y apretada cerca del centro tiene que poder llenar la
-        // pantalla entera, aunque eso signifique pasar del zoom máximo al
-        // que llega el propio pellizco manual.
-        setPan(fitChainPan(chainPoints, size, Infinity));
-      } else {
-        setPan({ x: 0, y: 0, scale: 1 });
-      }
-    });
-    const timeout = window.setTimeout(() => setAutoZooming(false), durationMs + 50);
-    return () => window.clearTimeout(timeout);
-  }, [selectedCategory, selectedId, chainMembers, positions, arcAngleRangeByState, frameRadius, size]);
-
   const selectedNode = selectedId ? (byId.get(selectedId) ?? null) : null;
   const giftedByName = useMemo(() => {
     if (!selectedNode) return "";
@@ -1175,6 +1173,28 @@ export function ConstelacionSolMap({
   }, [selectedNode, parentOf, byId, graph.establishment]);
 
   const svgRef = useRef<SVGSVGElement>(null);
+
+  // Alto real -en píxeles de pantalla- de la ficha de detalle en la esquina
+  // (variante "corner"): el encuadre automático a una cadena (ver más abajo)
+  // lo necesita para no centrar la cadena en TODA la pantalla y dejarla
+  // parcialmente tapada bajo la propia ficha que la enseña -justo lo que
+  // pasaba antes de esto-. Vía ResizeObserver, no un cálculo a mano: el alto
+  // de la ficha cambia con el contenido (pendiente vs. reclamado, cuántas
+  // líneas ocupa el nombre...), así que se mide de verdad en vez de
+  // adivinarlo. El propio nodo sigue montado -y con su tamaño real- aunque
+  // esté "cerrado" -se traslada fuera de pantalla, no se desmonta-, así que
+  // el observer no necesita esperar a la primera selección para engancharse.
+  const cardWrapRef = useRef<HTMLDivElement>(null);
+  const [cardHeightPx, setCardHeightPx] = useState(0);
+  useEffect(() => {
+    const el = cardWrapRef.current;
+    if (!el) return;
+    const update = () => setCardHeightPx(el.getBoundingClientRect().height);
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
 
   // Un viewBox cuadrado con "xMidYMid meet" sobre un monitor ancho de
   // escritorio deja franjas vacías a los lados en vez de aprovechar el
@@ -1232,6 +1252,75 @@ export function ConstelacionSolMap({
   const magnetRef = useRef(new Map<string, number>());
   /** Índice estable de cada enlace dentro de layout.links, semilla de la respiración de su curva -ver linkBezier-. */
   const linkIndexOf = useMemo(() => new Map(layout.links.map((l, i) => [`${l.fromId}>${l.toId}`, i])), [layout.links]);
+
+  // Zoom automático: SIEMPRE que se toca una esfera, encuadra la constelación
+  // entera a la que pertenece -chainMembers ya la trae completa, root y
+  // descendientes de cualquier profundidad- en el hueco de verdad libre
+  // entre la cabecera y la ficha de detalle -no todo el viewBox por igual,
+  // ver fitChainRotationAndPan-, probando de paso unos pocos ángulos de
+  // rotación para que una cadena alargada pueda caer con su lado largo
+  // alineado a ese hueco alto y estrecho en vez de a la orientación en la
+  // que el mapa iba girando por su cuenta en ese momento. Tocar una sección
+  // del anillo sigue encuadrando esa sección, igual que antes. Los dos
+  // casos comparten un único efecto -y no dos compitiendo por `pan`- porque
+  // selectedCategory y selectedId ahora son mutuamente excluyentes (ver
+  // endPointer): nunca hay dos zooms queriendo mandar a la vez.
+  useEffect(() => {
+    const range = selectedCategory ? arcAngleRangeByState.get(selectedCategory) : undefined;
+    const chainLayoutPoints = selectedCategory
+      ? []
+      : [...chainMembers].map((id) => layout.points.get(id)).filter((p): p is ConstelacionPoint => p != null);
+    // chainLayoutPoints solo trae algo cuando NO hay categoría tocada -ver
+    // su propia definición, arriba-, así que su longitud ya basta para elegir.
+    const durationMs = chainLayoutPoints.length > 0 ? CHAIN_ZOOM_DURATION_MS : CATEGORY_ZOOM_DURATION_MS;
+    // Mismo par píxeles↔unidades del viewBox que ya usan viewPoint/deltaToView
+    // más abajo -el lado corto del contenedor real, medido con
+    // getBoundingClientRect, no un valor supuesto-, para convertir el alto de
+    // la cabecera y de la ficha -ambos en píxeles de pantalla- a las mismas
+    // unidades en las que vive todo lo demás de este encuadre.
+    const svgRect = svgRef.current?.getBoundingClientRect();
+    const base = svgRect && svgRect.width > 0 && svgRect.height > 0 ? Math.min(svgRect.width, svgRect.height) : Math.min(halfW * 2, half * 2);
+    const topInset = pixelsToUnits(HEADER_ZOOM_INSET_PX, base, size);
+    const bottomInset = pixelsToUnits(cardHeightPx + BOTTOM_CHROME_BUFFER_PX, base, size);
+    // Diferido a un microtask -mismo patrón que el snapshot de lastCategory
+    // más abajo-: evita el aviso de "cascading renders" sin retrasar
+    // visualmente el zoom.
+    queueMicrotask(() => {
+      setAutoZoomDurationMs(durationMs);
+      setAutoZooming(true);
+      if (range) {
+        const angle = (range.start + range.end) / 2;
+        const targetRadius = frameRadius * MAGNET_TARGET_RADIUS_FACTOR;
+        const cx = targetRadius * Math.cos(angle);
+        const cy = targetRadius * Math.sin(angle);
+        setPan({ x: -cx * AUTO_ZOOM_MAX_SCALE, y: -cy * AUTO_ZOOM_MAX_SCALE, scale: AUTO_ZOOM_MAX_SCALE });
+      } else if (chainLayoutPoints.length > 0) {
+        // Sin tope de escala -Infinity, solo MIN_SCALE de suelo dentro de
+        // fitChainRotationAndPan-: "el máximo posible para aprovechar la
+        // pantalla" es justo eso, no un techo fijo pensado para otro caso.
+        const { rotationDelta, pan: fitPan } = fitChainRotationAndPan(
+          chainLayoutPoints,
+          rotationRef.current,
+          halfW,
+          half,
+          Infinity,
+          topInset,
+          bottomInset,
+        );
+        // Mutación directa del ref, no estado: la rotación de fondo ya vive
+        // fuera de React (el bucle de rAF la lee/incrementa cuadro a
+        // cuadro), así que sumarle el ángulo elegido aquí es la misma
+        // operación -solo que de una vez, no ROTATION_PER_FRAME a la vez- y
+        // el resto del mapa sigue girando desde ese nuevo punto de partida.
+        rotationRef.current += rotationDelta;
+        setPan(fitPan);
+      } else {
+        setPan({ x: 0, y: 0, scale: 1 });
+      }
+    });
+    const timeout = window.setTimeout(() => setAutoZooming(false), durationMs + 50);
+    return () => window.clearTimeout(timeout);
+  }, [selectedCategory, selectedId, chainMembers, layout, arcAngleRangeByState, frameRadius, size, halfW, half, cardHeightPx]);
 
   // Paralaje del fondo de estrellas: objetivo -lo que dice el sensor/ratón
   // ahora mismo- y valor ya suavizado -lo que de verdad se pinta-, para que
@@ -1384,7 +1473,7 @@ export function ConstelacionSolMap({
         nodeRadii.push(nodeRadiusRef.current.get(point.id) ?? 4);
       }
       // También sin imán activo, mientras haya una cadena tocada: sin tope de
-      // escala (ver fitChainPan) el zoom puede acercarse mucho, y a esa
+      // escala (ver fitChainRotationAndPan) el zoom puede acercarse mucho, y a esa
       // distancia dos esferas que en reposo casi se tocaban -su posición
       // natural del layout no se pensó para verse tan de cerca- pasan a
       // superponerse de verdad. Mismo criterio "según su propio radio
@@ -2219,7 +2308,7 @@ export function ConstelacionSolMap({
             `justify-end` la empuja al fondo y dobla como último hijo, así que
             la leyenda -primer hijo- siempre queda por encima de ella cuando
             las dos están abiertas a la vez. */}
-        <div className="mt-2 pointer-events-none">
+        <div ref={cardWrapRef} className="mt-2 pointer-events-none">
           <ConstelacionSheet
             variant="corner"
             node={selectedNode}
