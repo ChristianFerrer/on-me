@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowLeftIcon, CompassIcon, EyeIcon, EyeOffIcon, InfoIcon, PulseIcon, SettingsIcon } from "@/components/ui/Icons";
+import { ArrowLeftIcon, ChevronDownIcon, CompassIcon, EyeIcon, EyeOffIcon, InfoIcon, PulseIcon, SettingsIcon } from "@/components/ui/Icons";
 import { BottomNav } from "@/components/admin/BottomNav";
 import { ConstelacionSheet } from "@/components/admin/ConstelacionSheet";
 import { cn } from "@/lib/cn";
@@ -1087,6 +1087,11 @@ export function ConstelacionSolMap({
   /** Ajuste propio de esta vista -no existe en ConstelacionMap-: oculta los "rayos" -las líneas que van del sol a un cliente sin padrino, alta directa por QR-, que en un local con muchas suelen ser la mayoría del ruido visual alrededor del núcleo. Ocultos por defecto: el sol arranca "apagado", sin rayos, y el propio botón los enciende. */
   const [hideDirectLinks, setHideDirectLinks] = useState(true);
   const [touched, setTouched] = useState(false);
+  // Misma filosofía que legendOpen/hudVisible -apagado por defecto, es el
+  // propio botón el que lo enciende-: la columna de iconos de la derecha
+  // entera se pliega detrás de un único botón, así que de entrada solo hay
+  // un botón a la vista en vez de cinco.
+  const [controlsOpen, setControlsOpen] = useState(false);
 
   // Toda la cadena -no solo los antepasados hasta el sol: TODAS las esferas
   // unidas directa o indirectamente al nodo tocado, sus hermanos y los
@@ -1132,7 +1137,14 @@ export function ConstelacionSolMap({
         const cy = targetRadius * Math.sin(angle);
         setPan({ x: -cx * AUTO_ZOOM_MAX_SCALE, y: -cy * AUTO_ZOOM_MAX_SCALE, scale: AUTO_ZOOM_MAX_SCALE });
       } else if (chainPoints.length > 0) {
-        setPan(fitChainPan(chainPoints, size, AUTO_ZOOM_MAX_SCALE));
+        // Tope propio, no AUTO_ZOOM_MAX_SCALE -pensado para el zoom fijo del
+        // anillo de categorías, que puede tener muchos miembros repartidos-:
+        // una cadena pequeña, apretada cerca del centro, tiene que poder
+        // llenar la pantalla de verdad en vez de quedarse topada a 2.2x con
+        // medio encuadre vacío alrededor. Mismo techo que el pellizco manual
+        // -MAX_SCALE-, así el automático nunca llega más lejos de lo que ya
+        // podría llegar el propio dedo del cliente.
+        setPan(fitChainPan(chainPoints, size, MAX_SCALE));
       } else {
         setPan({ x: 0, y: 0, scale: 1 });
       }
@@ -2042,11 +2054,16 @@ export function ConstelacionSolMap({
         {/* A diferencia de ConstelacionMap -la portada del panel-, esta es una
             vista de comparación que cuelga de ella, así que el botón de la
             esquina vuelve a ser "volver a /admin", no el HomeIcon -> /inicio. */}
-        <div className="flex flex-col items-start gap-2.5">
+        {/* Flecha y placa en la misma fila, no una encima de la otra: una vista
+            pensada para dejar ver el mapa de fondo no puede gastarse dos
+            líneas de alto en su propia cabecera si con una le basta -y la
+            placa, más pequeña que antes, gana la misma legibilidad ocupando
+            menos-. */}
+        <div className="flex items-center gap-2.5">
           <Link
             href="/admin"
             prefetch={false}
-            className="btn glass-dark pointer-events-auto size-11 text-chalk"
+            className="btn glass-dark pointer-events-auto size-11 shrink-0 text-chalk"
             aria-label={t.admin.constelacionSolBack}
           >
             <ArrowLeftIcon className="size-5" />
@@ -2055,9 +2072,9 @@ export function ConstelacionSolMap({
           {/* El nombre del local, fuera del mapa -no escrito encima del sol, como
               en ConstelacionMap-: una placa fija en la esquina, tipo cartela de
               observatorio, ajena al SVG que se pellizca y arrastra. */}
-          <div className="pointer-events-none flex flex-col gap-1 pl-1">
-            <p className="text-[1.375rem] font-extrabold leading-none tracking-[-0.01em] text-chalk lg:text-[1.625rem]">{shopName}</p>
-            <p className="eyebrow text-[0.75rem] text-chalk/45">
+          <div className="pointer-events-none flex min-w-0 flex-col gap-0.5">
+            <p className="truncate text-[1rem] font-extrabold leading-none tracking-[-0.01em] text-chalk">{shopName}</p>
+            <p className="eyebrow truncate text-[0.625rem] text-chalk/45">
               {t.admin.referralMap} · {customerCount} {t.admin.constelacionCustomersLabel}
             </p>
           </div>
@@ -2185,49 +2202,81 @@ export function ConstelacionSolMap({
           ) : null}
         </div>
         <div className="pointer-events-auto flex flex-col items-center gap-2">
+          {/* Los cinco botones de siempre, ahora plegados detrás de un único
+              interruptor -ver más abajo-: de entrada solo hay un botón a la
+              vista, no cinco. `grid-template-rows` de 0fr a 1fr -no solo
+              opacidad- para que de verdad recojan el hueco que ocupan al
+              cerrarse, no que se queden invisibles pero pesando lo mismo; el
+              propio contenido además se desliza -hacia abajo al cerrar, hacia
+              arriba al abrir-, así se lee como que se juntan/reparten, no
+              como un simple parpadeo. */}
+          <div
+            className="grid overflow-hidden transition-[grid-template-rows] duration-300 ease-[var(--ease-out-soft)]"
+            style={{ gridTemplateRows: controlsOpen ? "1fr" : "0fr" }}
+          >
+            <div className="flex min-h-0 flex-col items-center gap-2 overflow-hidden">
+              <div
+                className="flex flex-col items-center gap-2 transition-[transform,opacity] duration-300 ease-[var(--ease-out-soft)]"
+                style={{
+                  transform: controlsOpen ? "translateY(0)" : "translateY(14px)",
+                  opacity: controlsOpen ? 1 : 0,
+                }}
+              >
+                <button
+                  type="button"
+                  onClick={() => setLegendOpen((v) => !v)}
+                  aria-pressed={legendOpen}
+                  aria-label={t.admin.legend}
+                  className={cn("btn size-11", legendOpen ? "bg-lime text-ink" : "glass-dark text-chalk")}
+                >
+                  <InfoIcon className="size-5" />
+                </button>
+                <button type="button" onClick={resetView} aria-label={t.admin.resetView} className="btn glass-dark size-11 text-chalk">
+                  <CompassIcon className="size-5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setHudVisible((v) => !v)}
+                  aria-pressed={hudVisible}
+                  aria-label={t.admin.constelacionToggleHud}
+                  className={cn("btn size-11", hudVisible ? "bg-lime text-ink" : "glass-dark text-chalk")}
+                >
+                  {hudVisible ? <EyeIcon className="size-5" /> : <EyeOffIcon className="size-5" />}
+                </button>
+                {/* Propio de esta vista -no existe en ConstelacionMap-: enciende/apaga
+                    los rayos del sol -las líneas que van del núcleo a un cliente de
+                    alta directa por QR-, el ruido visual más habitual alrededor del
+                    núcleo. Apagados por defecto: en lima solo cuando están
+                    encendidos -rayos visibles-, apagado/glass-dark cuando no los hay. */}
+                <button
+                  type="button"
+                  onClick={() => setHideDirectLinks((v) => !v)}
+                  aria-pressed={!hideDirectLinks}
+                  aria-label={t.admin.constelacionHideDirectLinks}
+                  title={t.admin.constelacionSettings}
+                  className={cn("btn size-11", !hideDirectLinks ? "bg-lime text-ink" : "glass-dark text-chalk")}
+                >
+                  <SettingsIcon className="size-5" />
+                </button>
+                {/* Como en ConstelacionMap: esta vista tampoco lleva su propia barra
+                    inferior -es igualmente "una exploración a pantalla completa, no
+                    una tarjeta más"-, así que este icono sigue siendo el camino
+                    directo a puertas y señales, juntas en /admin/metricas. */}
+                <Link href="/admin/metricas" prefetch={false} aria-label={t.admin.navMetrics} className="btn glass-dark size-11 text-chalk">
+                  <PulseIcon className="size-5" />
+                </Link>
+              </div>
+            </div>
+          </div>
           <button
             type="button"
-            onClick={() => setLegendOpen((v) => !v)}
-            aria-pressed={legendOpen}
-            aria-label={t.admin.legend}
-            className={cn("btn size-11", legendOpen ? "bg-lime text-ink" : "glass-dark text-chalk")}
+            onClick={() => setControlsOpen((v) => !v)}
+            aria-expanded={controlsOpen}
+            aria-label={t.admin.constelacionToggleControls}
+            className="btn glass-dark size-11 text-chalk"
           >
-            <InfoIcon className="size-5" />
+            <ChevronDownIcon className={cn("size-5 transition-transform duration-300 ease-[var(--ease-out-soft)]", controlsOpen ? "rotate-180" : "")} />
           </button>
-          <button type="button" onClick={resetView} aria-label={t.admin.resetView} className="btn glass-dark size-11 text-chalk">
-            <CompassIcon className="size-5" />
-          </button>
-          <button
-            type="button"
-            onClick={() => setHudVisible((v) => !v)}
-            aria-pressed={hudVisible}
-            aria-label={t.admin.constelacionToggleHud}
-            className={cn("btn size-11", hudVisible ? "bg-lime text-ink" : "glass-dark text-chalk")}
-          >
-            {hudVisible ? <EyeIcon className="size-5" /> : <EyeOffIcon className="size-5" />}
-          </button>
-          {/* Propio de esta vista -no existe en ConstelacionMap-: enciende/apaga
-              los rayos del sol -las líneas que van del núcleo a un cliente de
-              alta directa por QR-, el ruido visual más habitual alrededor del
-              núcleo. Apagados por defecto: en lima solo cuando están
-              encendidos -rayos visibles-, apagado/glass-dark cuando no los hay. */}
-          <button
-            type="button"
-            onClick={() => setHideDirectLinks((v) => !v)}
-            aria-pressed={!hideDirectLinks}
-            aria-label={t.admin.constelacionHideDirectLinks}
-            title={t.admin.constelacionSettings}
-            className={cn("btn size-11", !hideDirectLinks ? "bg-lime text-ink" : "glass-dark text-chalk")}
-          >
-            <SettingsIcon className="size-5" />
-          </button>
-          {/* Como en ConstelacionMap: esta vista tampoco lleva su propia barra
-              inferior -es igualmente "una exploración a pantalla completa, no
-              una tarjeta más"-, así que este icono sigue siendo el camino
-              directo a puertas y señales, juntas en /admin/metricas. */}
-          <Link href="/admin/metricas" prefetch={false} aria-label={t.admin.navMetrics} className="btn glass-dark size-11 text-chalk">
-            <PulseIcon className="size-5" />
-          </Link>
         </div>
       </div>
 

@@ -126,11 +126,14 @@ export function ConstelacionSheet({
       ? fill(t.admin.constelacionSentInvitedLine, { date: formatDateTime(snapshot.sentAt, locale), n: snapshot.invitedCount })
       : fill(t.admin.constelacionInvitedOnlyLine, { n: snapshot.invitedCount });
 
-  // Corner -16rem, junto a la leyenda- es bastante más estrecha que sheet
+  // Corner -20rem, junto a la leyenda- sigue siendo más estrecha que sheet
   // -30/34rem-, así que cada componente de dentro lleva su propio par de
   // tamaños en vez de uno solo pensado para el ancho mayor: en corner el
   // nombre truncaría en dos palabras y la cuadrícula de datos se apretaría
-  // sin este ajuste.
+  // sin este ajuste. Un poco más ancha que antes (16rem→20rem) a propósito:
+  // ese margen de más deja que la línea de invitación quepa sin partirse en
+  // dos, así la tarjeta entera pesa menos de alto -gana ese hueco arriba
+  // para el mapa- sin perder ningún dato.
   const compact = variant === "corner";
 
   const card = (
@@ -138,7 +141,7 @@ export function ConstelacionSheet({
       ref={cardRef}
       className={cn(
         "glass-dark overflow-hidden shadow-[0_-18px_50px_rgba(0,0,0,0.5)] transition-transform duration-[400ms] ease-[cubic-bezier(0.22,1,0.36,1)]",
-        compact ? "w-[16rem] p-4" : "w-full max-w-[30rem] p-5 sm:max-w-[34rem]",
+        compact ? "w-[min(20rem,calc(100vw-2rem))] p-4" : "w-full max-w-[30rem] p-5 sm:max-w-[34rem]",
         open ? "pointer-events-auto" : "pointer-events-none",
       )}
       aria-hidden={compact ? !open : undefined}
@@ -172,17 +175,17 @@ export function ConstelacionSheet({
           </button>
         </div>
 
-        <p className={cn("mt-2 truncate font-extrabold tracking-[-0.025em]", compact ? "text-[1.125rem]" : "text-[1.5rem]")}>
+        <p className={cn("truncate font-extrabold tracking-[-0.025em]", compact ? "mt-1.5 text-[1.125rem]" : "mt-2 text-[1.5rem]")}>
           {isPending ? t.admin.constelacionPendingInvite : shown.name}
         </p>
         <p className={cn("mt-1 font-semibold uppercase tracking-[0.15em] text-chalk/34", compact ? "text-[0.5625rem]" : "text-[0.6875rem]")}>
           {t.admin.attrPadrino} · {snapshot.giftedByName || "—"}
         </p>
 
-        <p className={cn("mt-3 leading-snug text-chalk/75", compact ? "text-[0.6875rem]" : "text-[0.8125rem]")}>{sentInvitedLine}</p>
+        <p className={cn("leading-snug text-chalk/75", compact ? "mt-2 text-[0.6875rem]" : "mt-3 text-[0.8125rem]")}>{sentInvitedLine}</p>
 
         {isPending ? null : (
-          <dl className={cn("numeral mt-3 grid grid-cols-3", compact ? "gap-2 text-[0.5625rem]" : "gap-3 text-[0.6875rem]")}>
+          <dl className={cn("numeral grid grid-cols-3", compact ? "mt-2 gap-2 text-[0.5625rem]" : "mt-3 gap-3 text-[0.6875rem]")}>
             <div>
               <dt className="text-chalk/34">{t.admin.attrRedeemed}</dt>
               <dd className={cn("mt-0.5 font-semibold text-chalk/90", compact ? "text-[0.75rem]" : "text-[0.9375rem]")}>
@@ -201,9 +204,9 @@ export function ConstelacionSheet({
         )}
 
         {isPending ? null : (
-          <div className="mt-3">
+          <div className={compact ? "mt-2" : "mt-3"}>
             <StampCard stamps={shown.stamps} goal={stampsGoal} tone="dark" />
-            <p className={cn("numeral mt-2 text-chalk/40", compact ? "text-[0.5625rem]" : "text-[0.6875rem]")}>
+            <p className={cn("numeral mt-1.5 text-chalk/40", compact ? "text-[0.5625rem]" : "text-[0.6875rem]")}>
               {fill(t.admin.constelacionTotalConsumedLine, { n: totalConsumed })}
             </p>
           </div>
