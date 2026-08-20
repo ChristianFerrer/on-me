@@ -1242,12 +1242,39 @@ export function ConstelacionSolMap({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Al encender la simulación, el universo arranca de cero -sin los
+  // clientes de verdad ya cargados-, y lo que fabrica simulateGraphStep
+  // (más abajo) lo va llenando desde ahí: así se ve nacer la constelación
+  // entera, no una demo mezclada encima de los 100+ clientes reales que ya
+  // hubiera. Solo el establecimiento -el sol- sobrevive al reinicio; todo
+  // lo demás -selección tocada, feed de sucesos, destellos en curso- se
+  // limpia con él, para que no queden restos de la sesión real colgando de
+  // una constelación que ya no existe. Efecto propio, sin `stampsGoal` en
+  // las dependencias -a diferencia del paso de simulación, justo debajo-:
+  // si ese valor cambiara a media demo no hay por qué reiniciar el
+  // universo ya construido, solo el propio encendido debe vaciarlo.
+  useEffect(() => {
+    if (!simulating) return;
+    const emptyGraph: GiftGraph = { establishment: prevGraphRef.current.establishment, roots: [], nodes: [], edges: [] };
+    prevGraphRef.current = emptyGraph;
+    setGraph(emptyGraph);
+    setSelectedId(null);
+    setSelectedCategory(null);
+    setLiveEvents([]);
+    setToastEvent(null);
+    nodeFlashRef.current.clear();
+    sunFlashRef.current = null;
+  }, [simulating]);
+
   // El propio paso de simulación: un cambio de mentira cada SIMULATION_STEP_MS
   // mientras `simulating` está encendido, con el mismo tratamiento que un
   // suceso real -destello más anuncio en el feed-, para que la demo se vea
   // exactamente igual que la actividad de verdad, no como una vista aparte.
   // El primer paso se dispara al momento de encender -no solo tras el primer
-  // intervalo-, para que la demo se note nada más tocar el botón.
+  // intervalo-, para que la demo se note nada más tocar el botón. Parte de lo
+  // que dejó el efecto de arriba -el universo recién vaciado-, así que el
+  // primer paso siempre es "aparece el primer cliente", nunca un sello o un
+  // canje sobre alguien que todavía no existe.
   useEffect(() => {
     if (!simulating) return;
     const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
