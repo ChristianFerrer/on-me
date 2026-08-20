@@ -54,9 +54,30 @@ export function simulateGraphStep(graph: GiftGraph, stampsGoal: number): { graph
 
   const pendingSent = graph.nodes.filter((n) => !n.claimed && n.state === "sent");
   const pendingAny = graph.nodes.filter((n) => !n.claimed && (n.state === "sent" || n.state === "opened"));
-  const activeClaimed = graph.nodes.filter((n) => n.claimed && (n.state === "direct" || n.state === "billable" || n.state === "claimed"));
+  // Quién puede sumar un sello más: "direct"/"billable" son estados finales
+  // -nunca cambian de color, ver CONSTELACION_PHASE_COLOR- así que completar
+  // una tarjeta ahí solo suma cardsCompleted, nunca cambia el estado. Solo
+  // "claimed" -se dio de alta desde invitación, todavía no ha canjeado su
+  // primera tarjeta- entra de verdad en la ventana de retorno al completarla:
+  // esa tabla de atribuciones -ver loadRealGiftGraph.ts- solo existe para
+  // pares padrino/ahijado, un alta directa nunca pasa por ahí.
+  const stampable = graph.nodes.filter((n) => n.claimed && (n.state === "direct" || n.state === "billable" || n.state === "claimed"));
   const windowNodes = graph.nodes.filter((n) => n.claimed && n.state === "window");
   const referrers = graph.nodes.filter((n) => n.claimed);
+
+  /** Completa una tarjeta sobre `target`: solo "claimed" entra en ventana de retorno -ver el comentario de `stampable` arriba-, "direct"/"billable" se quedan en su propio estado para siempre, solo crecen en sellos/tarjetas. */
+  function redeemCard(target: Node): Node {
+    const entersWindow = target.state === "claimed";
+    return {
+      ...target,
+      state: entersWindow ? "window" : target.state,
+      stamps: 0,
+      cardsCompleted: target.cardsCompleted + 1,
+      redeemedAt: now,
+      returnedAt: entersWindow ? null : target.returnedAt,
+      lastActivityAt: now,
+    };
+  }
 
   type Scenario = { kind: LiveEventKind; weight: number };
   // El literal se tipa aparte, antes del .filter(): TypeScript no ve a
@@ -69,8 +90,8 @@ export function simulateGraphStep(graph: GiftGraph, stampsGoal: number): { graph
     { kind: "invite_opened", weight: pendingSent.length > 0 ? 2 : 0 },
     { kind: "invite_expiring", weight: pendingAny.length > 0 ? 1 : 0 },
     { kind: "invite_expired", weight: pendingAny.length > 0 ? 1 : 0 },
-    { kind: "stamp", weight: activeClaimed.length > 0 ? 3 : 0 },
-    { kind: "redeemed", weight: activeClaimed.length > 0 ? 2 : 0 },
+    { kind: "stamp", weight: stampable.length > 0 ? 3 : 0 },
+    { kind: "redeemed", weight: stampable.length > 0 ? 2 : 0 },
     { kind: "returned", weight: windowNodes.length > 0 ? 2 : 0 },
   ];
   const scenarios = allScenarios.filter((s) => s.weight > 0);
@@ -166,39 +187,25 @@ export function simulateGraphStep(graph: GiftGraph, stampsGoal: number): { graph
       return { graph: { ...graph, nodes }, event: { kind: "invite_expired", nodeId: target.id, name: "", state: "expired" } };
     }
     case "stamp": {
-      const target = pick(activeClaimed);
+      const target = pick(stampable);
       if (!target) return null;
       const nextStamps = target.stamps + 1;
       // Llega a la meta -stampsGoal-: es un canje, no un sello más, o la
       // tarjeta se pintaría con más sellos de los que caben.
       if (nextStamps >= stampsGoal) {
-        replaceNode({
-          ...target,
-          state: "window",
-          stamps: 0,
-          cardsCompleted: target.cardsCompleted + 1,
-          redeemedAt: now,
-          returnedAt: null,
-          lastActivityAt: now,
-        });
-        return { graph: { ...graph, nodes }, event: { kind: "redeemed", nodeId: target.id, name: target.name, state: "window" } };
+        const next = redeemCard(target);
+        replaceNode(next);
+        return { graph: { ...graph, nodes }, event: { kind: "redeemed", nodeId: target.id, name: target.name, state: next.state } };
       }
       replaceNode({ ...target, stamps: nextStamps, lastActivityAt: now });
       return { graph: { ...graph, nodes }, event: { kind: "stamp", nodeId: target.id, name: target.name, state: target.state } };
     }
     case "redeemed": {
-      const target = pick(activeClaimed);
+      const target = pick(stampable);
       if (!target) return null;
-      replaceNode({
-        ...target,
-        state: "window",
-        stamps: 0,
-        cardsCompleted: target.cardsCompleted + 1,
-        redeemedAt: now,
-        returnedAt: null,
-        lastActivityAt: now,
-      });
-      return { graph: { ...graph, nodes }, event: { kind: "redeemed", nodeId: target.id, name: target.name, state: "window" } };
+      const next = redeemCard(target);
+      replaceNode(next);
+      return { graph: { ...graph, nodes }, event: { kind: "redeemed", nodeId: target.id, name: target.name, state: next.state } };
     }
     case "returned": {
       const target = pick(windowNodes);
