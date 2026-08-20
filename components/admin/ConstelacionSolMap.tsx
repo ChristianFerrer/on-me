@@ -1280,8 +1280,22 @@ export function ConstelacionSolMap({
     // unidades en las que vive todo lo demás de este encuadre.
     const svgRect = svgRef.current?.getBoundingClientRect();
     const base = svgRect && svgRect.width > 0 && svgRect.height > 0 ? Math.min(svgRect.width, svgRect.height) : Math.min(halfW * 2, half * 2);
-    const topInset = pixelsToUnits(HEADER_ZOOM_INSET_PX, base, size);
-    const bottomInset = pixelsToUnits(cardHeightPx + BOTTOM_CHROME_BUFFER_PX, base, size);
+    const rawTopInset = pixelsToUnits(HEADER_ZOOM_INSET_PX, base, size);
+    const rawBottomInset = pixelsToUnits(cardHeightPx + BOTTOM_CHROME_BUFFER_PX, base, size);
+    // Red de seguridad: en una pantalla pequeña con una ficha larga -o si el
+    // propio cálculo de arriba se equivoca por lo que sea, `base` medido en
+    // un mal momento, lo que sea- cabecera + ficha podían llegar a "comerse"
+    // el viewBox entero, con availH colapsando al suelo de 1 unidad dentro
+    // de fitChainRotationAndPan y el zoom cayendo siempre al mínimo posible
+    // -exactamente el defecto reportado: "se aleja por completo"-. Encoge
+    // los dos márgenes a partes iguales si entre los dos suman más de esta
+    // fracción del alto total, así SIEMPRE queda un hueco real donde encuadrar.
+    const MAX_INSET_FRACTION = 0.55;
+    const totalInset = rawTopInset + rawBottomInset;
+    const maxTotalInset = half * 2 * MAX_INSET_FRACTION;
+    const insetScale = totalInset > maxTotalInset && totalInset > 0 ? maxTotalInset / totalInset : 1;
+    const topInset = rawTopInset * insetScale;
+    const bottomInset = rawBottomInset * insetScale;
     // Diferido a un microtask -mismo patrón que el snapshot de lastCategory
     // más abajo-: evita el aviso de "cascading renders" sin retrasar
     // visualmente el zoom.
