@@ -674,8 +674,8 @@ function CountUpStat({ value, label, active, delayMs = 0 }: { value: number; lab
 
   return (
     <div className="flex items-baseline justify-end gap-1.5">
-      <span className="numeral text-[1.375rem] font-bold tracking-tight">{active ? shown : value}</span>
-      <span className="text-[0.6875rem] lowercase text-chalk/45">{label}</span>
+      <span className="numeral text-[1.125rem] font-bold tracking-tight sm:text-[1.375rem]">{active ? shown : value}</span>
+      <span className="text-[0.625rem] lowercase text-chalk/45 sm:text-[0.6875rem]">{label}</span>
     </div>
   );
 }
@@ -740,6 +740,37 @@ function detectGraphActivity(prevNodes: Node[], nextNodes: Node[]): GraphActivit
     }
   }
   return { nodeFlashes, sunIntensity };
+}
+
+/** Margen fijo alrededor de la caja que encierra toda la cadena tocada, en unidades del viewBox -mismo espíritu que VIEWBOX_PADDING, pero propio de este encuadre-. */
+const CHAIN_ZOOM_PADDING = 50;
+
+/**
+ * Encuadre automático de toda una cadena -las esferas que devuelve
+ * `ancestors`, del nodo tocado hasta el sol- dentro del viewBox: la misma
+ * caja que ya usa el auto-fit inicial de la vista entera, aquí sobre un
+ * puñado de puntos en vez de todos. Topado a `maxScale` para que una
+ * cadena de dos esferas casi pegadas no acabe llenando la pantalla entera
+ * de zoom -leer la caja completa importa más que verla grande-.
+ */
+function fitChainPan(points: XY[], size: number, maxScale: number): Pan {
+  let minX = Infinity;
+  let maxX = -Infinity;
+  let minY = Infinity;
+  let maxY = -Infinity;
+  for (const p of points) {
+    minX = Math.min(minX, p.x);
+    maxX = Math.max(maxX, p.x);
+    minY = Math.min(minY, p.y);
+    maxY = Math.max(maxY, p.y);
+  }
+  const cx = (minX + maxX) / 2;
+  const cy = (minY + maxY) / 2;
+  const spanX = Math.max(maxX - minX, 1);
+  const spanY = Math.max(maxY - minY, 1);
+  const available = Math.max(size - CHAIN_ZOOM_PADDING * 2, 1);
+  const scale = clamp(Math.min(available / spanX, available / spanY), MIN_SCALE, maxScale);
+  return { x: -cx * scale, y: -cy * scale, scale };
 }
 
 /**
@@ -942,30 +973,10 @@ export function ConstelacionSolMap({
     arcAngleRangeRef.current = arcAngleRangeByState;
   }, [arcAngleRangeByState]);
 
-  /** Zoom en el detalle -tamaño, pulso, nombre- de la sección tocada, el mismo `scale` a partir del cual se enseñan las etiquetas. */
-  const CATEGORY_ZOOM_SCALE = 2.2;
+  /** Zoom en el detalle -tamaño, pulso, nombre- de la sección tocada o de la cadena de un nodo tocado, tope común a los dos: una cadena de dos esferas casi pegadas -o una sección con un único miembro- no debe acabar llenando toda la pantalla. */
+  const AUTO_ZOOM_MAX_SCALE = 2.2;
   /** Solo mientras dura la animación del zoom automático: fuera de esa ventana el `<g>` no lleva transición, para no competir con el pellizco/arrastre manual, que actualiza `pan` en cada frame. */
   const [autoZooming, setAutoZooming] = useState(false);
-  useEffect(() => {
-    const range = selectedCategory ? arcAngleRangeByState.get(selectedCategory) : undefined;
-    // Diferido a un microtask -mismo patrón que el snapshot de lastCategory
-    // más abajo-: evita el aviso de "cascading renders" sin retrasar
-    // visualmente el zoom.
-    queueMicrotask(() => {
-      setAutoZooming(true);
-      if (range) {
-        const angle = (range.start + range.end) / 2;
-        const targetRadius = frameRadius * MAGNET_TARGET_RADIUS_FACTOR;
-        const cx = targetRadius * Math.cos(angle);
-        const cy = targetRadius * Math.sin(angle);
-        setPan({ x: -cx * CATEGORY_ZOOM_SCALE, y: -cy * CATEGORY_ZOOM_SCALE, scale: CATEGORY_ZOOM_SCALE });
-      } else {
-        setPan({ x: 0, y: 0, scale: 1 });
-      }
-    });
-    const timeout = window.setTimeout(() => setAutoZooming(false), 500);
-    return () => window.clearTimeout(timeout);
-  }, [selectedCategory, arcAngleRangeByState, frameRadius]);
   const categoryMemberRankRef = useRef(new Map<string, { rank: number; count: number }>());
   useEffect(() => {
     categoryMemberRankRef.current = categoryMemberRank;
@@ -1058,8 +1069,11 @@ export function ConstelacionSolMap({
     };
   }, []);
 
-  const [legendOpen, setLegendOpen] = useState(true);
-  const [hudVisible, setHudVisible] = useState(true);
+  // Apagadas por defecto -a petición-: la leyenda y el HUD tapan mapa útil
+  // nada más entrar, así que arrancan cerradas y es el propio botón el que
+  // las enciende, igual que ya pasa con los rayos del sol (hideDirectLinks).
+  const [legendOpen, setLegendOpen] = useState(false);
+  const [hudVisible, setHudVisible] = useState(false);
   /** Ajuste propio de esta vista -no existe en ConstelacionMap-: oculta los "rayos" -las líneas que van del sol a un cliente sin padrino, alta directa por QR-, que en un local con muchas suelen ser la mayoría del ruido visual alrededor del núcleo. Ocultos por defecto: el sol arranca "apagado", sin rayos, y el propio botón los enciende. */
   const [hideDirectLinks, setHideDirectLinks] = useState(true);
   const [touched, setTouched] = useState(false);
@@ -1074,6 +1088,40 @@ export function ConstelacionSolMap({
     }
     return set;
   }, [selectedId, parentOf]);
+
+  // Zoom automático: SIEMPRE que se toca una esfera, encuadra toda su cadena
+  // -de ella hasta el sol, ancestors ya la trae completa- en vez de dejar al
+  // cliente adivinar dónde cae cada antepasado en el resto del mapa; tocar
+  // una sección del anillo sigue encuadrando esa sección, igual que antes.
+  // Los dos casos comparten un único efecto -y no dos compitiendo por
+  // `pan`- porque selectedCategory y selectedId ahora son mutuamente
+  // excluyentes (ver endPointer): nunca hay dos zooms queriendo mandar a
+  // la vez.
+  useEffect(() => {
+    const range = selectedCategory ? arcAngleRangeByState.get(selectedCategory) : undefined;
+    const chainPoints = selectedCategory
+      ? []
+      : [...ancestors].map((id) => positions.get(id)).filter((p): p is XY => p != null);
+    // Diferido a un microtask -mismo patrón que el snapshot de lastCategory
+    // más abajo-: evita el aviso de "cascading renders" sin retrasar
+    // visualmente el zoom.
+    queueMicrotask(() => {
+      setAutoZooming(true);
+      if (range) {
+        const angle = (range.start + range.end) / 2;
+        const targetRadius = frameRadius * MAGNET_TARGET_RADIUS_FACTOR;
+        const cx = targetRadius * Math.cos(angle);
+        const cy = targetRadius * Math.sin(angle);
+        setPan({ x: -cx * AUTO_ZOOM_MAX_SCALE, y: -cy * AUTO_ZOOM_MAX_SCALE, scale: AUTO_ZOOM_MAX_SCALE });
+      } else if (chainPoints.length > 0) {
+        setPan(fitChainPan(chainPoints, size, AUTO_ZOOM_MAX_SCALE));
+      } else {
+        setPan({ x: 0, y: 0, scale: 1 });
+      }
+    });
+    const timeout = window.setTimeout(() => setAutoZooming(false), 500);
+    return () => window.clearTimeout(timeout);
+  }, [selectedCategory, selectedId, ancestors, positions, arcAngleRangeByState, frameRadius, size]);
 
   const selectedNode = selectedId ? (byId.get(selectedId) ?? null) : null;
   const giftedByName = useMemo(() => {
@@ -1479,9 +1527,19 @@ export function ConstelacionSolMap({
       if (pending && pending.pointerId === event.pointerId) {
         const up: PointerPoint = { x: event.clientX, y: event.clientY, t: Date.now() };
         if (isTap(pending.down, up, TAP_MAX_DISTANCE_PX, TAP_MAX_DURATION_MS)) {
-          if (pending.arcState) setSelectedCategory((prev) => (prev === pending.arcState ? null : pending.arcState));
-          else if (pending.nodeId && pending.nodeId !== graph.establishment.id) setSelectedId(pending.nodeId);
-          else if (!pending.nodeId) setSelectedId(null);
+          // Un anillo tocado y una cadena tocada son dos modos de zoom
+          // automático distintos -ver el efecto combinado más arriba, junto
+          // a `ancestors`-, así que mutuamente excluyentes: elegir uno
+          // suelta el otro, nunca compiten los dos por el mismo `pan`.
+          if (pending.arcState) {
+            setSelectedCategory((prev) => (prev === pending.arcState ? null : pending.arcState));
+            setSelectedId(null);
+          } else if (pending.nodeId && pending.nodeId !== graph.establishment.id) {
+            setSelectedId(pending.nodeId);
+            setSelectedCategory(null);
+          } else if (!pending.nodeId) {
+            setSelectedId(null);
+          }
         }
       }
       tapCandidate.current = null;
@@ -1547,6 +1605,7 @@ export function ConstelacionSolMap({
   function resetView() {
     setPan({ x: 0, y: 0, scale: 1 });
     setSelectedId(null);
+    setSelectedCategory(null);
   }
 
   return (
@@ -1877,6 +1936,14 @@ export function ConstelacionSolMap({
                 {isBest ? (
                   <circle r={displayRadius * 2.1} fill="url(#constelacion-glow)" fillOpacity={0.16} style={{ color: "var(--color-amber)" }} />
                 ) : null}
+                {/* "Estás viendo esta" -toda la cadena (ancestors, ver más arriba) se
+                    resalta igual, sin dimming, así que sin esto no habría forma de
+                    distinguir la esfera tocada de sus antepasados en la misma cadena:
+                    un anillo neto, no un halo difuso -eso ya lo usan isBest/isExpiringNode
+                    para otra cosa-, para que se lea como "aquí" y no como otro estado más. */}
+                {isSelected ? (
+                  <circle r={displayRadius + 4.5} fill="none" stroke="var(--color-chalk)" strokeWidth={1.3} strokeOpacity={0.92} />
+                ) : null}
 
                 <circle
                   className={isPositive ? "constelacion-billable-glow" : undefined}
@@ -1962,7 +2029,7 @@ export function ConstelacionSolMap({
         {/* Misma caja que la leyenda -mismo glass-dark translúcido, mismo tamaño
             de letra-, y ocultable con su propio icono en la columna de la derecha. */}
         {hudVisible ? (
-          <div className="glass-dark pointer-events-none flex flex-col items-end gap-1 p-3.5" style={{ background: "rgba(10,14,13,0.32)" }}>
+          <div className="glass-dark pointer-events-none flex flex-col items-end gap-0.5 p-2.5 sm:gap-1 sm:p-3.5" style={{ background: "rgba(10,14,13,0.32)" }}>
             <CountUpStat value={hud.sent} label={t.admin.sent} active={mounted} delayMs={0} />
             <CountUpStat value={hud.opened} label={t.admin.opened} active={mounted} delayMs={85} />
             <CountUpStat value={hud.redeemed} label={t.admin.redeemed} active={mounted} delayMs={170} />
@@ -1982,7 +2049,7 @@ export function ConstelacionSolMap({
         className="pointer-events-none fixed inset-y-0 left-3 z-20 flex flex-col justify-end pt-[max(1.25rem,env(safe-area-inset-bottom))] pb-[calc(3.375rem+env(safe-area-inset-bottom)+1.25rem)] transition-[left] duration-200 ease-[var(--ease-out-soft)] lg:left-[calc(var(--admin-sidebar-width,16rem)+0.75rem)] lg:pb-[max(1.25rem,env(safe-area-inset-bottom))]"
       >
         <div
-          className="glass-dark pointer-events-auto max-w-[16rem] p-3.5 transition-transform duration-300 ease-[var(--ease-out-soft)]"
+          className="glass-dark pointer-events-auto max-w-[min(15rem,calc(100vw-6rem))] p-3 transition-transform duration-300 ease-[var(--ease-out-soft)] sm:max-w-[16rem] sm:p-3.5"
           style={{
             transform: legendOpen ? "translateX(0)" : "translateX(-120%)",
             // Más transparente que el glass-dark de siempre -0.62 de opacidad-:
@@ -1993,7 +2060,7 @@ export function ConstelacionSolMap({
           }}
         >
           <p className="eyebrow text-chalk/40">{t.admin.constelacionLegendTitle}</p>
-          <p className="mt-0.5 text-[0.6875rem] leading-snug text-chalk/30">{t.admin.constelacionLegendDesc}</p>
+          <p className="mt-0.5 text-[0.625rem] leading-snug text-chalk/30 sm:text-[0.6875rem]">{t.admin.constelacionLegendDesc}</p>
           <div className="mt-2 flex flex-col gap-1.5">
             {FUNNEL_ORDER.map((state) => {
               const isMutedRow = CONSTELACION_MUTED_STATES.has(state);
@@ -2002,7 +2069,7 @@ export function ConstelacionSolMap({
               // vistazo que el tamaño también cuenta la fase del cliente.
               const swatchPx = 5 + CONSTELACION_PHASE_SIZE[state] * 6.5;
               return (
-                <div key={state} className={cn("flex items-center gap-2 text-[0.75rem]", isMutedRow ? "text-chalk/45" : "text-chalk/75")}>
+                <div key={state} className={cn("flex items-center gap-2 text-[0.6875rem] sm:text-[0.75rem]", isMutedRow ? "text-chalk/45" : "text-chalk/75")}>
                   <span
                     className="flex shrink-0 items-center justify-center"
                     style={{ width: 21, height: 21 }}
@@ -2019,13 +2086,13 @@ export function ConstelacionSolMap({
                     />
                   </span>
                   <span className="min-w-0 flex-1 truncate">{stateBadgeLabel(state, t)}</span>
-                  <span className="numeral text-[0.6875rem] text-chalk/40">{funnelCounts.get(state) ?? 0}</span>
+                  <span className="numeral text-[0.625rem] text-chalk/40 sm:text-[0.6875rem]">{funnelCounts.get(state) ?? 0}</span>
                 </div>
               );
             })}
           </div>
-          <p className="mt-2.5 border-t border-white/8 pt-2.5 text-[0.625rem] leading-tight text-chalk/40">{t.admin.constelacionSizeLegend}</p>
-          <p className="mt-1.5 text-[0.625rem] leading-tight text-chalk/40">{t.admin.constelacionBrightnessLegend}</p>
+          <p className="mt-2.5 border-t border-white/8 pt-2.5 text-[0.5625rem] leading-tight text-chalk/40 sm:text-[0.625rem]">{t.admin.constelacionSizeLegend}</p>
+          <p className="mt-1.5 text-[0.5625rem] leading-tight text-chalk/40 sm:text-[0.625rem]">{t.admin.constelacionBrightnessLegend}</p>
         </div>
 
         {/* La ficha vive en esta misma columna, justo debajo de la leyenda -no

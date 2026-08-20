@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { XIcon } from "@/components/ui/Icons";
 import { StampCard } from "@/components/ui/StampCard";
 import { cn } from "@/lib/cn";
 import { fill, formatDateTime, type Dict, type Locale } from "@/lib/i18n";
@@ -63,6 +64,27 @@ export function ConstelacionSheet({
   }, [node, giftedByName, invitedCount, sentAt, color]);
 
   const open = node != null;
+
+  // Cerrar al tocar fuera: cualquier puntero que baje fuera del propio
+  // recuadro de la tarjeta la cierra, sin importar sobre qué caiga -otra
+  // esfera, el fondo del mapa, un botón de la columna de iconos-. En
+  // `pointerdown`, no en `click`: así cierra en el mismo instante en que
+  // empieza el toque, antes de que ese mismo gesto pueda además seleccionar
+  // otra esfera -React aplica los dos cambios de estado en el mismo ciclo,
+  // así que no hay parpadeo-.
+  const cardRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (!open) return;
+    function handlePointerDown(event: PointerEvent) {
+      // `as globalThis.Node`, no `as Node` -este archivo importa `Node` como
+      // el tipo del grafo (@/lib/giftGraph/types), que le tapa el nombre al
+      // `Node` del DOM que `contains()` de verdad espera-.
+      if (cardRef.current && !cardRef.current.contains(event.target as globalThis.Node)) onClose();
+    }
+    document.addEventListener("pointerdown", handlePointerDown);
+    return () => document.removeEventListener("pointerdown", handlePointerDown);
+  }, [open, onClose]);
+
   if (!snapshot) return null;
 
   const shown = snapshot.node;
@@ -104,76 +126,88 @@ export function ConstelacionSheet({
       ? fill(t.admin.constelacionSentInvitedLine, { date: formatDateTime(snapshot.sentAt, locale), n: snapshot.invitedCount })
       : fill(t.admin.constelacionInvitedOnlyLine, { n: snapshot.invitedCount });
 
+  // Corner -16rem, junto a la leyenda- es bastante más estrecha que sheet
+  // -30/34rem-, así que cada componente de dentro lleva su propio par de
+  // tamaños en vez de uno solo pensado para el ancho mayor: en corner el
+  // nombre truncaría en dos palabras y la cuadrícula de datos se apretaría
+  // sin este ajuste.
+  const compact = variant === "corner";
+
   const card = (
     <div
+      ref={cardRef}
       className={cn(
-        "glass-dark overflow-hidden p-5 shadow-[0_-18px_50px_rgba(0,0,0,0.5)] transition-transform duration-[400ms] ease-[cubic-bezier(0.22,1,0.36,1)]",
-        variant === "sheet" ? "w-full max-w-[30rem] sm:max-w-[34rem]" : "w-[16rem]",
+        "glass-dark overflow-hidden shadow-[0_-18px_50px_rgba(0,0,0,0.5)] transition-transform duration-[400ms] ease-[cubic-bezier(0.22,1,0.36,1)]",
+        compact ? "w-[16rem] p-4" : "w-full max-w-[30rem] p-5 sm:max-w-[34rem]",
         open ? "pointer-events-auto" : "pointer-events-none",
       )}
-      aria-hidden={variant === "corner" ? !open : undefined}
+      aria-hidden={compact ? !open : undefined}
       style={{
-        transform: open
-          ? "translate(0, 0)"
-          : variant === "sheet"
-            ? "translateY(102%)"
-            : "translateX(-120%)",
+        transform: open ? "translate(0, 0)" : compact ? "translateX(-120%)" : "translateY(102%)",
       }}
     >
         {variant === "sheet" ? <div className="mx-auto mb-3 h-[3.5px] w-[34px] rounded-full bg-white/16" /> : null}
 
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <p className="truncate text-[1.5rem] font-extrabold tracking-[-0.025em]">
-              {isPending ? t.admin.constelacionPendingInvite : shown.name}
-            </p>
-            <p className="mt-1.5 text-[0.6875rem] font-semibold uppercase tracking-[0.15em] text-chalk/34">
-              {t.admin.attrPadrino} · {snapshot.giftedByName || "—"}
-            </p>
-          </div>
+        {/* Estado arriba del todo -junto a la X, misma fila-, nombre debajo:
+            así se lee primero "qué es" y luego "quién es", y el cierre queda
+            siempre en la esquina donde se espera en vez de un botón aparte
+            al final de la tarjeta. */}
+        <div className="flex items-center justify-between gap-2">
           <span
-            className="shrink-0 rounded-full px-[13px] py-[7px] text-[0.625rem] font-bold uppercase tracking-[0.12em]"
+            className={cn(
+              "shrink-0 rounded-full font-bold uppercase tracking-[0.12em]",
+              compact ? "px-2.5 py-1 text-[0.5625rem]" : "px-[13px] py-[7px] text-[0.625rem]",
+            )}
             style={{ background: `color-mix(in srgb, ${snapshot.color} 15%, transparent)`, color: snapshot.color }}
           >
             {stateBadgeText(shown, t)}
           </span>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label={t.common.close}
+            className={cn("btn -m-1 shrink-0 text-chalk/55 hover:text-chalk", compact ? "size-7" : "size-9")}
+          >
+            <XIcon className={compact ? "size-3.5" : "size-5"} />
+          </button>
         </div>
 
-        <p className="mt-4 text-[0.8125rem] leading-snug text-chalk/75">{sentInvitedLine}</p>
+        <p className={cn("mt-2 truncate font-extrabold tracking-[-0.025em]", compact ? "text-[1.125rem]" : "text-[1.5rem]")}>
+          {isPending ? t.admin.constelacionPendingInvite : shown.name}
+        </p>
+        <p className={cn("mt-1 font-semibold uppercase tracking-[0.15em] text-chalk/34", compact ? "text-[0.5625rem]" : "text-[0.6875rem]")}>
+          {t.admin.attrPadrino} · {snapshot.giftedByName || "—"}
+        </p>
+
+        <p className={cn("mt-3 leading-snug text-chalk/75", compact ? "text-[0.6875rem]" : "text-[0.8125rem]")}>{sentInvitedLine}</p>
 
         {isPending ? null : (
-          <dl className="numeral mt-3 grid grid-cols-3 gap-3 text-[0.6875rem]">
+          <dl className={cn("numeral mt-3 grid grid-cols-3", compact ? "gap-2 text-[0.5625rem]" : "gap-3 text-[0.6875rem]")}>
             <div>
               <dt className="text-chalk/34">{t.admin.attrRedeemed}</dt>
-              <dd className="mt-0.5 text-[0.9375rem] font-semibold text-chalk/90">
+              <dd className={cn("mt-0.5 font-semibold text-chalk/90", compact ? "text-[0.75rem]" : "text-[0.9375rem]")}>
                 {shown.redeemedAt ? formatDateTime(shown.redeemedAt, locale) : "—"}
               </dd>
             </div>
             <div>
               <dt className="text-chalk/34">{t.admin.constelacionConsumptionsLabel}</dt>
-              <dd className="mt-0.5 text-[0.9375rem] font-semibold text-chalk/90">{shown.stamps}</dd>
+              <dd className={cn("mt-0.5 font-semibold text-chalk/90", compact ? "text-[0.75rem]" : "text-[0.9375rem]")}>{shown.stamps}</dd>
             </div>
             <div>
               <dt className="text-chalk/34">{windowOrLastVisitLabel}</dt>
-              <dd className="mt-0.5 text-[0.9375rem] font-semibold text-chalk/90">{windowOrLastVisitValue}</dd>
+              <dd className={cn("mt-0.5 font-semibold text-chalk/90", compact ? "text-[0.75rem]" : "text-[0.9375rem]")}>{windowOrLastVisitValue}</dd>
             </div>
           </dl>
         )}
 
         {isPending ? null : (
-          <div className="mt-4">
+          <div className="mt-3">
             <StampCard stamps={shown.stamps} goal={stampsGoal} tone="dark" />
-            <p className="numeral mt-2 text-[0.6875rem] text-chalk/40">{fill(t.admin.constelacionTotalConsumedLine, { n: totalConsumed })}</p>
+            <p className={cn("numeral mt-2 text-chalk/40", compact ? "text-[0.5625rem]" : "text-[0.6875rem]")}>
+              {fill(t.admin.constelacionTotalConsumedLine, { n: totalConsumed })}
+            </p>
           </div>
         )}
-
-        <button
-          type="button"
-          onClick={onClose}
-          className="btn mt-4 w-full rounded-full bg-white/7 py-3 text-[0.875rem] text-chalk"
-        >
-          {t.common.close}
-        </button>
     </div>
   );
 
