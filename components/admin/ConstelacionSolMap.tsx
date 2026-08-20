@@ -983,10 +983,15 @@ export function ConstelacionSolMap({
     arcAngleRangeRef.current = arcAngleRangeByState;
   }, [arcAngleRangeByState]);
 
-  /** Zoom en el detalle -tamaño, pulso, nombre- de la sección tocada o de la cadena de un nodo tocado, tope común a los dos: una cadena de dos esferas casi pegadas -o una sección con un único miembro- no debe acabar llenando toda la pantalla. */
+  /** Zoom fijo de la sección de anillo tocada -a diferencia de la cadena, ver más abajo, aquí sí hay un tope: una sección puede tener muchos miembros repartidos por todo su arco, así que "máximo posible" no tiene el mismo sentido que para una cadena pequeña y apretada. */
   const AUTO_ZOOM_MAX_SCALE = 2.2;
+  /** Duración de la animación del zoom automático al tocar una sección del anillo: rápida, el objetivo ya se conoce -siempre el mismo punto del arco-. */
+  const CATEGORY_ZOOM_DURATION_MS = 450;
+  /** La cadena, en cambio, suele acercarse mucho más -sin tope, ver fitChainPan más abajo-, así que un salto tan rápido como el de categoría marea y no deja tiempo de leer qué esfera es cuál según se van separando; más lento a propósito, para poder seguir con la vista cuál es cuál mientras el mapa se acerca. */
+  const CHAIN_ZOOM_DURATION_MS = 1100;
   /** Solo mientras dura la animación del zoom automático: fuera de esa ventana el `<g>` no lleva transición, para no competir con el pellizco/arrastre manual, que actualiza `pan` en cada frame. */
   const [autoZooming, setAutoZooming] = useState(false);
+  const [autoZoomDurationMs, setAutoZoomDurationMs] = useState(CATEGORY_ZOOM_DURATION_MS);
   const categoryMemberRankRef = useRef(new Map<string, { rank: number; count: number }>());
   useEffect(() => {
     categoryMemberRankRef.current = categoryMemberRank;
@@ -1125,10 +1130,14 @@ export function ConstelacionSolMap({
     const chainPoints = selectedCategory
       ? []
       : [...chainMembers].map((id) => positions.get(id)).filter((p): p is XY => p != null);
+    // chainPoints solo trae algo cuando NO hay categoría tocada -ver su
+    // propia definición, arriba-, así que su longitud ya basta para elegir.
+    const durationMs = chainPoints.length > 0 ? CHAIN_ZOOM_DURATION_MS : CATEGORY_ZOOM_DURATION_MS;
     // Diferido a un microtask -mismo patrón que el snapshot de lastCategory
     // más abajo-: evita el aviso de "cascading renders" sin retrasar
     // visualmente el zoom.
     queueMicrotask(() => {
+      setAutoZoomDurationMs(durationMs);
       setAutoZooming(true);
       if (range) {
         const angle = (range.start + range.end) / 2;
@@ -1137,19 +1146,18 @@ export function ConstelacionSolMap({
         const cy = targetRadius * Math.sin(angle);
         setPan({ x: -cx * AUTO_ZOOM_MAX_SCALE, y: -cy * AUTO_ZOOM_MAX_SCALE, scale: AUTO_ZOOM_MAX_SCALE });
       } else if (chainPoints.length > 0) {
-        // Tope propio, no AUTO_ZOOM_MAX_SCALE -pensado para el zoom fijo del
-        // anillo de categorías, que puede tener muchos miembros repartidos-:
-        // una cadena pequeña, apretada cerca del centro, tiene que poder
-        // llenar la pantalla de verdad en vez de quedarse topada a 2.2x con
-        // medio encuadre vacío alrededor. Mismo techo que el pellizco manual
-        // -MAX_SCALE-, así el automático nunca llega más lejos de lo que ya
-        // podría llegar el propio dedo del cliente.
-        setPan(fitChainPan(chainPoints, size, MAX_SCALE));
+        // Sin tope de escala -Infinity, solo MIN_SCALE de suelo dentro de
+        // fitChainPan-: "el máximo posible para aprovechar la pantalla" es
+        // justo eso, no un techo fijo pensado para otro caso. Una cadena
+        // pequeña y apretada cerca del centro tiene que poder llenar la
+        // pantalla entera, aunque eso signifique pasar del zoom máximo al
+        // que llega el propio pellizco manual.
+        setPan(fitChainPan(chainPoints, size, Infinity));
       } else {
         setPan({ x: 0, y: 0, scale: 1 });
       }
     });
-    const timeout = window.setTimeout(() => setAutoZooming(false), 500);
+    const timeout = window.setTimeout(() => setAutoZooming(false), durationMs + 50);
     return () => window.clearTimeout(timeout);
   }, [selectedCategory, selectedId, chainMembers, positions, arcAngleRangeByState, frameRadius, size]);
 
@@ -1371,7 +1379,13 @@ export function ConstelacionSolMap({
         nodePositions.push(animatedXY(point, rotation, wobbleNow, magnet, wobbleRestlessRef.current.get(point.id) ?? 1));
         nodeRadii.push(nodeRadiusRef.current.get(point.id) ?? 4);
       }
-      if (magnetActive) resolveCollisions(nodePositions, nodeRadii, COLLISION_ITERATIONS, COLLISION_PADDING);
+      // También sin imán activo, mientras haya una cadena tocada: sin tope de
+      // escala (ver fitChainPan) el zoom puede acercarse mucho, y a esa
+      // distancia dos esferas que en reposo casi se tocaban -su posición
+      // natural del layout no se pensó para verse tan de cerca- pasan a
+      // superponerse de verdad. Mismo criterio "según su propio radio
+      // visible" que ya usa el imán, solo que ahora corre también en reposo.
+      if (magnetActive || selectedIdRef.current) resolveCollisions(nodePositions, nodeRadii, COLLISION_ITERATIONS, COLLISION_PADDING);
 
       const correctedById = new Map<string, XY>();
       for (let i = 0; i < nodeIds.length; i++) {
@@ -1769,7 +1783,7 @@ export function ConstelacionSolMap({
 
         <g
           transform={`translate(${pan.x} ${pan.y}) scale(${pan.scale})`}
-          style={autoZooming ? { transition: "transform 450ms var(--ease-out-soft)" } : undefined}
+          style={autoZooming ? { transition: `transform ${autoZoomDurationMs}ms var(--ease-out-soft)` } : undefined}
         >
           {funnelTotal > 0
             ? (() => {
