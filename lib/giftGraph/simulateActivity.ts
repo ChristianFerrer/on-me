@@ -37,8 +37,8 @@ function pick<T>(items: T[]): T | null {
   return items.length > 0 ? items[Math.floor(Math.random() * items.length)] : null;
 }
 
-/** `state` es el de LA ESTRELLA tras aplicar el paso -no antes-: la burbuja/panel del feed pinta un punto de ese color, así que tiene que ser el que de verdad se ve en el mapa después de este suceso. */
-export type SimulatedEvent = { kind: LiveEventKind; nodeId: string; name: string; state: NodeState };
+/** `state` es el de LA ESTRELLA tras aplicar el paso -no antes-: la burbuja/panel del feed pinta un punto de ese color, así que tiene que ser el que de verdad se ve en el mapa después de este suceso. `stampNumber` solo para "stamp": qué número de sello acaba de ganar. */
+export type SimulatedEvent = { kind: LiveEventKind; nodeId: string; name: string; state: NodeState; stampNumber?: number };
 
 /**
  * Un paso de simulación: elige al azar, entre los sucesos que ahora mismo
@@ -207,7 +207,7 @@ export function simulateGraphStep(graph: GiftGraph, stampsGoal: number): { graph
         return { graph: { ...graph, nodes }, event: { kind: "redeemed", nodeId: target.id, name: target.name, state: next.state } };
       }
       replaceNode({ ...target, stamps: nextStamps, lastActivityAt: now });
-      return { graph: { ...graph, nodes }, event: { kind: "stamp", nodeId: target.id, name: target.name, state: target.state } };
+      return { graph: { ...graph, nodes }, event: { kind: "stamp", nodeId: target.id, name: target.name, state: target.state, stampNumber: nextStamps } };
     }
     case "redeemed": {
       const target = pick(stampable);

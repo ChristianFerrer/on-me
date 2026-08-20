@@ -11,7 +11,7 @@ import { type Pan, panBy, pixelsToUnits, zoomAtPoint } from "@/lib/panZoom";
 import { ESTABLISHMENT_RADIUS, layoutConstelacion, CONSTELACION_PHASE_SIZE, type ConstelacionLayout, type ConstelacionPoint } from "@/lib/giftGraph/constelacionLayout";
 import { stateBadgeLabel } from "@/lib/giftGraph/stateBadge";
 import { isTap, type PointerPoint } from "@/lib/giftGraph/tapGesture";
-import { liveEventMessage, type LiveEventKind } from "@/lib/giftGraph/liveEvents";
+import { liveEventDetail, liveEventMessage, type LiveEventKind } from "@/lib/giftGraph/liveEvents";
 import { simulateGraphStep } from "@/lib/giftGraph/simulateActivity";
 import type { GiftGraph, Node, NodeState } from "@/lib/giftGraph/types";
 import { fill, type Dict, type Locale } from "@/lib/i18n";
@@ -82,11 +82,9 @@ const PULSE_GLOW_R = PULSE_DOT_R * 3.2;
 const DAY_MS = 24 * 60 * 60 * 1000;
 /** Cada cuánto se vuelve a pedir el grafo entero -esta es la vista pensada para quedarse encendida en el local todo el día, así que no puede quedarse con la foto de cuando se abrió la pestaña-. Ni tan rápido que sea un martilleo a la base de datos, ni tan lento que un sello recién puesto tarde minutos en notarse. */
 const LIVE_POLL_MS = 20_000;
-/** Un sello, un canje o un alta de verdad -no el paso del reloj- disparan un destello de una sola vez, no el aura constante de siempre: un brillo que sube y baja en FLASH_DURATION_MS sobre la propia estrella donde pasó -radio y color de la propia estrella, no genéricos- y otro, más discreto, sobre el sol, para que se note incluso sin mirar ninguna estrella en concreto. Desaparece solo, sin más estado que un ref por fotograma -mismo patrón que el pulso viajero de las cuerdas-. */
-const FLASH_DURATION_MS = 1800;
+/** Un sello, un canje o un alta de verdad -no el paso del reloj- disparan un destello de una sola vez, no el aura constante de siempre: un brillo que sube y se apaga en FLASH_DURATION_MS, solo sobre la propia estrella donde pasó -radio y color de la propia estrella, no genéricos-, nunca sobre el sol ni sobre ninguna otra: si no hay actividad de verdad, ninguna esfera destella. Desaparece solo, sin más estado que un ref por fotograma -mismo patrón que el pulso viajero de las cuerdas-. Duración generosa a propósito -casi el doble de la primera versión-: un parpadeo que se apaga demasiado rápido no da tiempo a notar qué esfera fue. */
+const FLASH_DURATION_MS = 3400;
 const FLASH_MAX_OPACITY = 0.85;
-const SUN_FLASH_DURATION_MS = 2200;
-const SUN_FLASH_MAX_OPACITY = 0.4;
 /** Ventana de "canje reciente" para disparar el pulso: la misma que usa el negocio para el retorno. */
 const RECENT_REDEMPTION_MS = 30 * DAY_MS;
 
@@ -676,38 +674,6 @@ function starfield(vb: number): { x: number; y: number; r: number; o: number }[]
   return stars.concat(milkyWayBand(vb));
 }
 
-function CountUpStat({ value, label, active, delayMs = 0 }: { value: number; label: string; active: boolean; delayMs?: number }) {
-  const [shown, setShown] = useState(0);
-
-  useEffect(() => {
-    if (!active) return; // sin animar: el render de abajo usa `value` directamente
-    let raf = 0;
-    let timeout = 0;
-    const DURATION_MS = 800;
-    function start() {
-      const startedAt = performance.now();
-      function tick(now: number) {
-        const t = Math.min(1, (now - startedAt) / DURATION_MS);
-        setShown(Math.round(value * (1 - (1 - t) ** 3)));
-        if (t < 1) raf = requestAnimationFrame(tick);
-      }
-      raf = requestAnimationFrame(tick);
-    }
-    timeout = window.setTimeout(start, delayMs);
-    return () => {
-      window.clearTimeout(timeout);
-      cancelAnimationFrame(raf);
-    };
-  }, [value, active, delayMs]);
-
-  return (
-    <div className="flex items-baseline justify-end gap-1.5">
-      <span className="numeral text-[1.125rem] font-bold tracking-tight sm:text-[1.375rem]">{active ? shown : value}</span>
-      <span className="text-[0.625rem] lowercase text-chalk/45 sm:text-[0.6875rem]">{label}</span>
-    </div>
-  );
-}
-
 /**
  * Sondeo periódico (ver LIVE_POLL_MS): el grafo recién llegado sustituye al
  * que ya había, pero conservando el orden de aparición de los nodos que ya
@@ -735,9 +701,9 @@ function mergeGraphPreservingOrder(prev: GiftGraph, next: GiftGraph): GiftGraph 
 }
 
 /** Lo mismo que dispara un destello, pero con el vocabulario del feed de actividad -ver liveEvents.ts-, para anunciarlo también ahí. `state` es el de la estrella tras el cambio -el punto de color de la burbuja/panel pinta ese, no uno genérico. */
-type DetectedLiveEvent = { kind: LiveEventKind; name: string; nodeId: string; state: NodeState };
-/** Un destello por nodo -id, intensidad 0..1- más, si hubo alguno, uno agregado para el sol; y los mismos sucesos, ya etiquetados, para el feed. */
-type GraphActivity = { nodeFlashes: Map<string, number>; sunIntensity: number; events: DetectedLiveEvent[] };
+type DetectedLiveEvent = { kind: LiveEventKind; name: string; nodeId: string; state: NodeState; stampNumber?: number };
+/** Un destello por nodo -id, intensidad 0..1-, solo sobre la propia estrella donde pasó -nunca sobre el sol, ver el comentario de FLASH_DURATION_MS-; y los mismos sucesos, ya etiquetados, para el feed. */
+type GraphActivity = { nodeFlashes: Map<string, number>; events: DetectedLiveEvent[] };
 
 /**
  * Compara dos capturas del grafo -la de antes y la recién llegada- y decide
@@ -760,7 +726,6 @@ function detectGraphActivity(prevNodes: Node[], nextNodes: Node[]): GraphActivit
   const prevById = new Map(prevNodes.map((n) => [n.id, n]));
   const nodeFlashes = new Map<string, number>();
   const events: DetectedLiveEvent[] = [];
-  let sunIntensity = 0;
   for (const node of nextNodes) {
     const prev = prevById.get(node.id);
     let intensity = 0;
@@ -782,11 +747,10 @@ function detectGraphActivity(prevNodes: Node[], nextNodes: Node[]): GraphActivit
     }
     if (intensity > 0) {
       nodeFlashes.set(node.id, intensity);
-      sunIntensity = Math.max(sunIntensity, intensity);
-      if (kind) events.push({ kind, name: node.name, nodeId: node.id, state: node.state });
+      if (kind) events.push({ kind, name: node.name, nodeId: node.id, state: node.state, stampNumber: kind === "stamp" ? node.stamps : undefined });
     }
   }
-  return { nodeFlashes, sunIntensity, events };
+  return { nodeFlashes, events };
 }
 
 /** Margen fijo alrededor de la caja que encierra toda la cadena tocada, en unidades del viewBox -mismo espíritu que VIEWBOX_PADDING, pero propio de este encuadre-. */
@@ -926,13 +890,6 @@ export function ConstelacionSolMap({
     return map;
   }, [layout]);
 
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => {
-    // Diferido a un microtask, no una llamada síncrona dentro del propio
-    // efecto: evita el aviso de "cascading renders" del linter.
-    queueMicrotask(() => setMounted(true));
-  }, []);
-
   const [nowMs] = useState(() => Date.now());
   const expiringIds = useMemo(
     () => new Set(graph.nodes.filter((n) => isExpiringSoon(n.expiresAt, nowMs)).map((n) => n.id)),
@@ -1009,34 +966,27 @@ export function ConstelacionSolMap({
     return map;
   }, [layout, byId]);
 
-  // El HUD sale de la misma cuenta que la leyenda -funnelCounts, por
-  // estado actual de cada nodo del grafo-, no del histórico de
-  // /admin/metricas: son preguntas distintas ("cuántas se han enviado
-  // alguna vez" vs. "cuántas están AHORA en ese punto del camino"), y
-  // enseñar las dos con la misma etiqueta y valores distintos en la
-  // misma pantalla se leía como un dato roto. Con la misma fuente que la
-  // leyenda, HUD y leyenda nunca pueden discreparse.
-  const hud = {
-    sent: funnelCounts.get("sent") ?? 0,
-    opened: funnelCounts.get("opened") ?? 0,
-    redeemed: graph.nodes.filter((n) => n.redeemedAt != null).length,
-    billable: funnelCounts.get("billable") ?? 0,
-    maxHops: layout.maxDepth,
-  };
-
   const customerCount = useMemo(() => graph.nodes.filter((n) => n.claimed).length, [graph.nodes]);
 
   /**
-   * Panel "lo que ninguna tarjeta te dice" -desktop, columna derecha-:
-   * lecturas que no salen de mirar una sola tarjeta, solo de mirar toda la
-   * red a la vez. Todo en cafés/cuentas, nunca en €: este local no guarda
-   * ningún precio por café, así que cualquier cifra en euros aquí sería
-   * inventada -mejor un número real y honesto que uno bonito y falso.
+   * Panel "lo que ninguna tarjeta te dice" -desktop, columna derecha,
+   * activado/desactivado con el mismo icono de ojo que antes mostraba/ocultaba
+   * el HUD de la cabecera -ya retirado, este panel pasa a ser su reemplazo,
+   * con más contexto que cinco números sueltos-. Todo en cafés/cuentas, nunca
+   * en €: este local no guarda ningún precio por café, así que cualquier
+   * cifra en euros aquí sería inventada -mejor un número real y honesto que
+   * uno bonito y falso. `sent`/`opened`/`billable` salen de la misma cuenta
+   * que la leyenda -funnelCounts, por estado actual de cada nodo-, no del
+   * histórico de /admin/metricas: con la misma fuente, panel y leyenda nunca
+   * pueden discreparse.
    */
   const insights = useMemo(() => {
     const claimedNodes = graph.nodes.filter((n) => n.claimed);
     // El café gratis del referido se regala en cuanto se da de alta desde la
-    // invitación -"direct" nunca pasó por ninguna invitación, no cuenta-.
+    // invitación -"direct" nunca pasó por ninguna invitación, no cuenta-:
+    // esta misma cuenta sirve tanto para "invitaciones canjeadas" -cuántas
+    // veces alguien de verdad usó una para darse de alta- como para el %
+    // de arriba.
     const referredCustomers = claimedNodes.filter((n) => n.state !== "direct").length;
     const wonCustomers = claimedNodes.filter((n) => n.state === "billable").length;
     const referredPct = claimedNodes.length > 0 ? Math.round((referredCustomers / claimedNodes.length) * 100) : 0;
@@ -1065,8 +1015,12 @@ export function ConstelacionSolMap({
       readyToGiftCoffees,
       expiringSoonCount: expiringIds.size,
       referrersToReview,
+      sent: funnelCounts.get("sent") ?? 0,
+      opened: funnelCounts.get("opened") ?? 0,
+      claimedInvites: referredCustomers,
+      verifiedCustomers: wonCustomers,
     };
-  }, [graph.nodes, graph.establishment.id, parentOf, nowMs, layout.maxDepth, expiringIds]);
+  }, [graph.nodes, graph.establishment.id, parentOf, nowMs, layout.maxDepth, expiringIds, funnelCounts]);
 
   // Encuadre automático: el viewBox es el borde más lejano de todos
   // -frameRadius- más un margen fijo, en vertical -`half`/`size` de
@@ -1174,18 +1128,16 @@ export function ConstelacionSolMap({
   // bucle de rAF de más abajo los hace crecer y apagarse fotograma a
   // fotograma sobre su propio elemento del DOM.
   const nodeFlashRef = useRef(new Map<string, { start: number; intensity: number }>());
-  const sunFlashRef = useRef<{ start: number; intensity: number } | null>(null);
   const flashGlowRefs = useRef(new Map<string, SVGCircleElement>());
-  const sunFlashElRef = useRef<SVGCircleElement | null>(null);
 
   /**
    * Feed de "Action": la misma lista de sucesos alimenta la burbuja móvil y
    * el panel tipo chat de escritorio -ver el JSX más abajo-, así que basta
    * un único estado. `toastEvent` es el último suceso -el que enseña la
    * burbuja, que se desvanece sola pasado TOAST_DURATION_MS-; `liveEvents`
-   * es el historial completo, topado a LIVE_EVENTS_MAX, más reciente al
-   * final -como cualquier chat en vivo, se lee de arriba hacia abajo y el
-   * nuevo mensaje entra por abajo-. El mensaje ya traducido no se guarda en
+   * es el historial completo, topado a LIVE_EVENTS_MAX, más reciente
+   * siempre PRIMERO -pushLiveEvent inserta al principio del array, no al
+   * final: lo que acaba de pasar se ve sin desplazarse-. El mensaje ya traducido no se guarda en
    * el propio suceso -solo kind/name-, así que si el idioma cambiara a
    * media sesión el historial entero seguiría leyéndose en el idioma
    * correcto en vez de quedarse congelado en el de cuando pasó. `color` -el
@@ -1196,21 +1148,35 @@ export function ConstelacionSolMap({
    * cuando de verdad pasó, no el color actual, que ya no sería el mismo
    * suceso que están contando.
    */
-  type LiveActivityEvent = { id: string; kind: LiveEventKind; name: string; nodeId: string; color: string; ts: number };
+  type LiveActivityEvent = {
+    id: string;
+    kind: LiveEventKind;
+    name: string;
+    nodeId: string;
+    state: NodeState;
+    color: string;
+    /** Solo para "stamp": qué número de sello acaba de ganar -no cuántos le faltan, eso lo calcula liveEventDetail con stampsGoal-. */
+    stampNumber?: number;
+    ts: number;
+  };
   const [liveEvents, setLiveEvents] = useState<LiveActivityEvent[]>([]);
   const [toastEvent, setToastEvent] = useState<LiveActivityEvent | null>(null);
   const liveEventIdRef = useRef(0);
-  function pushLiveEvent(kind: LiveEventKind, name: string, nodeId: string, state: NodeState) {
+  function pushLiveEvent(kind: LiveEventKind, name: string, nodeId: string, state: NodeState, stampNumber?: number) {
     liveEventIdRef.current += 1;
     const entry: LiveActivityEvent = {
       id: `evt:${Date.now()}:${liveEventIdRef.current}`,
       kind,
       name,
       nodeId,
+      state,
       color: safeStateColor(state),
+      stampNumber,
       ts: Date.now(),
     };
-    setLiveEvents((prev) => [...prev, entry].slice(-LIVE_EVENTS_MAX));
+    // Más reciente siempre primero -el feed se lee de arriba hacia abajo,
+    // sin tener que desplazarse para ver qué acaba de pasar.
+    setLiveEvents((prev) => [entry, ...prev].slice(0, LIVE_EVENTS_MAX));
     setToastEvent(entry);
   }
   useEffect(() => {
@@ -1218,12 +1184,12 @@ export function ConstelacionSolMap({
     const timeout = window.setTimeout(() => setToastEvent((cur) => (cur?.id === toastEvent.id ? null : cur)), TOAST_DURATION_MS);
     return () => window.clearTimeout(timeout);
   }, [toastEvent]);
-  /** Auto-scroll del panel de escritorio -mismo gesto que cualquier chat en vivo-: cada suceso nuevo entra por abajo, la vista sigue pegada al fondo sola. */
+  /** El más reciente entra por arriba -ver pushLiveEvent-, así que la vista vuelve al principio en cada suceso nuevo: si el usuario se había desplazado a leer el historial, lo primero que ve al llegar algo nuevo es justo eso, lo nuevo. */
   const liveFeedScrollRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const el = liveFeedScrollRef.current;
     if (!el) return;
-    el.scrollTop = el.scrollHeight;
+    el.scrollTop = 0;
   }, [liveEvents]);
 
   /**
@@ -1277,13 +1243,12 @@ export function ConstelacionSolMap({
         const merged = mergeGraphPreservingOrder(prevGraphRef.current, data.graph);
         const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
         if (!reduceMotion) {
-          const { nodeFlashes, sunIntensity, events } = detectGraphActivity(prevGraphRef.current.nodes, merged.nodes);
-          if (nodeFlashes.size > 0 || sunIntensity > 0) {
+          const { nodeFlashes, events } = detectGraphActivity(prevGraphRef.current.nodes, merged.nodes);
+          if (nodeFlashes.size > 0) {
             const start = performance.now();
             for (const [id, intensity] of nodeFlashes) nodeFlashRef.current.set(id, { start, intensity });
-            if (sunIntensity > 0) sunFlashRef.current = { start, intensity: sunIntensity };
           }
-          for (const event of events) pushLiveEvent(event.kind, event.name, event.nodeId, event.state);
+          for (const event of events) pushLiveEvent(event.kind, event.name, event.nodeId, event.state, event.stampNumber);
         }
         prevGraphRef.current = merged;
         setGraph(merged);
@@ -1321,7 +1286,6 @@ export function ConstelacionSolMap({
     setLiveEvents([]);
     setToastEvent(null);
     nodeFlashRef.current.clear();
-    sunFlashRef.current = null;
   }, [simulating]);
 
   // El propio paso de simulación: un cambio de mentira cada SIMULATION_STEP_MS
@@ -1344,9 +1308,8 @@ export function ConstelacionSolMap({
         const intensity =
           result.event.kind === "redeemed" ? 1 : result.event.kind === "stamp" ? 0.7 : result.event.kind === "returned" ? 0.6 : 0.5;
         nodeFlashRef.current.set(result.event.nodeId, { start, intensity });
-        sunFlashRef.current = { start, intensity };
       }
-      pushLiveEvent(result.event.kind, result.event.name, result.event.nodeId, result.event.state);
+      pushLiveEvent(result.event.kind, result.event.name, result.event.nodeId, result.event.state, result.event.stampNumber);
       prevGraphRef.current = result.graph;
       setGraph(result.graph);
     }
@@ -1803,10 +1766,12 @@ export function ConstelacionSolMap({
       starGroupRef.current?.setAttribute("transform", `translate(${tilt.x.toFixed(2)},${tilt.y.toFixed(2)})`);
 
       // Destellos de "esto acaba de pasar" (ver detectGraphActivity): suben
-      // y bajan en FLASH_DURATION_MS/SUN_FLASH_DURATION_MS con un
-      // desvanecido de salida, no lineal -se apagan más despacio de lo que
-      // suben, como cualquier resplandor real-, y se olvidan solos al
-      // llegar al final en vez de quedar un mapa creciendo sin límite.
+      // y bajan en FLASH_DURATION_MS con un desvanecido de salida, no lineal
+      // -se apagan más despacio de lo que suben, como cualquier resplandor
+      // real-, y se olvidan solos al llegar al final en vez de quedar un
+      // mapa creciendo sin límite. Solo sobre la propia estrella donde pasó
+      // -nunca sobre el sol: si no hay actividad de verdad en ella, ninguna
+      // esfera destella.
       for (const [id, flash] of nodeFlashRef.current) {
         const el = flashGlowRefs.current.get(id);
         const elapsed = now - flash.start;
@@ -1817,17 +1782,6 @@ export function ConstelacionSolMap({
         }
         const decay = Math.sin((1 - elapsed / FLASH_DURATION_MS) * (Math.PI / 2));
         el?.setAttribute("fill-opacity", (flash.intensity * decay * FLASH_MAX_OPACITY).toFixed(3));
-      }
-      const sunFlash = sunFlashRef.current;
-      if (sunFlash) {
-        const elapsed = now - sunFlash.start;
-        if (elapsed >= SUN_FLASH_DURATION_MS) {
-          sunFlashRef.current = null;
-          sunFlashElRef.current?.setAttribute("fill-opacity", "0");
-        } else {
-          const decay = Math.sin((1 - elapsed / SUN_FLASH_DURATION_MS) * (Math.PI / 2));
-          sunFlashElRef.current?.setAttribute("fill-opacity", (sunFlash.intensity * decay * SUN_FLASH_MAX_OPACITY).toFixed(3));
-        }
       }
     }
 
@@ -2291,20 +2245,6 @@ export function ConstelacionSolMap({
                 respecto a ConstelacionMap-: el núcleo es solo el sol, el nombre vive
                 fuera, en la esquina -ver la placa fija más abajo en el JSX. */}
             <circle cx={0} cy={0} r={ESTABLISHMENT_RADIUS} fill="url(#constelacion-sun-core)" />
-            {/* Destello de "algo acaba de pasar en el local" -sube y baja una sola vez,
-                ver detectGraphActivity y el paso de destellos en el bucle de rAF-, no la
-                respiración constante de las auras de arriba: opacidad en 0 aquí, el
-                propio bucle la sube cuando el sondeo detecta actividad real. */}
-            <circle
-              ref={sunFlashElRef}
-              cx={0}
-              cy={0}
-              r={ESTABLISHMENT_RADIUS * 5}
-              fill="url(#constelacion-glow)"
-              fillOpacity={0}
-              style={{ color: "var(--color-lime)" }}
-              pointerEvents="none"
-            />
           </g>
 
           {graph.nodes.map((node) => {
@@ -2511,17 +2451,6 @@ export function ConstelacionSolMap({
           </div>
         </div>
 
-        {/* Misma caja que la leyenda -mismo glass-dark translúcido, mismo tamaño
-            de letra-, y ocultable con su propio icono en la columna de la derecha. */}
-        {hudVisible ? (
-          <div className="glass-dark pointer-events-none flex flex-col items-end gap-0.5 p-2.5 sm:gap-1 sm:p-3.5" style={{ background: "rgba(10,14,13,0.32)" }}>
-            <CountUpStat value={hud.sent} label={t.admin.sent} active={mounted} delayMs={0} />
-            <CountUpStat value={hud.opened} label={t.admin.opened} active={mounted} delayMs={85} />
-            <CountUpStat value={hud.redeemed} label={t.admin.redeemed} active={mounted} delayMs={170} />
-            <CountUpStat value={hud.billable} label={t.admin.attrBillable} active={mounted} delayMs={255} />
-            <CountUpStat value={hud.maxHops} label={t.admin.maxHops} active={mounted} delayMs={340} />
-          </div>
-        ) : null}
       </header>
 
       {/* Burbuja de "Action" en móvil/tablet -ver liveEvents.ts para el
@@ -2560,7 +2489,7 @@ export function ConstelacionSolMap({
                 <span className="absolute inline-flex size-full animate-ping rounded-full opacity-60" style={{ background: toastEvent.color }} />
                 <span className="relative inline-flex size-2.5 rounded-full" style={{ background: toastEvent.color }} />
               </span>
-              <span>{liveEventMessage(toastEvent.kind, toastEvent.name, t)}</span>
+              <span>{liveEventMessage(toastEvent.kind, toastEvent.name, t, toastEvent.stampNumber)}</span>
             </>
           ) : null}
         </div>
@@ -2573,27 +2502,35 @@ export function ConstelacionSolMap({
           efecto imán- vive dentro del SVG de arriba, no aquí: pertenece
           al mundo que se pellizca y arrastra, no a este overlay fijo. */}
       <div
-        className="pointer-events-none fixed inset-y-0 left-3 z-20 flex flex-col justify-end pt-[max(1.25rem,env(safe-area-inset-top))] pb-[calc(3.375rem+env(safe-area-inset-bottom)+1.25rem)] transition-[left] duration-200 ease-[var(--ease-out-soft)] lg:left-[calc(var(--admin-sidebar-width,16rem)+0.75rem)] lg:pb-[max(1.25rem,env(safe-area-inset-bottom))]"
+        className="pointer-events-none fixed inset-y-0 left-3 z-20 pt-[max(1.25rem,env(safe-area-inset-top))] pb-[calc(3.375rem+env(safe-area-inset-bottom)+1.25rem)] transition-[left] duration-200 ease-[var(--ease-out-soft)] lg:left-[calc(var(--admin-sidebar-width,16rem)+0.75rem)] lg:pb-[max(1.25rem,env(safe-area-inset-bottom))]"
       >
         {/* Panel de escritorio -"como si fuera un chat en vivo"-: mismos
             sucesos que la burbuja de arriba, pero como historial que se
             queda, no un aviso que se desvanece. Solo `lg:`, y solo entonces
             participa del layout -`hidden` en el resto de anchos no le resta
-            ni un píxel a la leyenda/ficha que le siguen debajo-. `flex-1
-            min-h-0` dentro de esta misma columna -ya `justify-end`- para que
-            crezca ocupando justo el hueco libre por encima de la
-            leyenda/ficha, nunca empujándolas ni desbordando la pantalla por
-            arriba. */}
-        <div className="hidden min-h-0 lg:flex lg:flex-1 lg:flex-col">
+            ni un píxel a la leyenda/ficha, que ahora viven en su propio
+            `absolute inset-x-0 bottom-0` -ver más abajo-, fuera del flujo:
+            así este panel puede ocupar `h-full`, el alto completo del
+            contenedor -de la cabecera al pie-, sin que la leyenda/ficha
+            -aunque estén "cerradas", su caja sigue contando para el alto
+            mientras no se desmonten- le sigan robando espacio. Se solapan
+            visualmente con la leyenda/ficha cuando están abiertas -ya
+            vienen después en el DOM, por encima-, el mismo compromiso que
+            ya acepta la burbuja de categoría en la columna derecha. */}
+        <div className="hidden h-full min-h-0 lg:flex lg:flex-col">
           <div
-            className="glass-dark pointer-events-auto flex min-h-0 flex-1 flex-col p-3"
+            className="glass-dark pointer-events-auto flex h-full min-h-0 flex-col p-3"
             style={{ background: "rgba(10,14,13,0.32)" }}
           >
             <p className="eyebrow shrink-0 text-chalk/40">
               {t.admin.constelacionActionFeedTitle}
               {liveEvents.length > 0 ? ` · ${fill(t.admin.constelacionActionFeedCount, { n: liveEvents.length })}` : ""}
             </p>
-            <div ref={liveFeedScrollRef} className="mt-2 flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto pr-1">
+            {/* Más reciente siempre arriba -pushLiveEvent ya inserta al principio,
+                no al final-, así el suceso que acaba de pasar se ve sin tener
+                que desplazar nada; scrollTop se fuerza a 0 en cada suceso nuevo
+                por si el propio usuario se había desplazado a leer el historial. */}
+            <div ref={liveFeedScrollRef} className="mt-2 flex min-h-0 flex-1 flex-col gap-2.5 overflow-y-auto pr-1">
               {liveEvents.length === 0 ? (
                 <p className="text-[0.6875rem] text-chalk/35">{t.admin.constelacionActionFeedEmpty}</p>
               ) : (
@@ -2601,10 +2538,21 @@ export function ConstelacionSolMap({
                   const hasName = event.name !== "";
                   return (
                     <div key={event.id} className="flex items-start gap-2">
-                      <span className="mt-[0.3125rem] size-1.5 shrink-0 rounded-full" style={{ background: event.color }} />
+                      {/* Mini estrella -halo difuso + núcleo sólido, mismo
+                          criterio que la propia constelación, no un punto
+                          plano de un solo color- del color exacto de la
+                          estrella donde pasó. */}
+                      <span className="relative mt-[0.1875rem] flex size-3 shrink-0 items-center justify-center">
+                        <span className="absolute size-full rounded-full opacity-50 blur-[3px]" style={{ background: event.color }} />
+                        <span className="relative size-1.5 rounded-full" style={{ background: event.color, boxShadow: `0 0 5px 1px ${event.color}` }} />
+                      </span>
                       <div className="min-w-0 flex-1">
                         <p className={cn("text-[0.6875rem] leading-snug", hasName ? "font-semibold text-chalk/90" : "text-chalk/55")}>
-                          {liveEventMessage(event.kind, event.name, t)}
+                          {liveEventMessage(event.kind, event.name, t, event.stampNumber)}
+                          {" · "}
+                          <span className="font-normal text-chalk/45">
+                            {liveEventDetail(event.kind, t, { state: event.state, stampsGoal, stampNumber: event.stampNumber })}
+                          </span>
                         </p>
                         <p className="mt-0.5 text-[0.5625rem] text-chalk/35">{relativeTimeLabel(event.ts)}</p>
                       </div>
@@ -2615,74 +2563,82 @@ export function ConstelacionSolMap({
             </div>
           </div>
         </div>
-        <div
-          className="glass-dark pointer-events-auto max-w-[min(15rem,calc(100vw-6rem))] p-3 transition-transform duration-300 ease-[var(--ease-out-soft)] sm:max-w-[16rem] sm:p-3.5"
-          style={{
-            transform: legendOpen ? "translateX(0)" : "translateX(-120%)",
-            // Más transparente que el glass-dark de siempre -0.62 de opacidad-:
-            // esta caja tapa buena parte de la constelación, así que deja
-            // pasar más del mapa de detrás sin perder legibilidad -el blur
-            // y el borde de glass-dark se quedan igual.
-            background: "rgba(10,14,13,0.32)",
-          }}
-        >
-          <p className="eyebrow text-chalk/40">{t.admin.constelacionLegendTitle}</p>
-          <p className="mt-0.5 text-[0.625rem] leading-snug text-chalk/30 sm:text-[0.6875rem]">{t.admin.constelacionLegendDesc}</p>
-          <div className="mt-2 flex flex-col gap-1.5">
-            {FUNNEL_ORDER.map((state) => {
-              const isMutedRow = CONSTELACION_MUTED_STATES.has(state);
-              // El propio punto de la leyenda ya es la burbuja a escala -mismo
-              // multiplicador que dibuja el mapa-, así que enseña de un
-              // vistazo que el tamaño también cuenta la fase del cliente.
-              const swatchPx = 5 + CONSTELACION_PHASE_SIZE[state] * 6.5;
-              return (
-                <div key={state} className={cn("flex items-center gap-2 text-[0.6875rem] sm:text-[0.75rem]", isMutedRow ? "text-chalk/45" : "text-chalk/75")}>
-                  <span
-                    className="flex shrink-0 items-center justify-center"
-                    style={{ width: 21, height: 21 }}
-                  >
-                    <span
-                      className="block rounded-full"
-                      style={{
-                        width: swatchPx,
-                        height: swatchPx,
-                        background: CONSTELACION_PHASE_COLOR[state],
-                        opacity: isMutedRow ? 0.55 : 1,
-                        border: isMutedRow ? `1px solid ${CONSTELACION_STROKE_COLOR[state]}` : undefined,
-                      }}
-                    />
-                  </span>
-                  <span className="min-w-0 flex-1 truncate">{stateBadgeLabel(state, t)}</span>
-                  <span className="numeral text-[0.625rem] text-chalk/40 sm:text-[0.6875rem]">{funnelCounts.get(state) ?? 0}</span>
-                </div>
-              );
-            })}
-          </div>
-          <p className="mt-2.5 border-t border-white/8 pt-2.5 text-[0.5625rem] leading-tight text-chalk/40 sm:text-[0.625rem]">{t.admin.constelacionSizeLegend}</p>
-          <p className="mt-1.5 text-[0.5625rem] leading-tight text-chalk/40 sm:text-[0.625rem]">{t.admin.constelacionBrightnessLegend}</p>
-        </div>
 
-        {/* La ficha vive en esta misma columna, justo debajo de la leyenda -no
-            en su propio overlay a pantalla completa como en ConstelacionMap-:
-            `justify-end` la empuja al fondo y dobla como último hijo, así que
-            la leyenda -primer hijo- siempre queda por encima de ella cuando
-            las dos están abiertas a la vez. */}
-        <div ref={cardWrapRef} className="mt-2 pointer-events-none">
-          <ConstelacionSheet
-            variant="corner"
-            node={selectedNode}
-            giftedByName={giftedByName}
-            invitedCount={selectedNode?.childCount ?? 0}
-            sentAt={selectedNode ? (sentAtById.get(selectedNode.id) ?? null) : null}
-            color={selectedNode ? safeLineColor(selectedNode) : "var(--color-slate)"}
-            stampsGoal={stampsGoal}
-            returnWindowDays={returnWindowDays}
-            nowMs={nowMs}
-            locale={locale}
-            t={t}
-            onClose={() => setSelectedId(null)}
-            ignoreOutsideClickRef={svgRef}
-          />
+        {/* Leyenda + ficha: fuera del flujo -absolute, no flex-col justify-end
+            como antes- para no restarle alto al panel de actividad de
+            arriba, ver su comentario. Envueltas juntas en un único
+            contenedor para que su orden/espaciado relativo -leyenda arriba,
+            ficha debajo con su propio `mt-2`- se mantenga igual que antes,
+            todo ese bloque anclado como una unidad al borde inferior real
+            del contenedor -`bottom-0` respeta el `pb-[...]` del padre, el
+            mismo sitio donde `justify-end` los dejaba antes. */}
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 flex flex-col">
+          <div
+            className="glass-dark pointer-events-auto max-w-[min(15rem,calc(100vw-6rem))] p-3 transition-transform duration-300 ease-[var(--ease-out-soft)] sm:max-w-[16rem] sm:p-3.5"
+            style={{
+              transform: legendOpen ? "translateX(0)" : "translateX(-120%)",
+              // Más transparente que el glass-dark de siempre -0.62 de opacidad-:
+              // esta caja tapa buena parte de la constelación, así que deja
+              // pasar más del mapa de detrás sin perder legibilidad -el blur
+              // y el borde de glass-dark se quedan igual.
+              background: "rgba(10,14,13,0.32)",
+            }}
+          >
+            <p className="eyebrow text-chalk/40">{t.admin.constelacionLegendTitle}</p>
+            <p className="mt-0.5 text-[0.625rem] leading-snug text-chalk/30 sm:text-[0.6875rem]">{t.admin.constelacionLegendDesc}</p>
+            <div className="mt-2 flex flex-col gap-1.5">
+              {FUNNEL_ORDER.map((state) => {
+                const isMutedRow = CONSTELACION_MUTED_STATES.has(state);
+                // El propio punto de la leyenda ya es la burbuja a escala -mismo
+                // multiplicador que dibuja el mapa-, así que enseña de un
+                // vistazo que el tamaño también cuenta la fase del cliente.
+                const swatchPx = 5 + CONSTELACION_PHASE_SIZE[state] * 6.5;
+                return (
+                  <div key={state} className={cn("flex items-center gap-2 text-[0.6875rem] sm:text-[0.75rem]", isMutedRow ? "text-chalk/45" : "text-chalk/75")}>
+                    <span
+                      className="flex shrink-0 items-center justify-center"
+                      style={{ width: 21, height: 21 }}
+                    >
+                      <span
+                        className="block rounded-full"
+                        style={{
+                          width: swatchPx,
+                          height: swatchPx,
+                          background: CONSTELACION_PHASE_COLOR[state],
+                          opacity: isMutedRow ? 0.55 : 1,
+                          border: isMutedRow ? `1px solid ${CONSTELACION_STROKE_COLOR[state]}` : undefined,
+                        }}
+                      />
+                    </span>
+                    <span className="min-w-0 flex-1 truncate">{stateBadgeLabel(state, t)}</span>
+                    <span className="numeral text-[0.625rem] text-chalk/40 sm:text-[0.6875rem]">{funnelCounts.get(state) ?? 0}</span>
+                  </div>
+                );
+              })}
+            </div>
+            <p className="mt-2.5 border-t border-white/8 pt-2.5 text-[0.5625rem] leading-tight text-chalk/40 sm:text-[0.625rem]">{t.admin.constelacionSizeLegend}</p>
+            <p className="mt-1.5 text-[0.5625rem] leading-tight text-chalk/40 sm:text-[0.625rem]">{t.admin.constelacionBrightnessLegend}</p>
+          </div>
+
+          {/* La ficha vive en esta misma columna, justo debajo de la leyenda -no
+              en su propio overlay a pantalla completa como en ConstelacionMap. */}
+          <div ref={cardWrapRef} className="mt-2 pointer-events-none">
+            <ConstelacionSheet
+              variant="corner"
+              node={selectedNode}
+              giftedByName={giftedByName}
+              invitedCount={selectedNode?.childCount ?? 0}
+              sentAt={selectedNode ? (sentAtById.get(selectedNode.id) ?? null) : null}
+              color={selectedNode ? safeLineColor(selectedNode) : "var(--color-slate)"}
+              stampsGoal={stampsGoal}
+              returnWindowDays={returnWindowDays}
+              nowMs={nowMs}
+              locale={locale}
+              t={t}
+              onClose={() => setSelectedId(null)}
+              ignoreOutsideClickRef={svgRef}
+            />
+          </div>
         </div>
       </div>
 
@@ -2691,7 +2647,10 @@ export function ConstelacionSolMap({
           esta columna: los botones se quedan visibles y usables aunque haya
           un nodo seleccionado. */}
       <div
-        className="pointer-events-none fixed inset-y-0 right-3 z-20 flex flex-col items-end justify-end gap-2 pt-[max(1.25rem,env(safe-area-inset-top))] pb-[calc(3.375rem+env(safe-area-inset-bottom)+1.25rem)] lg:w-72 lg:pb-[max(1.25rem,env(safe-area-inset-bottom))]"
+        className={cn(
+          "pointer-events-none fixed inset-y-0 right-3 z-20 flex flex-col items-end justify-end gap-2 pt-[max(1.25rem,env(safe-area-inset-top))] pb-[calc(3.375rem+env(safe-area-inset-bottom)+1.25rem)] lg:pb-[max(1.25rem,env(safe-area-inset-bottom))]",
+          hudVisible ? "lg:w-72" : "",
+        )}
       >
         {/* "Lo que ninguna tarjeta te dice": lecturas de toda la red a la vez,
             no de una tarjeta suelta -solo escritorio, mismo patrón que el
@@ -2699,39 +2658,49 @@ export function ConstelacionSolMap({
             lg:flex-1 lg:min-h-0` para crecer ocupando el hueco libre por
             encima de la burbuja de categoría/columna de controles, sin
             empujarlas ni desbordar la pantalla por arriba-. Todo en cafés,
-            nunca en €: ver el comentario de `insights` más arriba. */}
-        <div className="hidden min-h-0 w-full lg:flex lg:flex-1 lg:flex-col">
-          <div
-            className="glass-dark pointer-events-auto flex min-h-0 flex-1 flex-col overflow-y-auto p-3"
-            style={{ background: "rgba(10,14,13,0.32)" }}
-          >
-            <p className="eyebrow shrink-0 text-chalk/40">{t.admin.constelacionInsightsTitle}</p>
-            <div className="mt-2 shrink-0 rounded-2xl p-3" style={{ background: "rgba(233,255,114,0.1)" }}>
-              <p className="numeral text-[1.75rem] font-extrabold leading-none text-lime">{insights.referredPct}%</p>
-              <p className="mt-1 text-[0.6875rem] leading-snug text-chalk/70">{t.admin.constelacionInsightsReferredPct}</p>
-            </div>
-            <dl className="mt-3 flex flex-col gap-2.5">
-              {[
-                { value: insights.costPerWonCoffees != null ? insights.costPerWonCoffees.toFixed(1) : "—", label: t.admin.constelacionInsightsCostPerWon, desc: t.admin.constelacionInsightsCostPerWonDesc },
-                { value: insights.noReturnCount, label: t.admin.constelacionInsightsNoReturn, desc: t.admin.constelacionInsightsNoReturnDesc },
-                { value: insights.expiredAttempts, label: t.admin.constelacionInsightsExpiredAttempts, desc: t.admin.constelacionInsightsExpiredAttemptsDesc },
-                { value: insights.maxHops, label: t.admin.maxHops, desc: t.admin.constelacionInsightsMaxHopsDesc },
-                { value: insights.dormantCount, label: t.admin.constelacionInsightsDormant, desc: t.admin.constelacionInsightsDormantDesc },
-                { value: insights.readyToGiftCoffees, label: t.admin.constelacionInsightsReadyToGift, desc: t.admin.constelacionInsightsReadyToGiftDesc },
-                { value: insights.expiringSoonCount, label: t.admin.constelacionInsightsExpiringSoon, desc: t.admin.constelacionInsightsExpiringSoonDesc },
-                { value: insights.referrersToReview, label: t.admin.constelacionInsightsReferrersToReview, desc: t.admin.constelacionInsightsReferrersToReviewDesc },
-              ].map((row, i) => (
-                <div key={i} className="flex items-baseline gap-2.5">
-                  <dd className="numeral shrink-0 text-[1.0625rem] font-bold leading-none text-chalk/90">{row.value}</dd>
-                  <div className="min-w-0">
-                    <dt className="text-[0.6875rem] leading-snug text-chalk/80">{row.label}</dt>
-                    <dd className="mt-0.5 text-[0.5625rem] leading-snug text-chalk/40">{row.desc}</dd>
+            nunca en €: ver el comentario de `insights` más arriba. Es el
+            reemplazo directo del viejo HUD de la cabecera -mismo icono de
+            ojo, misma filosofía "apagado por defecto"-, ya no dos sitios
+            enseñando cuenta de clientes por separado. */}
+        {hudVisible ? (
+          <div className="hidden min-h-0 w-full lg:flex lg:flex-1 lg:flex-col">
+            <div
+              className="glass-dark pointer-events-auto flex min-h-0 flex-1 flex-col overflow-y-auto p-3"
+              style={{ background: "rgba(10,14,13,0.32)" }}
+            >
+              <p className="eyebrow shrink-0 text-chalk/40">{t.admin.constelacionInsightsTitle}</p>
+              <div className="mt-2 shrink-0 rounded-2xl p-3" style={{ background: "rgba(233,255,114,0.1)" }}>
+                <p className="numeral text-[1.75rem] font-extrabold leading-none text-lime">{insights.referredPct}%</p>
+                <p className="mt-1 text-[0.6875rem] leading-snug text-chalk/70">{t.admin.constelacionInsightsReferredPct}</p>
+              </div>
+              <dl className="mt-3 flex flex-col gap-2.5">
+                {[
+                  { value: insights.sent, label: t.admin.sent, desc: t.admin.constelacionInsightsSentDesc },
+                  { value: insights.opened, label: t.admin.opened, desc: t.admin.constelacionInsightsOpenedDesc },
+                  { value: insights.claimedInvites, label: t.admin.constelacionInsightsClaimedInvites, desc: t.admin.constelacionInsightsClaimedInvitesDesc },
+                  { value: insights.verifiedCustomers, label: t.admin.attrBillable, desc: t.admin.constelacionInsightsVerifiedDesc },
+                  { value: customerCount, label: t.admin.constelacionCustomersLabel, desc: t.admin.constelacionInsightsTotalDesc },
+                  { value: insights.costPerWonCoffees != null ? insights.costPerWonCoffees.toFixed(1) : "—", label: t.admin.constelacionInsightsCostPerWon, desc: t.admin.constelacionInsightsCostPerWonDesc },
+                  { value: insights.noReturnCount, label: t.admin.constelacionInsightsNoReturn, desc: t.admin.constelacionInsightsNoReturnDesc },
+                  { value: insights.expiredAttempts, label: t.admin.constelacionInsightsExpiredAttempts, desc: t.admin.constelacionInsightsExpiredAttemptsDesc },
+                  { value: insights.maxHops, label: t.admin.maxHops, desc: t.admin.constelacionInsightsMaxHopsDesc },
+                  { value: insights.dormantCount, label: t.admin.constelacionInsightsDormant, desc: t.admin.constelacionInsightsDormantDesc },
+                  { value: insights.readyToGiftCoffees, label: t.admin.constelacionInsightsReadyToGift, desc: t.admin.constelacionInsightsReadyToGiftDesc },
+                  { value: insights.expiringSoonCount, label: t.admin.constelacionInsightsExpiringSoon, desc: t.admin.constelacionInsightsExpiringSoonDesc },
+                  { value: insights.referrersToReview, label: t.admin.constelacionInsightsReferrersToReview, desc: t.admin.constelacionInsightsReferrersToReviewDesc },
+                ].map((row, i) => (
+                  <div key={i} className="flex items-baseline gap-2.5">
+                    <dd className="numeral shrink-0 text-[1.0625rem] font-bold leading-none text-chalk/90">{row.value}</dd>
+                    <div className="min-w-0">
+                      <dt className="text-[0.6875rem] leading-snug text-chalk/80">{row.label}</dt>
+                      <dd className="mt-0.5 text-[0.5625rem] leading-snug text-chalk/40">{row.desc}</dd>
+                    </div>
                   </div>
-                </div>
-              ))}
-            </dl>
+                ))}
+              </dl>
+            </div>
           </div>
-        </div>
+        ) : null}
         <div className="pointer-events-none flex flex-col items-end gap-2">
           {/* Número y descripción de la categoría del anillo tocada, con el
               mismo tratamiento visual que la leyenda -glass-dark, mismo tono

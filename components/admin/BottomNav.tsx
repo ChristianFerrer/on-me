@@ -81,7 +81,7 @@ export function BottomNav({
 
   return (
     <>
-      <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-white/8 bg-ink/95 backdrop-blur-lg lg:hidden">
+      <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-white/8 bg-black lg:hidden">
         <div className="mx-auto flex w-full max-w-[30rem] items-stretch justify-between px-1 pb-[env(safe-area-inset-bottom)] sm:max-w-[34rem] lg:max-w-[38rem]">
           {items.map((item) => (
             <Link
@@ -105,7 +105,7 @@ export function BottomNav({
       <nav
         style={{ width: isCollapsed ? ADMIN_SIDEBAR_WIDTH_COLLAPSED : ADMIN_SIDEBAR_WIDTH }}
         className={cn(
-          "glass-dark fixed inset-y-0 left-0 z-40 hidden flex-col gap-1 rounded-none border-y-0 border-l-0 p-4 transition-[width] duration-200 ease-[var(--ease-out-soft)] lg:flex",
+          "fixed inset-y-0 left-0 z-40 hidden flex-col gap-1 rounded-none border-y-0 border-l-0 border-r border-white/10 bg-black p-4 transition-[width] duration-200 ease-[var(--ease-out-soft)] lg:flex",
           isCollapsed && "items-center px-2",
         )}
       >
