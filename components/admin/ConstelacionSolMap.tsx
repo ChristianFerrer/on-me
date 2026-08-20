@@ -747,6 +747,10 @@ function detectGraphActivity(prevNodes: Node[], nextNodes: Node[]): GraphActivit
 
 /** Margen fijo alrededor de la caja que encierra toda la cadena tocada, en unidades del viewBox -mismo espíritu que VIEWBOX_PADDING, pero propio de este encuadre-. */
 const CHAIN_ZOOM_PADDING = 50;
+/** Margen extra por esfera, sobre su propio nodeRadius, al calcular la caja a encuadrar: sin esto la caja solo mira el CENTRO de cada esfera, no su cuerpo -ni el anillo "estás viendo esta" (displayRadius+4.5) de la propia seleccionada-, así que a un zoom alto -ver CHAIN_ZOOM_MAX_SCALE, el margen fijo de siempre no crece con el zoom- ese anillo podía asomar fuera de la pantalla aunque el CENTRO del nodo cupiera de sobra. */
+const CHAIN_ZOOM_NODE_MARGIN = 5;
+/** Tope de escala del encuadre a una cadena -antes sin tope: "el máximo posible" se probó literal y una cadena de un único cliente sin invitados -caja mínima, casi un punto- se ampliaba hasta ocupar la pantalla entera con el aura de una sola estrella, no un mapa. Mismo techo que el propio pellizco manual (MAX_SCALE): el automático nunca debe llegar más lejos de lo que ya podría llegar el dedo del cliente. */
+const CHAIN_ZOOM_MAX_SCALE = MAX_SCALE;
 /** Franja reservada arriba -en píxeles de pantalla, no unidades del viewBox: se convierte con pixelsToUnits al vuelo- para que la cadena encuadrada no quede tapada por la cabecera fija: botón de volver + placa del local, con su margen de zona segura. Un valor fijo, no medido -a diferencia de la ficha, ver cardHeightPx-: la cabecera no cambia de alto según qué cadena se toque. */
 const HEADER_ZOOM_INSET_PX = 90;
 /** Igual que arriba, pero abajo: lo que hay por debajo de la propia ficha de detalle -BottomNav en móvil/tablet más su zona segura y los márgenes fijos del contenedor- y que cardHeightPx, medido de verdad, no incluye por sí solo. */
@@ -754,16 +758,17 @@ const BOTTOM_CHROME_BUFFER_PX = 90;
 /** Ángulos candidatos -relativos a la rotación actual del mapa- que se prueban antes de encuadrar una cadena: cada uno es una orientación distinta de su caja envolvente, y se elige la que mejor aprovecha el hueco disponible. 4 bastan -0/45/90/135°, el ajuste de una caja a un rectángulo se repite cada 180°- para que una cadena con forma alargada -la mayoría, ver captura real- pueda caer con su lado largo alineado al hueco alto y estrecho entre la cabecera y la tarjeta, en vez de quedarse siempre a la orientación en la que el mapa iba girando por su cuenta en ese momento. */
 const CHAIN_ROTATION_CANDIDATES = [0, Math.PI / 4, Math.PI / 2, (Math.PI * 3) / 4];
 
-function chainBoundingBox(points: XY[]): { cx: number; cy: number; spanX: number; spanY: number } {
+/** El cuerpo de cada esfera, no solo su centro -ver CHAIN_ZOOM_NODE_MARGIN-: `radius` ya trae ese margen sumado, así que aquí basta con restar/sumar sin más cuentas. */
+function chainBoundingBox(points: { xy: XY; radius: number }[]): { cx: number; cy: number; spanX: number; spanY: number } {
   let minX = Infinity;
   let maxX = -Infinity;
   let minY = Infinity;
   let maxY = -Infinity;
-  for (const p of points) {
-    minX = Math.min(minX, p.x);
-    maxX = Math.max(maxX, p.x);
-    minY = Math.min(minY, p.y);
-    maxY = Math.max(maxY, p.y);
+  for (const { xy, radius } of points) {
+    minX = Math.min(minX, xy.x - radius);
+    maxX = Math.max(maxX, xy.x + radius);
+    minY = Math.min(minY, xy.y - radius);
+    maxY = Math.max(maxY, xy.y + radius);
   }
   return { cx: (minX + maxX) / 2, cy: (minY + maxY) / 2, spanX: Math.max(maxX - minX, 1), spanY: Math.max(maxY - minY, 1) };
 }
@@ -807,7 +812,7 @@ function fitChainRotationAndPan(
   let best: { rotationDelta: number; pan: Pan } | null = null;
   for (const delta of CHAIN_ROTATION_CANDIDATES) {
     const rotation = baseRotation + delta;
-    const box = chainBoundingBox(layoutPoints.map((p) => nodeXY(p, rotation)));
+    const box = chainBoundingBox(layoutPoints.map((p) => ({ xy: nodeXY(p, rotation), radius: p.nodeRadius + CHAIN_ZOOM_NODE_MARGIN })));
     const scale = clamp(Math.min(availW / box.spanX, availH / box.spanY), MIN_SCALE, maxScale);
     if (!best || scale > best.pan.scale) {
       best = { rotationDelta: delta, pan: { x: -box.cx * scale, y: safeCenterY - box.cy * scale, scale } };
@@ -1309,15 +1314,16 @@ export function ConstelacionSolMap({
         const cy = targetRadius * Math.sin(angle);
         setPan({ x: -cx * AUTO_ZOOM_MAX_SCALE, y: -cy * AUTO_ZOOM_MAX_SCALE, scale: AUTO_ZOOM_MAX_SCALE });
       } else if (chainLayoutPoints.length > 0) {
-        // Sin tope de escala -Infinity, solo MIN_SCALE de suelo dentro de
-        // fitChainRotationAndPan-: "el máximo posible para aprovechar la
-        // pantalla" es justo eso, no un techo fijo pensado para otro caso.
+        // Topado a CHAIN_ZOOM_MAX_SCALE -no Infinity-: "el máximo posible
+        // para aprovechar la pantalla" se probó sin techo y una cadena de un
+        // único cliente sin invitados -caja mínima, casi un punto- se
+        // ampliaba hasta llenar la pantalla con el aura de una sola estrella.
         const { rotationDelta, pan: fitPan } = fitChainRotationAndPan(
           chainLayoutPoints,
           rotationRef.current,
           halfW,
           half,
-          Infinity,
+          CHAIN_ZOOM_MAX_SCALE,
           topInset,
           bottomInset,
         );
