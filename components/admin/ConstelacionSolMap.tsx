@@ -14,7 +14,7 @@ import { isTap, type PointerPoint } from "@/lib/giftGraph/tapGesture";
 import { liveEventMessage, type LiveEventKind } from "@/lib/giftGraph/liveEvents";
 import { simulateGraphStep } from "@/lib/giftGraph/simulateActivity";
 import type { GiftGraph, Node, NodeState } from "@/lib/giftGraph/types";
-import type { Dict, Locale } from "@/lib/i18n";
+import { fill, type Dict, type Locale } from "@/lib/i18n";
 
 /** Zoom manual sobre el encuadre automático (pellizco, rueda): 1 = el encuadre tal cual. */
 const MIN_SCALE = 0.55;
@@ -1026,6 +1026,48 @@ export function ConstelacionSolMap({
 
   const customerCount = useMemo(() => graph.nodes.filter((n) => n.claimed).length, [graph.nodes]);
 
+  /**
+   * Panel "lo que ninguna tarjeta te dice" -desktop, columna derecha-:
+   * lecturas que no salen de mirar una sola tarjeta, solo de mirar toda la
+   * red a la vez. Todo en cafés/cuentas, nunca en €: este local no guarda
+   * ningún precio por café, así que cualquier cifra en euros aquí sería
+   * inventada -mejor un número real y honesto que uno bonito y falso.
+   */
+  const insights = useMemo(() => {
+    const claimedNodes = graph.nodes.filter((n) => n.claimed);
+    // El café gratis del referido se regala en cuanto se da de alta desde la
+    // invitación -"direct" nunca pasó por ninguna invitación, no cuenta-.
+    const referredCustomers = claimedNodes.filter((n) => n.state !== "direct").length;
+    const wonCustomers = claimedNodes.filter((n) => n.state === "billable").length;
+    const referredPct = claimedNodes.length > 0 ? Math.round((referredCustomers / claimedNodes.length) * 100) : 0;
+    const costPerWonCoffees = wonCustomers > 0 ? referredCustomers / wonCustomers : null;
+    const noReturnCount = graph.nodes.filter((n) => n.state === "discarded").length;
+    const expiredAttempts = graph.nodes.filter((n) => n.state === "expired").length;
+    const dormantCount = claimedNodes.filter((n) => livelinessFor(n, nowMs) <= 0).length;
+    // Mismo cupo que el negocio real -lib/card.ts, pendingGrants-: una
+    // invitación de derecho por cada tarjeta completada, sin gastar
+    // -childCount nunca debería superar cardsCompleted, pero max(...,0) por
+    // si acaso-, sumado sobre toda la red.
+    const readyToGiftCoffees = claimedNodes.reduce((sum, n) => sum + Math.max(n.cardsCompleted - n.childCount, 0), 0);
+    const referrersToReview = new Set(
+      graph.nodes
+        .filter((n) => n.state === "discarded")
+        .map((n) => parentOf.get(n.id))
+        .filter((id): id is string => id != null && id !== graph.establishment.id),
+    ).size;
+    return {
+      referredPct,
+      costPerWonCoffees,
+      noReturnCount,
+      expiredAttempts,
+      maxHops: layout.maxDepth,
+      dormantCount,
+      readyToGiftCoffees,
+      expiringSoonCount: expiringIds.size,
+      referrersToReview,
+    };
+  }, [graph.nodes, graph.establishment.id, parentOf, nowMs, layout.maxDepth, expiringIds]);
+
   // Encuadre automático: el viewBox es el borde más lejano de todos
   // -frameRadius- más un margen fijo, en vertical -`half`/`size` de
   // siempre-. El ancho real -`halfW`, más abajo, junto a `svgRef`- se
@@ -1183,6 +1225,22 @@ export function ConstelacionSolMap({
     if (!el) return;
     el.scrollTop = el.scrollHeight;
   }, [liveEvents]);
+
+  /**
+   * Reloj propio del feed -no el `nowMs` de arriba, congelado al montar-:
+   * "hace X min" tiene que ir avanzando de verdad mientras la pestaña se
+   * queda abierta todo el día, sin necesidad de que llegue un suceso nuevo
+   * para refrescarse. Cada 15s basta -la propia etiqueta redondea a minutos.
+   */
+  const [feedNowMs, setFeedNowMs] = useState(() => Date.now());
+  useEffect(() => {
+    const id = window.setInterval(() => setFeedNowMs(Date.now()), 15_000);
+    return () => window.clearInterval(id);
+  }, []);
+  function relativeTimeLabel(tsMs: number): string {
+    const minutes = Math.floor((feedNowMs - tsMs) / 60_000);
+    return minutes <= 0 ? t.admin.constelacionJustNow : fill(t.admin.constelacionMinutesAgo, { n: minutes });
+  }
 
   /**
    * Modo simulación: fabrica actividad de mentira -ver simulateActivity.ts-
@@ -2531,17 +2589,28 @@ export function ConstelacionSolMap({
             className="glass-dark pointer-events-auto flex min-h-0 flex-1 flex-col p-3"
             style={{ background: "rgba(10,14,13,0.32)" }}
           >
-            <p className="eyebrow shrink-0 text-chalk/40">{t.admin.constelacionActionFeedTitle}</p>
-            <div ref={liveFeedScrollRef} className="mt-2 flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto pr-1">
+            <p className="eyebrow shrink-0 text-chalk/40">
+              {t.admin.constelacionActionFeedTitle}
+              {liveEvents.length > 0 ? ` · ${fill(t.admin.constelacionActionFeedCount, { n: liveEvents.length })}` : ""}
+            </p>
+            <div ref={liveFeedScrollRef} className="mt-2 flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto pr-1">
               {liveEvents.length === 0 ? (
                 <p className="text-[0.6875rem] text-chalk/35">{t.admin.constelacionActionFeedEmpty}</p>
               ) : (
-                liveEvents.map((event) => (
-                  <div key={event.id} className="flex items-start gap-2">
-                    <span className="mt-[0.3125rem] size-1.5 shrink-0 rounded-full" style={{ background: event.color }} />
-                    <p className="text-[0.6875rem] leading-snug text-chalk/70">{liveEventMessage(event.kind, event.name, t)}</p>
-                  </div>
-                ))
+                liveEvents.map((event) => {
+                  const hasName = event.name !== "";
+                  return (
+                    <div key={event.id} className="flex items-start gap-2">
+                      <span className="mt-[0.3125rem] size-1.5 shrink-0 rounded-full" style={{ background: event.color }} />
+                      <div className="min-w-0 flex-1">
+                        <p className={cn("text-[0.6875rem] leading-snug", hasName ? "font-semibold text-chalk/90" : "text-chalk/55")}>
+                          {liveEventMessage(event.kind, event.name, t)}
+                        </p>
+                        <p className="mt-0.5 text-[0.5625rem] text-chalk/35">{relativeTimeLabel(event.ts)}</p>
+                      </div>
+                    </div>
+                  );
+                })
               )}
             </div>
           </div>
@@ -2622,8 +2691,47 @@ export function ConstelacionSolMap({
           esta columna: los botones se quedan visibles y usables aunque haya
           un nodo seleccionado. */}
       <div
-        className="pointer-events-none fixed inset-y-0 right-3 z-20 flex flex-col items-end justify-end gap-2 pt-[max(1.25rem,env(safe-area-inset-top))] pb-[calc(3.375rem+env(safe-area-inset-bottom)+1.25rem)] lg:pb-[max(1.25rem,env(safe-area-inset-bottom))]"
+        className="pointer-events-none fixed inset-y-0 right-3 z-20 flex flex-col items-end justify-end gap-2 pt-[max(1.25rem,env(safe-area-inset-top))] pb-[calc(3.375rem+env(safe-area-inset-bottom)+1.25rem)] lg:w-72 lg:pb-[max(1.25rem,env(safe-area-inset-bottom))]"
       >
+        {/* "Lo que ninguna tarjeta te dice": lecturas de toda la red a la vez,
+            no de una tarjeta suelta -solo escritorio, mismo patrón que el
+            panel de actividad de la columna izquierda: `hidden lg:flex
+            lg:flex-1 lg:min-h-0` para crecer ocupando el hueco libre por
+            encima de la burbuja de categoría/columna de controles, sin
+            empujarlas ni desbordar la pantalla por arriba-. Todo en cafés,
+            nunca en €: ver el comentario de `insights` más arriba. */}
+        <div className="hidden min-h-0 w-full lg:flex lg:flex-1 lg:flex-col">
+          <div
+            className="glass-dark pointer-events-auto flex min-h-0 flex-1 flex-col overflow-y-auto p-3"
+            style={{ background: "rgba(10,14,13,0.32)" }}
+          >
+            <p className="eyebrow shrink-0 text-chalk/40">{t.admin.constelacionInsightsTitle}</p>
+            <div className="mt-2 shrink-0 rounded-2xl p-3" style={{ background: "rgba(233,255,114,0.1)" }}>
+              <p className="numeral text-[1.75rem] font-extrabold leading-none text-lime">{insights.referredPct}%</p>
+              <p className="mt-1 text-[0.6875rem] leading-snug text-chalk/70">{t.admin.constelacionInsightsReferredPct}</p>
+            </div>
+            <dl className="mt-3 flex flex-col gap-2.5">
+              {[
+                { value: insights.costPerWonCoffees != null ? insights.costPerWonCoffees.toFixed(1) : "—", label: t.admin.constelacionInsightsCostPerWon, desc: t.admin.constelacionInsightsCostPerWonDesc },
+                { value: insights.noReturnCount, label: t.admin.constelacionInsightsNoReturn, desc: t.admin.constelacionInsightsNoReturnDesc },
+                { value: insights.expiredAttempts, label: t.admin.constelacionInsightsExpiredAttempts, desc: t.admin.constelacionInsightsExpiredAttemptsDesc },
+                { value: insights.maxHops, label: t.admin.maxHops, desc: t.admin.constelacionInsightsMaxHopsDesc },
+                { value: insights.dormantCount, label: t.admin.constelacionInsightsDormant, desc: t.admin.constelacionInsightsDormantDesc },
+                { value: insights.readyToGiftCoffees, label: t.admin.constelacionInsightsReadyToGift, desc: t.admin.constelacionInsightsReadyToGiftDesc },
+                { value: insights.expiringSoonCount, label: t.admin.constelacionInsightsExpiringSoon, desc: t.admin.constelacionInsightsExpiringSoonDesc },
+                { value: insights.referrersToReview, label: t.admin.constelacionInsightsReferrersToReview, desc: t.admin.constelacionInsightsReferrersToReviewDesc },
+              ].map((row, i) => (
+                <div key={i} className="flex items-baseline gap-2.5">
+                  <dd className="numeral shrink-0 text-[1.0625rem] font-bold leading-none text-chalk/90">{row.value}</dd>
+                  <div className="min-w-0">
+                    <dt className="text-[0.6875rem] leading-snug text-chalk/80">{row.label}</dt>
+                    <dd className="mt-0.5 text-[0.5625rem] leading-snug text-chalk/40">{row.desc}</dd>
+                  </div>
+                </div>
+              ))}
+            </dl>
+          </div>
+        </div>
         <div className="pointer-events-none flex flex-col items-end gap-2">
           {/* Número y descripción de la categoría del anillo tocada, con el
               mismo tratamiento visual que la leyenda -glass-dark, mismo tono
