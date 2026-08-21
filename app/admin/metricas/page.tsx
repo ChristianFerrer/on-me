@@ -56,7 +56,15 @@ export default async function MetricsPage() {
 
           <section className="flex flex-col gap-3">
             <h2 className="eyebrow text-chalk/40">{t.admin.gates}</h2>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3">
+            {/* auto-fit/minmax en vez de breakpoints de viewport -sm/lg/xl-:
+                esta cuadrícula vive dentro de una columna de ancho variable
+                -la mitad de la pantalla, menos el sidebar del panel-, así que
+                el ancho real que le toca no tiene relación fija con el ancho
+                de la ventana. Con breakpoints de viewport, un xl:grid-cols-3
+                se activaba con la ventana entera ya ancha aunque a esta
+                columna solo le tocara una porción estrecha, y las tarjetas se
+                aplastaban -ver reporte de responsive roto en /admin/metricas-. */}
+            <div className="grid grid-cols-[repeat(auto-fit,minmax(11rem,1fr))] gap-3">
               <GateCard gate={data.gates.p1} label={t.admin.gate1} t={t.admin} />
               <GateCard gate={data.gates.p2} label={t.admin.gate2} t={t.admin} />
               <GateCard gate={data.gates.p3} label={t.admin.gate3} t={t.admin} />
@@ -73,7 +81,7 @@ export default async function MetricsPage() {
 
           <section className="flex flex-col gap-3">
             <h2 className="eyebrow text-chalk/40">{t.admin.ops}</h2>
-            <dl className="grid grid-cols-1 gap-3 sm:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3">
+            <dl className="grid grid-cols-[repeat(auto-fit,minmax(9rem,1fr))] gap-3">
               <Signal
                 label={t.admin.scanTime}
                 value={data.ops.avgScanMs === null ? "—" : `${(data.ops.avgScanMs / 1000).toFixed(1)} s`}
