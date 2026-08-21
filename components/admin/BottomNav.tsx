@@ -30,7 +30,8 @@ const SIDEBAR_WIDTH_VAR = "--admin-sidebar-width";
  * ruta y dejar que la propia página decida si hay que enseñar el login.
  *
  * En móvil sigue siendo una barra inferior tipo pestañas de app -el pulgar
- * manda-; a partir de `lg` se convierte en un sidebar fijo a la izquierda
+ * manda-; a partir de `md` (768px, tablet vertical incluida -el uso
+ * habitual de este rol-) se convierte en un sidebar fijo a la izquierda
  * con el logo arriba, porque en una pantalla ancha una barra inferior
  * angosta desperdicia el resto del espacio y un menú lateral es el patrón
  * esperado de cualquier panel de escritorio. Es el mismo componente, dos
@@ -81,7 +82,7 @@ export function BottomNav({
 
   return (
     <>
-      <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-white/8 bg-black lg:hidden">
+      <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-white/8 bg-black md:hidden">
         <div className="mx-auto flex w-full max-w-[30rem] items-stretch justify-between px-1 pb-[env(safe-area-inset-bottom)] sm:max-w-[34rem] lg:max-w-[38rem]">
           {/* En escritorio el logo del sidebar ya hace de enlace a /inicio -ver
               más abajo-; en móvil no había forma de volver al portal salvo
@@ -120,7 +121,7 @@ export function BottomNav({
       <nav
         style={{ width: isCollapsed ? ADMIN_SIDEBAR_WIDTH_COLLAPSED : ADMIN_SIDEBAR_WIDTH }}
         className={cn(
-          "fixed inset-y-0 left-0 z-40 hidden flex-col gap-1 rounded-none border-y-0 border-l-0 border-r border-white/10 bg-black p-4 transition-[width] duration-200 ease-[var(--ease-out-soft)] lg:flex",
+          "fixed inset-y-0 left-0 z-40 hidden flex-col gap-1 rounded-none border-y-0 border-l-0 border-r border-white/10 bg-black p-4 transition-[width] duration-200 ease-[var(--ease-out-soft)] md:flex",
           isCollapsed && "items-center px-2",
         )}
       >

@@ -155,7 +155,9 @@ function Body({ result, t }: { result: ScanResponse; t: BaristaDict }) {
               ? t.results.invalidOtherShop
               : result.reason === "network"
                 ? t.results.invalidNetwork
-                : t.results.invalidUnknown}
+                : result.reason === "device"
+                  ? t.results.invalidDevice
+                  : t.results.invalidUnknown}
           </p>
         </>
       );

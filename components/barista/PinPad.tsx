@@ -37,8 +37,8 @@ export function PinPad({
   }
 
   return (
-    <div className="fixed inset-0 z-[70] flex flex-col aurora-night text-chalk">
-      <div className="flex flex-1 flex-col items-center justify-center gap-7 px-8">
+    <div className="fixed inset-0 z-[70] flex flex-col overflow-y-auto aurora-night text-chalk">
+      <div className="flex flex-1 flex-col items-center justify-center gap-7 px-8 py-6">
         <p className="eyebrow text-chalk/45">{t.confirmPin}</p>
 
         <div className="flex gap-3.5">
@@ -63,7 +63,7 @@ export function PinPad({
         </p>
       </div>
 
-      <div className="grid grid-cols-3 gap-2.5 px-5 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
+      <div className="mx-auto grid w-full max-w-[26rem] shrink-0 grid-cols-3 gap-2.5 px-5 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
         {["1", "2", "3", "4", "5", "6", "7", "8", "9"].map((digit) => (
           <Key key={digit} onClick={() => push(digit)}>
             {digit}

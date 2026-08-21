@@ -117,3 +117,34 @@ export async function verifyCredentials(
 
   return data.user.id;
 }
+
+/**
+ * Dispara el email de recuperación de contraseña de Supabase Auth.
+ *
+ * Sin comprobar antes si la cuenta existe -ni aquí ni en la ruta que llama a
+ * esto-: revelarlo sería decirle a cualquiera qué emails están dados de
+ * alta como admin de algún local. Supabase ya se comporta así por defecto
+ * -no avisa de "usuario no encontrado"-, así que solo hace falta no
+ * deshacer esa protección en la propia respuesta.
+ */
+export async function sendPasswordReset(email: string): Promise<void> {
+  const anonKey = process.env.SUPABASE_ANON_KEY;
+  if (!anonKey) {
+    throw new Error(
+      "Falta SUPABASE_ANON_KEY. Solo se usa en servidor, para el email de recuperación.",
+    );
+  }
+
+  const auth = createClient(env.supabaseUrl, anonKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+
+  const { error } = await auth.auth.resetPasswordForEmail(email, {
+    redirectTo: `${env.baseUrl}/admin/reset-password`,
+  });
+
+  // Solo a los logs: la respuesta al cliente es siempre "ok", exista o no la cuenta.
+  if (error) {
+    console.error(`sendPasswordReset: ${error.status ?? "?"} ${error.code ?? "?"} ${error.message}`);
+  }
+}

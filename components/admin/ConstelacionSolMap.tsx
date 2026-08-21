@@ -28,7 +28,7 @@ const TAP_MAX_DISTANCE_PX = 8;
 const TAP_MAX_DURATION_MS = 400;
 
 /**
- * Alto real de BottomNav en móvil/tablet -por debajo de `lg`, donde sigue
+ * Alto real de BottomNav en móvil/tablet -por debajo de `md`, donde sigue
  * siendo una barra inferior fija, ver BottomNav.tsx-, sin la zona segura
  * -que la propia barra ya reserva aparte con su pb-[env(...)]-: padding
  * vertical (py-2.5 arriba y abajo) + icono (size-5) + hueco (gap-1) +
@@ -36,12 +36,12 @@ const TAP_MAX_DURATION_MS = 400;
  * 3.375rem. La columna de leyenda/iconos, el aviso inferior y la ficha (ver
  * ConstelacionSheet) suman esto a su margen normal de borde de pantalla
  * -1.25rem- vía `pb-[calc(3.375rem+env(safe-area-inset-bottom)+1.25rem)]`
- * para no quedar tapados por la barra. A partir de `lg` BottomNav se
+ * para no quedar tapados por la barra. A partir de `md` BottomNav se
  * convierte en un sidebar IZQUIERDO de ancho fijo -ADMIN_SIDEBAR_WIDTH en
  * BottomNav.tsx, hoy "16rem"-, así que ahí ya no hay barra inferior que
- * despejar -cae a `lg:pb-[max(1.25rem,env(safe-area-inset-bottom))]`, el
+ * despejar -cae a `md:pb-[max(1.25rem,env(safe-area-inset-bottom))]`, el
  * margen de siempre- pero sí hueco a la izquierda que respetar -de ahí
- * `lg:left-[calc(var(--admin-sidebar-width,16rem)+0.75rem)]` en la columna
+ * `md:left-[calc(var(--admin-sidebar-width,16rem)+0.75rem)]` en la columna
  * de la leyenda, 0.75rem siendo el mismo hueco que ya usa `left-3`-. Esta
  * vista pasa `collapsible` a BottomNav -único sitio del panel que lo hace-,
  * así que el ancho del sidebar no es fijo: BottomNav publica su ancho real
@@ -1033,6 +1033,18 @@ export function ConstelacionSolMap({
 
   const [pan, setPan] = useState<Pan>({ x: 0, y: 0, scale: 1 });
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  // ADM-04: el propio grafo es un único <svg> con gestos solo de puntero,
+  // así que ningún nodo es enfocable por teclado -la pantalla principal del
+  // panel quedaba inaccesible sin ratón/tacto-. En vez de intentar hacer
+  // focuseable cada estrella dentro del SVG -reescribiría media vista-, una
+  // lista real por teclado, oculta hasta que algo dentro recibe foco, que
+  // selecciona el mismo nodo que un tap: mismo `setSelectedId`, mismo
+  // ConstelacionSheet de resultado.
+  const [keyboardListVisible, setKeyboardListVisible] = useState(false);
+  const keyboardListNodes = useMemo(
+    () => [...graph.nodes].sort((a, b) => a.name.localeCompare(b.name)),
+    [graph.nodes],
+  );
   // Mismo patrón que selectedCategoryRef, justo abajo: el bucle de rAF
   // necesita saber si hay una esfera tocada -para relentizar el bamboleo,
   // ver WOBBLE_FOCUS_SPEED- sin volver a montarse cada vez que cambia.
@@ -1980,7 +1992,7 @@ export function ConstelacionSolMap({
   }
 
   return (
-    <div className="fixed inset-0 aurora-night text-chalk transition-[left] duration-200 ease-[var(--ease-out-soft)] lg:left-[var(--admin-sidebar-width,16rem)]">
+    <div className="fixed inset-0 aurora-night text-chalk transition-[left] duration-200 ease-[var(--ease-out-soft)] md:left-[var(--admin-sidebar-width,16rem)]">
       {/* Capa de grano: sin ella el degradado nocturno se bandea en pantallas OLED. */}
       <svg className="pointer-events-none fixed inset-0 z-10 h-full w-full opacity-[0.15]" aria-hidden="true">
         <filter id="constelacion-grain">
@@ -2032,6 +2044,45 @@ export function ConstelacionSolMap({
           .constelacion-star-twinkle { animation: none; }
         }
       `}</style>
+
+      <div
+        className={cn(
+          keyboardListVisible
+            ? "fixed inset-4 z-50 flex flex-col overflow-y-auto rounded-2xl bg-ink p-4 shadow-[0_1rem_3rem_rgba(0,0,0,0.5)] md:inset-8"
+            : "sr-only",
+        )}
+        onFocus={() => setKeyboardListVisible(true)}
+        onBlur={(event) => {
+          if (!event.currentTarget.contains(event.relatedTarget)) setKeyboardListVisible(false);
+        }}
+        onKeyDown={(event) => {
+          if (event.key === "Escape") {
+            setKeyboardListVisible(false);
+            (document.activeElement as HTMLElement | null)?.blur();
+          }
+        }}
+      >
+        <p className="eyebrow mb-3 text-chalk/50">{t.admin.constelacionKeyboardListTitle}</p>
+        <ul className="flex flex-col gap-1">
+          {keyboardListNodes.map((node) => (
+            <li key={node.id}>
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedId(node.id);
+                  setKeyboardListVisible(false);
+                }}
+                className="flex w-full items-center justify-between gap-3 rounded-xl px-3 py-2.5 text-left text-[0.875rem] font-medium text-chalk transition-colors hover:bg-white/8 focus-visible:bg-white/8"
+              >
+                <span className="truncate">{node.name}</span>
+                <span className="shrink-0 text-[0.75rem] font-normal text-chalk/45">
+                  {stateBadgeLabel(node.state, t)}
+                </span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      </div>
 
       <svg
         ref={svgRef}
@@ -2419,7 +2470,7 @@ export function ConstelacionSolMap({
       {/* z-30, por encima de la leyenda y la columna de iconos (z-20): en viewports
           bajos -móvil en horizontal- la leyenda puede crecer hasta solaparse con la
           cabecera, y el botón de volver tiene que seguir pudiéndose tocar. */}
-      <header className="pointer-events-none fixed inset-x-0 top-0 z-30 flex items-start justify-between gap-3 px-5 pt-[max(1rem,env(safe-area-inset-top))] transition-[padding-left] duration-200 ease-[var(--ease-out-soft)] lg:pl-[calc(var(--admin-sidebar-width,16rem)+1.25rem)]">
+      <header className="pointer-events-none fixed inset-x-0 top-0 z-30 flex items-start justify-between gap-3 px-5 pt-[max(1rem,env(safe-area-inset-top))] transition-[padding-left] duration-200 ease-[var(--ease-out-soft)] md:pl-[calc(var(--admin-sidebar-width,16rem)+1.25rem)]">
         {/* El botón de inicio se mudó a BottomNav -el logo del sidebar en
             escritorio, un icono propio en la barra inferior de móvil-,
             compartido por las cuatro pantallas del panel en vez de que esta
@@ -2455,7 +2506,7 @@ export function ConstelacionSolMap({
           Debajo de la fila de la cabecera -no encima-, con su propio offset
           fijo: la cabecera es de alto constante, no medido, así que no hace
           falta un ResizeObserver como el de la ficha. Oculta en escritorio
-          -lg:hidden-, ahí ya está el panel de al lado.
+          -md:hidden-, ahí ya está el panel de al lado.
 
           Como una notificación de verdad, no solo un texto flotando: el
           punto a la izquierda lleva el mismo color que la propia estrella
@@ -2465,7 +2516,7 @@ export function ConstelacionSolMap({
           animate-ping, le da el pulso de "esto acaba de pasar" que un
           simple texto centrado no transmite. */}
       <div
-        className="pointer-events-none fixed inset-x-0 z-40 flex justify-center px-5 lg:hidden"
+        className="pointer-events-none fixed inset-x-0 z-40 flex justify-center px-5 md:hidden"
         style={{ top: "calc(max(1rem,env(safe-area-inset-top)) + 3.5rem)" }}
       >
         <div
@@ -2495,29 +2546,29 @@ export function ConstelacionSolMap({
           efecto imán- vive dentro del SVG de arriba, no aquí: pertenece
           al mundo que se pellizca y arrastra, no a este overlay fijo. */}
       <div
-        className="pointer-events-none fixed inset-y-0 left-3 z-20 flex flex-col justify-end pt-[max(1.25rem,env(safe-area-inset-top))] pb-[calc(3.375rem+env(safe-area-inset-bottom)+1.25rem)] transition-[left] duration-200 ease-[var(--ease-out-soft)] lg:left-[calc(var(--admin-sidebar-width,16rem)+0.75rem)] lg:flex-row lg:items-end lg:justify-start lg:gap-3 lg:pb-[max(1.25rem,env(safe-area-inset-bottom))] lg:pt-16"
+        className="pointer-events-none fixed inset-y-0 left-3 z-20 flex flex-col justify-end pt-[max(1.25rem,env(safe-area-inset-top))] pb-[calc(3.375rem+env(safe-area-inset-bottom)+1.25rem)] transition-[left] duration-200 ease-[var(--ease-out-soft)] md:left-[calc(var(--admin-sidebar-width,16rem)+0.75rem)] md:flex-row md:items-end md:justify-start md:gap-3 md:pb-[max(1.25rem,env(safe-area-inset-bottom))] md:pt-16"
       >
         {/* Panel de escritorio -"como si fuera un chat en vivo"-: mismos
             sucesos que la burbuja de arriba, pero como historial que se
-            queda, no un aviso que se desvanece. Solo `lg:`, y solo entonces
-            participa del layout -`hidden` fuera de `lg` no le resta ni un
-            píxel a la leyenda/ficha-. A partir de `lg` el contenedor pasa a
-            fila (`lg:flex-row`), así que este panel y la leyenda/ficha son
+            queda, no un aviso que se desvanece. Solo `md:`, y solo entonces
+            participa del layout -`hidden` fuera de `md` no le resta ni un
+            píxel a la leyenda/ficha-. A partir de `md` el contenedor pasa a
+            fila (`md:flex-row`), así que este panel y la leyenda/ficha son
             columnas UNA AL LADO DE LA OTRA, no una encima de la otra: la
             ficha de detalle ya no tapa el feed al abrirse, aparece a su
-            lado. `lg:self-stretch` -contra el `items-end` del padre, que
+            lado. `md:self-stretch` -contra el `items-end` del padre, que
             deja a la leyenda/ficha su alto de contenido normal- para que
             SOLO este panel ocupe el alto completo, de la cabecera al pie;
-            `lg:w-64` porque sin un ancho propio un panel de texto en flujo
+            `md:w-64` porque sin un ancho propio un panel de texto en flujo
             no tiene con qué anclarse dentro de un contenedor `fixed` sin
             ancho explícito -se iría al max-content de sus frases, mucho
             más ancho de lo que conviene-.
-            `lg:pt-16` en el contenedor -en vez del pt-[1.25rem] de
+            `md:pt-16` en el contenedor -en vez del pt-[1.25rem] de
             siempre- para que este panel no arranque justo debajo del
             título del local: la cabecera fija (flecha + placa) vive en su
             propio overlay encima de este, y sin ese margen extra el panel
             a toda pantalla quedaba justo debajo tapándolo visualmente. */}
-        <div className="hidden min-h-0 lg:flex lg:w-64 lg:flex-col lg:self-stretch">
+        <div className="hidden min-h-0 md:flex md:w-64 md:flex-col md:self-stretch">
           <div
             className="glass-dark pointer-events-auto flex h-full min-h-0 flex-col p-3"
             style={{ background: "rgba(10,14,13,0.32)" }}
@@ -2597,14 +2648,14 @@ export function ConstelacionSolMap({
           un nodo seleccionado. */}
       <div
         className={cn(
-          "pointer-events-none fixed inset-y-0 right-3 z-20 flex flex-col items-end justify-end gap-2 pt-[max(1.25rem,env(safe-area-inset-top))] pb-[calc(3.375rem+env(safe-area-inset-bottom)+1.25rem)] lg:pb-[max(1.25rem,env(safe-area-inset-bottom))]",
-          hudVisible ? "lg:w-72" : "",
+          "pointer-events-none fixed inset-y-0 right-3 z-20 flex flex-col items-end justify-end gap-2 pt-[max(1.25rem,env(safe-area-inset-top))] pb-[calc(3.375rem+env(safe-area-inset-bottom)+1.25rem)] md:pb-[max(1.25rem,env(safe-area-inset-bottom))]",
+          hudVisible ? "md:w-72" : "",
         )}
       >
         {/* "Lo que ninguna tarjeta te dice": lecturas de toda la red a la vez,
             no de una tarjeta suelta -solo escritorio, mismo patrón que el
-            panel de actividad de la columna izquierda: `hidden lg:flex
-            lg:flex-1 lg:min-h-0` para crecer ocupando el hueco libre por
+            panel de actividad de la columna izquierda: `hidden md:flex
+            md:flex-1 md:min-h-0` para crecer ocupando el hueco libre por
             encima de la burbuja de categoría/columna de controles, sin
             empujarlas ni desbordar la pantalla por arriba-. Todo en cafés,
             nunca en €: ver el comentario de `insights` más arriba. Es el
@@ -2612,7 +2663,7 @@ export function ConstelacionSolMap({
             ojo, misma filosofía "apagado por defecto"-, ya no dos sitios
             enseñando cuenta de clientes por separado. */}
         {hudVisible ? (
-          <div className="hidden min-h-0 w-full lg:flex lg:flex-1 lg:flex-col">
+          <div className="hidden min-h-0 w-full md:flex md:flex-1 md:flex-col">
             {/* Dos rondas intentando que la barra de scroll -.scrollbar-glass-
                 quedara dentro de las esquinas redondeadas de glass-dark sin
                 asomar por la curva -primero separando quién redondea de
@@ -2829,7 +2880,7 @@ export function ConstelacionSolMap({
       </div>
 
       <footer
-        className="pointer-events-none fixed inset-x-0 bottom-0 z-20 flex flex-col items-center gap-3 px-5 pb-[calc(3.375rem+env(safe-area-inset-bottom)+1.25rem)] transition-[padding-left] duration-200 ease-[var(--ease-out-soft)] lg:pb-[max(1.25rem,env(safe-area-inset-bottom))] lg:pl-[calc(var(--admin-sidebar-width,16rem)+1.25rem)]"
+        className="pointer-events-none fixed inset-x-0 bottom-0 z-20 flex flex-col items-center gap-3 px-5 pb-[calc(3.375rem+env(safe-area-inset-bottom)+1.25rem)] transition-[padding-left] duration-200 ease-[var(--ease-out-soft)] md:pb-[max(1.25rem,env(safe-area-inset-bottom))] md:pl-[calc(var(--admin-sidebar-width,16rem)+1.25rem)]"
       >
         {!selectedNode && !touched ? (
           <p className="text-[0.65625rem] text-chalk/32 transition-opacity duration-300">

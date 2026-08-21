@@ -115,7 +115,11 @@ export default async function CardPage() {
           </Slab>
         ) : invite ? (
           <Slab className="p-7">
-            <p className="eyebrow text-chalk/65">{t.card.inviteActive}</p>
+            <p className="eyebrow text-chalk/65">
+              {activeInvites.length > 1
+                ? fill(t.card.inviteActiveCount, { n: activeInvites.length })
+                : t.card.inviteActive}
+            </p>
             <p className="code mt-3 text-[1.75rem] text-lime">{invite.code}</p>
             <p className="mt-2 text-[0.875rem] text-chalk/50">
               {fill(t.card.inviteActiveBody, {
@@ -129,7 +133,7 @@ export default async function CardPage() {
               block={false}
               className="mt-5"
             >
-              {t.invite.sendWhatsapp}
+              {activeInvites.length > 1 ? t.card.inviteSeeAll : t.invite.sendWhatsapp}
             </ButtonLink>
           </Slab>
         ) : (

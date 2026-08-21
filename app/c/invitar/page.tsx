@@ -15,10 +15,10 @@ export default async function InvitePage() {
 
   if (!card) redirect("/c");
 
-  const existing = card.activeInvites[0];
-  const initialInvite = existing
-    ? { code: existing.code, url: `${env.baseUrl}/i/${existing.code}` }
-    : null;
+  const initialInvites = card.activeInvites.map((invite) => ({
+    code: invite.code,
+    url: `${env.baseUrl}/i/${invite.code}`,
+  }));
 
   return (
     <Screen className="gap-7 pb-8">
@@ -57,9 +57,8 @@ export default async function InvitePage() {
         <InvitePanel
           t={t.invite}
           shopName={card.shop.name}
-          initialInvite={initialInvite}
-          quotaFull={!card.canCreateInvite && !initialInvite}
-          activeCount={card.activeInvites.length}
+          initialInvites={initialInvites}
+          canCreateInvite={card.canCreateInvite}
         />
       </div>
     </Screen>

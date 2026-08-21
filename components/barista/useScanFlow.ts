@@ -76,6 +76,13 @@ export function useScanFlow(options: {
           return;
         }
 
+        if (response.status === 401) {
+          // La sesión del dispositivo se revocó a media jornada: sin esto se
+          // ve idéntico a un QR roto y nadie entiende por qué deja de sellar.
+          show({ kind: "invalid", reason: "device" });
+          return;
+        }
+
         if (!response.ok) {
           show({ kind: "invalid", reason: "unknown_token" });
           return;

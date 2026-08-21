@@ -55,12 +55,12 @@ export default async function AttributionsPage() {
   }));
 
   return (
-    <Screen tone="ink" className="gap-5 pb-28 lg:mx-0 lg:max-w-3xl lg:pb-10 lg:pl-72 lg:pr-10">
-      <header className="sticky top-0 z-10 -mx-5 flex items-center gap-3 bg-ink/85 px-5 py-3.5 backdrop-blur-lg lg:mx-0 lg:rounded-2xl lg:px-5">
+    <Screen tone="ink" className="gap-5 pb-28 md:mx-0 md:max-w-3xl md:pb-10 md:pl-72 md:pr-10">
+      <header className="sticky top-0 z-10 -mx-5 flex items-center gap-3 bg-ink/85 px-5 py-3.5 backdrop-blur-lg md:mx-0 md:rounded-2xl md:px-5">
         <Link
           href="/inicio"
           prefetch={false}
-          className="-m-2 p-2 text-chalk/45 transition-colors hover:text-chalk lg:hidden"
+          className="-m-2 p-2 text-chalk/45 transition-colors hover:text-chalk md:hidden"
           aria-label={t.home.eyebrow}
         >
           <HomeIcon className="size-6" />
@@ -70,6 +70,10 @@ export default async function AttributionsPage() {
           <h1 className="display mt-1 text-[1.75rem]">{t.admin.attributions}</h1>
         </div>
       </header>
+
+      <p className="-mt-2 text-[0.8125rem] leading-snug text-chalk/40">
+        {t.admin.attrColorNote}
+      </p>
 
       <AttributionsList rows={items} t={t} locale={locale} />
 

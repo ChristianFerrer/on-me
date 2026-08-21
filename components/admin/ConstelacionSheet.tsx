@@ -164,7 +164,7 @@ export function ConstelacionSheet({
       style={{
         // -120% de su propio ancho -no de la pantalla- alcanzaba cuando esta
         // columna vivía pegada al borde izquierdo; ahora que comparte fila
-        // con el panel de actividad (`lg:w-64` a su izquierda, ver
+        // con el panel de actividad (`md:w-64` a su izquierda, ver
         // ConstelacionSolMap) la tarjeta arranca más a la derecha, y ese
         // mismo -120% ya no la saca de la pantalla -se quedaba asomando,
         // visible, junto al panel de actividad-. -200vw sí lo garantiza
@@ -243,15 +243,15 @@ export function ConstelacionSheet({
     <div
       // 3.375rem = alto de BottomNav sin zona segura -ver el mismo cálculo en
       // ConstelacionMap-: la barra es fija en móvil/tablet -por debajo de
-      // `lg`-, así que ahí la ficha tiene que despegarse de su borde de
-      // pantalla, no solo llevar más z-index. A partir de `lg` BottomNav pasa
+      // `md`-, así que ahí la ficha tiene que despegarse de su borde de
+      // pantalla, no solo llevar más z-index. A partir de `md` BottomNav pasa
       // a sidebar izquierdo -ver BottomNav.tsx-, sin barra inferior que
-      // despejar, así que el padding cae a `lg:pb-[max(1rem,...)]`, el
-      // margen de siempre; `lg:pl-[16rem]` -mismo ancho que
+      // despejar, así que el padding cae a `md:pb-[max(1rem,...)]`, el
+      // margen de siempre; `md:pl-[16rem]` -mismo ancho que
       // ADMIN_SIDEBAR_WIDTH, repetido a mano porque Tailwind no puede leer esa
       // constante JS en una clase- recentra la ficha en el hueco visible junto
       // al sidebar, no en todo el ancho de la pantalla.
-      className="pointer-events-none fixed inset-x-0 bottom-0 z-30 flex justify-center px-3 pb-[calc(3.375rem+env(safe-area-inset-bottom)+1rem)] lg:pb-[max(1rem,env(safe-area-inset-bottom))] lg:pl-[16rem]"
+      className="pointer-events-none fixed inset-x-0 bottom-0 z-30 flex justify-center px-3 pb-[calc(3.375rem+env(safe-area-inset-bottom)+1rem)] md:pb-[max(1rem,env(safe-area-inset-bottom))] md:pl-[16rem]"
       aria-hidden={!open}
     >
       {card}

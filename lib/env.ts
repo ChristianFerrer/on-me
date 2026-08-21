@@ -5,8 +5,14 @@
  * de producción a mano, pero cualquier ruta que las necesite tiene que
  * reventar con un mensaje claro en vez de mandar `undefined` a Supabase.
  *
- * La `anon key` no aparece aquí. Si algún día hace falta, es que hay un
- * error de arquitectura: el navegador nunca habla con Supabase.
+ * La `anon key` de servidor (`SUPABASE_ANON_KEY`, usada en verifyCredentials)
+ * no aparece aquí a propósito: el navegador no habla con Supabase para el
+ * login normal. La única excepción es ResetPasswordForm.tsx, que lee
+ * `NEXT_PUBLIC_SUPABASE_URL`/`NEXT_PUBLIC_SUPABASE_ANON_KEY` directamente
+ * -no desde aquí-: el propio flujo de recuperación de contraseña de
+ * Supabase Auth exige que sea el navegador quien complete la sesión de
+ * recuperación, no hay forma de hacerlo entero en servidor sin conocer de
+ * antemano el tipo de flujo (implícito vs PKCE) configurado en el proyecto.
  */
 
 function required(name: string): string {

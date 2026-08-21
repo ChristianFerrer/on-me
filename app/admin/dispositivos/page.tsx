@@ -17,12 +17,12 @@ export default async function DevicesPage() {
   const devices = await loadDevices(ctx.shop.id);
 
   return (
-    <Screen tone="ink" className="gap-7 pb-28 lg:mx-0 lg:max-w-3xl lg:pb-10 lg:pl-72 lg:pr-10">
+    <Screen tone="ink" className="gap-7 pb-28 md:mx-0 md:max-w-3xl md:pb-10 md:pl-72 md:pr-10">
       <header className="flex items-center gap-3 pt-2">
         <Link
           href="/inicio"
           prefetch={false}
-          className="-m-2 p-2 text-chalk/45 transition-colors hover:text-chalk lg:hidden"
+          className="-m-2 p-2 text-chalk/45 transition-colors hover:text-chalk md:hidden"
           aria-label={t.home.eyebrow}
         >
           <HomeIcon className="size-6" />

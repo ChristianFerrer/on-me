@@ -38,7 +38,7 @@ export async function POST(request: Request) {
     .maybeSingle();
 
   if (!member) {
-    return NextResponse.json({ error: "credentials" }, { status: 403 });
+    return NextResponse.json({ error: "no_access" }, { status: 403 });
   }
 
   const jar = await cookies();

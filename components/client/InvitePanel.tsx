@@ -19,34 +19,77 @@ type Invite = { code: string; url: string };
 export function InvitePanel({
   t,
   shopName,
-  initialInvite,
-  quotaFull,
-  activeCount,
+  initialInvites,
+  canCreateInvite,
 }: {
   t: InviteDict;
   shopName: string;
-  initialInvite: Invite | null;
-  quotaFull: boolean;
-  activeCount: number;
+  initialInvites: Invite[];
+  canCreateInvite: boolean;
 }) {
-  const [invite, setInvite] = useState<Invite | null>(initialInvite);
+  const [invites, setInvites] = useState<Invite[]>(initialInvites);
   const [busy, setBusy] = useState(false);
-  const [copied, setCopied] = useState(false);
-  const [sent, setSent] = useState(false);
 
   async function create() {
     if (busy) return;
     setBusy(true);
     try {
       const response = await fetch("/api/invite/create", { method: "POST" });
-      if (response.ok) setInvite((await response.json()) as Invite);
+      if (response.ok) {
+        const invite = (await response.json()) as Invite;
+        setInvites((current) => [invite, ...current]);
+      }
     } finally {
       setBusy(false);
     }
   }
 
+  if (invites.length === 0 && !canCreateInvite) {
+    return (
+      <Glass className="p-6">
+        <p className="text-[1.0625rem] font-semibold leading-snug">
+          {t.quotaTitle}
+        </p>
+        <p className="mt-2 text-[0.9375rem] leading-relaxed text-ink/55">
+          {t.quotaBody}
+        </p>
+      </Glass>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-3">
+      {invites.map((invite) => (
+        <InviteCard key={invite.code} t={t} shopName={shopName} invite={invite} />
+      ))}
+
+      {canCreateInvite ? (
+        <Button tone="ink" size="lg" disabled={busy} onClick={() => void create()}>
+          {busy ? t.generating : t.generate}
+          <span className="size-2 rounded-full bg-lime" aria-hidden />
+        </Button>
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * Una invitación activa, con sus propios estados de copiado/enviado -no
+ * compartidos con las demás, si el padrino tiene varias a la vez-.
+ */
+function InviteCard({
+  t,
+  shopName,
+  invite,
+}: {
+  t: InviteDict;
+  shopName: string;
+  invite: Invite;
+}) {
+  const [copied, setCopied] = useState(false);
+  const [sent, setSent] = useState(false);
+
   function markSent() {
-    if (!invite) return;
     setSent(true);
     void fetch("/api/invite/sent", {
       method: "POST",
@@ -57,7 +100,6 @@ export function InvitePanel({
   }
 
   async function copy() {
-    if (!invite) return;
     try {
       await navigator.clipboard.writeText(invite.url);
       setCopied(true);
@@ -65,28 +107,6 @@ export function InvitePanel({
     } catch {
       /* Sin permiso de portapapeles queda el enlace visible para copiarlo. */
     }
-  }
-
-  if (!invite) {
-    if (quotaFull) {
-      return (
-        <Glass className="p-6">
-          <p className="text-[1.0625rem] font-semibold leading-snug">
-            {fill(t.quotaTitle, { n: activeCount })}
-          </p>
-          <p className="mt-2 text-[0.9375rem] leading-relaxed text-ink/55">
-            {t.quotaBody}
-          </p>
-        </Glass>
-      );
-    }
-
-    return (
-      <Button tone="ink" size="lg" disabled={busy} onClick={() => void create()}>
-        {busy ? t.generating : t.generate}
-        <span className="size-2 rounded-full bg-lime" aria-hidden />
-      </Button>
-    );
   }
 
   const message = fill(t.waMessage, { shop: shopName, url: invite.url });

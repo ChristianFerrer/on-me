@@ -87,9 +87,18 @@
     color: var(--color-ink);
   }
 
+  /*
+   * Doble contorno claro+oscuro en vez de un solo color: un anillo de foco
+   * "de un color adaptado al tema" es invisible justo donde más importa -las
+   * pantallas oscuras del barista (Scanner/PinPad/Verdict)-. Con dos anillos
+   * concéntricos de tonos opuestos, uno de los dos siempre contrasta con
+   * cualquier fondo, claro u oscuro.
+   */
   :where(a, button, input, select, textarea, [tabindex]):focus-visible {
-    outline: 2px solid var(--color-ink);
-    outline-offset: 3px;
+    outline: none;
+    box-shadow:
+      0 0 0 2px var(--color-chalk),
+      0 0 0 4px var(--color-ink);
   }
 }
 
