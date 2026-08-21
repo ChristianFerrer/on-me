@@ -46,7 +46,7 @@ export default async function JoinQrPage({
 
       <main className="mx-auto flex min-h-dvh w-full max-w-[42rem] flex-col items-center justify-center gap-[4vh] px-8 py-10 text-center">
         <div>
-          <p className="eyebrow text-chalk/45">{shop.name}</p>
+          <p className="eyebrow text-chalk/65">{shop.name}</p>
           <h1 className="display-tight mt-3 text-[clamp(1.75rem,5vw,3rem)]">
             {t.poster.eyebrow}
           </h1>

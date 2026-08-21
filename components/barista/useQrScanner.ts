@@ -32,6 +32,7 @@ export function useQrScanner(options: {
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const [status, setStatus] = useState<ScannerStatus>("booting");
+  const [retryCount, setRetryCount] = useState(0);
 
   /*
    * Ambos valores cambian en cada render, pero reiniciar la cámara costaría
@@ -59,6 +60,8 @@ export function useQrScanner(options: {
     async function start() {
       const video = videoRef.current;
       if (!video) return;
+
+      setStatus("booting");
 
       try {
         stream = await navigator.mediaDevices.getUserMedia({
@@ -140,7 +143,9 @@ export function useQrScanner(options: {
       zxingControls?.stop();
       stream?.getTracks().forEach((track) => track.stop());
     };
-  }, []);
+  }, [retryCount]);
 
-  return { videoRef, status };
+  const retry = () => setRetryCount((count) => count + 1);
+
+  return { videoRef, status, retry };
 }

@@ -46,7 +46,7 @@ export default async function CardPage() {
         {/* ------------------------------------------------ estado de la tarjeta */}
         <Slab className="p-7">
           <div className="flex items-start justify-between gap-3">
-            <p className="eyebrow text-chalk/40">{shop.name}</p>
+            <p className="eyebrow text-chalk/65">{shop.name}</p>
             <OfflineBadge label={t.card.offline} />
           </div>
 
@@ -115,7 +115,7 @@ export default async function CardPage() {
           </Slab>
         ) : invite ? (
           <Slab className="p-7">
-            <p className="eyebrow text-chalk/40">{t.card.inviteActive}</p>
+            <p className="eyebrow text-chalk/65">{t.card.inviteActive}</p>
             <p className="code mt-3 text-[1.75rem] text-lime">{invite.code}</p>
             <p className="mt-2 text-[0.875rem] text-chalk/50">
               {fill(t.card.inviteActiveBody, {
@@ -132,7 +132,22 @@ export default async function CardPage() {
               {t.invite.sendWhatsapp}
             </ButtonLink>
           </Slab>
-        ) : null}
+        ) : (
+          // Bloque discreto en vez de nada: sin él, el mecanismo de invitar
+          // era invisible durante toda la primera tarjeta -nadie navegaba
+          // nunca hasta /c/invitar para descubrirlo- y el propio texto que
+          // lo explica (quotaTitle/quotaBody en InvitePanel) era inalcanzable.
+          <Link href="/c/invitar" className="block">
+            <Slab className="p-6">
+              <p className="text-[0.9375rem] font-semibold leading-snug">
+                {t.card.inviteLocked}
+              </p>
+              <p className="mt-1.5 text-[0.8125rem] leading-relaxed text-chalk/50">
+                {t.card.inviteLockedBody}
+              </p>
+            </Slab>
+          </Link>
+        )}
 
         {/* -------------------------------------------- el invitado volvió a pagar */}
         {card.returnedGuests > 0 ? (

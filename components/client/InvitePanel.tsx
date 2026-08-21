@@ -95,7 +95,7 @@ export function InvitePanel({
   return (
     <div className="flex flex-col gap-3">
       <Slab className="px-6 py-8 text-center">
-        <p className="eyebrow text-chalk/40">{t.yourCode}</p>
+        <p className="eyebrow text-chalk/65">{t.yourCode}</p>
         <p className="code mt-3 text-[2.25rem] text-lime">{invite.code}</p>
       </Slab>
 

@@ -41,7 +41,10 @@ export const viewport: Viewport = {
   themeColor: "#0e1211",
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
+  // Sin `maximumScale`/`userScalable: false`: desactivaba el pinch-zoom en
+  // toda la PWA -incumple WCAG 1.4.4- para evitar un doble-tap accidental,
+  // pero `touch-action: manipulation` en `html` (globals.css) ya resuelve
+  // eso sin bloquear la ampliación a quien la necesite.
   viewportFit: "cover",
 };
 

@@ -7,7 +7,7 @@
 /** Antirrebote: dos escaneos del mismo cliente dentro de esta ventana no suman. */
 export const DEBOUNCE_MINUTES = 5;
 
-export type InvalidReason = "device" | "other_shop" | "unknown_token";
+export type InvalidReason = "device" | "other_shop" | "unknown_token" | "network";
 
 export type ScanAction =
   | { action: "stamp" }

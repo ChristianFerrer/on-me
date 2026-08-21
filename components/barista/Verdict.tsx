@@ -153,7 +153,9 @@ function Body({ result, t }: { result: ScanResponse; t: BaristaDict }) {
           <p className={SUB}>
             {result.reason === "other_shop"
               ? t.results.invalidOtherShop
-              : t.results.invalidUnknown}
+              : result.reason === "network"
+                ? t.results.invalidNetwork
+                : t.results.invalidUnknown}
           </p>
         </>
       );

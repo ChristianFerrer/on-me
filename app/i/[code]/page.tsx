@@ -1,6 +1,7 @@
 import { headers } from "next/headers";
 import { ClaimForm } from "@/components/client/ClaimForm";
 import { MarkOpened } from "@/components/client/MarkOpened";
+import { ButtonLink } from "@/components/ui/Button";
 import { Screen, Slab } from "@/components/ui/Screen";
 import { TopBar } from "@/components/ui/TopBar";
 import { normalizeInviteCode } from "@/lib/crypto";
@@ -42,7 +43,7 @@ export default async function GuestPage({
   );
   if (!limit.ok) {
     return (
-      <Notice title={t.errors.generic} body={t.join.errors.rate} />
+      <Notice title={t.errors.generic} body={t.join.errors.rate} backHomeLabel={t.errors.backHome} />
     );
   }
 
@@ -55,7 +56,7 @@ export default async function GuestPage({
   assertNoQueryError(invitationError, `invitations.code=${code}`);
 
   if (!invitation) {
-    return <Notice title={t.guest.invalid} body={t.errors.notFoundBody} />;
+    return <Notice title={t.guest.invalid} body={t.errors.notFoundBody} backHomeLabel={t.errors.backHome} />;
   }
 
   const expired =
@@ -63,12 +64,12 @@ export default async function GuestPage({
 
   if (expired) {
     return (
-      <Notice title={t.guest.expired} body={t.guest.expiredBody} />
+      <Notice title={t.guest.expired} body={t.guest.expiredBody} backHomeLabel={t.errors.backHome} />
     );
   }
 
   if (!CLAIMABLE.includes(invitation.state)) {
-    return <Notice title={t.guest.used} body={t.guest.expiredBody} />;
+    return <Notice title={t.guest.used} body={t.guest.expiredBody} backHomeLabel={t.errors.backHome} />;
   }
 
   const [shopResult, padrinoResult] = await Promise.all([
@@ -86,7 +87,7 @@ export default async function GuestPage({
 
   const shop = shopResult.data;
   if (!shop) {
-    return <Notice title={t.guest.invalid} body={t.errors.notFoundBody} />;
+    return <Notice title={t.guest.invalid} body={t.errors.notFoundBody} backHomeLabel={t.errors.backHome} />;
   }
 
   // Solo el nombre de pila: nunca se enseña a nadie el apellido de otro.
@@ -139,9 +140,14 @@ export default async function GuestPage({
 function Notice({
   title,
   body,
+  backHomeLabel,
 }: {
   title: string;
   body: string;
+  /* CLI-03: para mucha gente esta es la única pantalla de OnMe que verá jamás
+     -invitación caducada, usada, inválida o rate-limited-; sin ningún botón
+     no tenía ningún siguiente paso salvo cerrar la pestaña. */
+  backHomeLabel: string;
 }) {
   return (
     <Screen tone="quiet" className="gap-6">
@@ -150,6 +156,9 @@ function Notice({
         <Slab className="p-7">
           <h1 className="display text-[1.875rem]">{title}</h1>
           <p className="mt-3 text-[0.9375rem] leading-relaxed text-chalk/60">{body}</p>
+          <ButtonLink href="/inicio" tone="ink" size="md" className="mt-6">
+            {backHomeLabel}
+          </ButtonLink>
         </Slab>
       </div>
     </Screen>

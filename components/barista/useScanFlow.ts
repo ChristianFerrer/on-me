@@ -84,7 +84,7 @@ export function useScanFlow(options: {
         show((await response.json()) as ScanResponse);
       } catch {
         // Se cayó la red a mitad de gesto. Es un caso real en un sótano.
-        show({ kind: "invalid", reason: "unknown_token" });
+        show({ kind: "invalid", reason: "network" });
       }
     },
     [endpoint, show],

@@ -2832,7 +2832,7 @@ export function ConstelacionSolMap({
         className="pointer-events-none fixed inset-x-0 bottom-0 z-20 flex flex-col items-center gap-3 px-5 pb-[calc(3.375rem+env(safe-area-inset-bottom)+1.25rem)] transition-[padding-left] duration-200 ease-[var(--ease-out-soft)] lg:pb-[max(1.25rem,env(safe-area-inset-bottom))] lg:pl-[calc(var(--admin-sidebar-width,16rem)+1.25rem)]"
       >
         {!selectedNode && !touched ? (
-          <p className="text-[0.65625rem] text-chalk/32 transition-opacity duration-300 lg:hidden">
+          <p className="text-[0.65625rem] text-chalk/32 transition-opacity duration-300">
             {funnelTotal === 0 ? t.admin.referralMapEmpty : t.admin.referralMapHint}
           </p>
         ) : null}

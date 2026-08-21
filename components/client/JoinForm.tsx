@@ -160,6 +160,7 @@ export function Consent({
         aria-hidden
         className={cn(
           "mt-px flex size-5 shrink-0 items-center justify-center rounded-md border transition-colors",
+          "peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-ink",
           checked ? "border-ink bg-ink" : "border-ink/30 bg-white/40",
           invalid && !checked && "border-coral",
         )}

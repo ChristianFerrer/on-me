@@ -53,7 +53,7 @@ export function Scanner({
     };
   }, [markReady]);
 
-  const { videoRef, status } = useQrScanner({
+  const { videoRef, status, retry } = useQrScanner({
     enabled: phase.step === "idle" && online,
     onDecode: (token) =>
       void submit({ token, durationMs: Date.now() - readyAtRef.current }),
@@ -113,6 +113,15 @@ export function Scanner({
               <p className="mt-1 text-[0.875rem] text-chalk/60">
                 {!online ? t.offlineBody : t.noCameraBody}
               </p>
+              {status === "no_camera" ? (
+                <button
+                  type="button"
+                  onClick={retry}
+                  className="btn mt-3 rounded-full bg-chalk px-5 py-2.5 text-[0.875rem] font-semibold text-ink"
+                >
+                  {t.retryCamera}
+                </button>
+              ) : null}
             </div>
           ) : (
             <p className="text-center text-[0.9375rem] font-medium text-chalk/70">
