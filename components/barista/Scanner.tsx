@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { HomeIcon, SearchIcon } from "@/components/ui/Icons";
+import { HomeIcon, QrIcon, SearchIcon } from "@/components/ui/Icons";
 import { cn } from "@/lib/cn";
 import type { Dict } from "@/lib/i18n";
 import { PinPad } from "./PinPad";
@@ -15,11 +15,13 @@ type BaristaDict = Dict["barista"];
 export function Scanner({
   t,
   shopName,
+  shopSlug,
   deviceName,
   pinRequired,
 }: {
   t: BaristaDict;
   shopName: string;
+  shopSlug: string;
   deviceName: string;
   pinRequired: boolean;
 }) {
@@ -88,6 +90,16 @@ export function Scanner({
               className="btn glass-dark size-11 rounded-full text-chalk"
             >
               <HomeIcon className="size-5" />
+            </Link>
+            {/* Para dar de alta a alguien sin escanear su móvil directamente:
+                el barista enseña este código en la pantalla del dispositivo. */}
+            <Link
+              href={`/j/${shopSlug}/qr?from=/s`}
+              prefetch={false}
+              aria-label={t.signupQr}
+              className="btn glass-dark size-11 rounded-full text-chalk"
+            >
+              <QrIcon className="size-5" />
             </Link>
             <Link
               href="/s/buscar"

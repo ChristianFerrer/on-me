@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { CardIcon, InfoIcon, PanelIcon, QrIcon, ScanIcon } from "@/components/ui/Icons";
+import { CardIcon, GiftIcon, InfoIcon, PanelIcon, QrIcon, ScanIcon } from "@/components/ui/Icons";
 import { Logo } from "@/components/ui/Logo";
 import { assertNoQueryError, db } from "@/lib/db/client";
 import { getI18n } from "@/lib/i18n/server";
@@ -43,6 +43,12 @@ export default async function InicioPage() {
             icon={<CardIcon className="size-6 sm:size-7" />}
             title={t.home.myCard}
             body={t.home.myCardBody}
+          />
+          <Tile
+            href="/c/invitar"
+            icon={<GiftIcon className="size-6 sm:size-7" />}
+            title={t.home.invite}
+            body={t.home.inviteBody}
           />
           {shop ? (
             <Tile

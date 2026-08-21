@@ -15,11 +15,19 @@ import { getI18n } from "@/lib/i18n/server";
  */
 export default async function JoinQrPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ shop: string }>;
+  searchParams: Promise<{ from?: string }>;
 }) {
   const { shop: slug } = await params;
+  const { from } = await searchParams;
   const { locale, t } = await getI18n();
+
+  // Solo rutas propias de la app: nunca un origen externo -abre esta
+  // pantalla el barista desde el escáner (?from=/s), o cualquiera desde
+  // /inicio-.
+  const backHref = from === "/s" ? "/s" : "/inicio";
 
   const { data: shop, error } = await db()
     .from("shops")
@@ -36,7 +44,7 @@ export default async function JoinQrPage({
   return (
     <div className="aurora-night min-h-dvh w-full text-chalk" lang={locale}>
       <Link
-        href="/inicio"
+        href={backHref}
         prefetch={false}
         aria-label={t.home.eyebrow}
         className="fixed left-3 top-[max(0.75rem,calc(env(safe-area-inset-top)_-_0.5rem))] p-2 text-chalk/30 transition-colors hover:text-chalk/70"

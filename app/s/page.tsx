@@ -16,6 +16,7 @@ export default async function BaristaPage() {
     <Scanner
       t={t.barista}
       shopName={ctx.shop.name}
+      shopSlug={ctx.shop.slug}
       deviceName={ctx.device.name}
       pinRequired={pinRequired(ctx.device)}
     />

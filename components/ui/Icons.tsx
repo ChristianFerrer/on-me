@@ -32,6 +32,18 @@ export function QrIcon(props: IconProps) {
   );
 }
 
+export function GiftIcon(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <rect x="3" y="9.5" width="18" height="4.5" rx="1" />
+      <path d="M5 14v6.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V14" />
+      <path d="M12 9.5v12" />
+      <path d="M12 9.5c-1-3-3-4.5-4.5-4.5A2.25 2.25 0 0 0 5.25 7.25c0 1.5 1.5 2.25 3 2.25" />
+      <path d="M12 9.5c1-3 3-4.5 4.5-4.5a2.25 2.25 0 0 1 2.25 2.25c0 1.5-1.5 2.25-3 2.25" />
+    </svg>
+  );
+}
+
 export function CardIcon(props: IconProps) {
   return (
     <svg {...base(props)}>
