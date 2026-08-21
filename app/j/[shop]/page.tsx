@@ -38,7 +38,7 @@ export default async function JoinPage({
           <h1 className="display-tight mt-3 text-[clamp(2.5rem,12vw,3.25rem)]">
             {t.join.title}
           </h1>
-          <p className="mx-auto mt-4 max-w-[26ch] text-[1rem] font-medium leading-relaxed text-ink/65">
+          <p className="mx-auto mt-4 max-w-[26ch] text-[1rem] font-medium leading-relaxed text-ink/70">
             {t.join.subtitle}
           </p>
         </div>

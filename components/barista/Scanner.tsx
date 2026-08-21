@@ -76,9 +76,9 @@ export function Scanner({
 
       <div className="absolute inset-0 flex flex-col">
         <header className="flex items-start justify-between gap-3 px-4 pt-[max(1rem,env(safe-area-inset-top))]">
-          <div className="glass-dark px-4 py-2.5">
-            <p className="text-[0.9375rem] font-semibold leading-tight">{shopName}</p>
-            <p className="eyebrow mt-0.5 text-chalk/45">{deviceName}</p>
+          <div className="glass-dark min-w-0 px-4 py-2.5">
+            <p className="truncate text-[0.9375rem] font-semibold leading-tight">{shopName}</p>
+            <p className="eyebrow mt-0.5 truncate text-chalk/45">{deviceName}</p>
           </div>
           <div className="flex items-center gap-2">
             <Link

@@ -61,7 +61,7 @@ export default async function CardPage() {
             </>
           ) : (
             <>
-              <h1 className="display-tight numeral mt-5 text-[3.25rem]">
+              <h1 className="display-tight numeral mt-5 text-[clamp(2.5rem,11vw,3.5rem)]">
                 {stamps}
                 <span className="text-chalk/30">/{shop.stamps_goal}</span>
               </h1>

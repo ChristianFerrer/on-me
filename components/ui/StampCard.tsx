@@ -39,7 +39,10 @@ export function StampCard({
               next && (tone === "dark" ? "border-lime/60" : "border-ink/45"),
             )}
           >
-            {i + 1}
+            {/* Con muchos sellos el círculo baja de ~24px en 320-375px y el
+                número deja de leerse: por debajo de ese umbral basta el
+                patrón lleno/vacío, así que el dígito se oculta ahí -BAR-18-. */}
+            <span className={goal > 10 ? "max-[380px]:hidden" : undefined}>{i + 1}</span>
           </li>
         );
       })}

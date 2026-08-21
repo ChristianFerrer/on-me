@@ -60,6 +60,10 @@ export function CustomerForm({
     if (busy) return;
 
     if (!name.trim()) return setError("name");
+    // Mismo mínimo que el servidor (z.string().min(5)) antes de limpiar
+    // separadores: sin esto, el error de formato solo aparecía después de
+    // esperar la respuesta del servidor -CLI-22-.
+    if (phone.trim().length < 5) return setError("phone");
     if (!consent) return setError("consent");
 
     setError(null);
@@ -118,12 +122,13 @@ export function CustomerForm({
         name="phone"
         value={phone}
         onChange={(event) => setPhone(event.target.value)}
-        placeholder={t.phonePlaceholder}
+        placeholder={`${t.phonePlaceholder} *`}
         aria-label={t.phoneLabel}
         type="tel"
         inputMode="tel"
         autoComplete="tel"
         enterKeyHint="done"
+        required
         aria-invalid={error === "phone"}
         aria-describedby={`${idPrefix}phone-hint`}
         className="numeral field"

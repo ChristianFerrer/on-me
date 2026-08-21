@@ -97,7 +97,7 @@ export function ManualSearch({ t }: { t: BaristaDict }) {
               href={`/s/cliente/${hit.id}`}
               prefetch={false}
               className={cn(
-                "btn w-full justify-between rounded-2xl px-5 py-4 text-left",
+                "btn w-full justify-between rounded-[var(--radius-card)] px-5 py-4 text-left",
                 hit.rewardPending ? "bg-amber text-ink" : "bg-ink-2 text-chalk",
               )}
             >

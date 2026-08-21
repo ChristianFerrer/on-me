@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Screen } from "@/components/ui/Screen";
 import { StampCard } from "@/components/ui/StampCard";
 import { TopBar } from "@/components/ui/TopBar";
@@ -20,7 +21,7 @@ export default async function HomePage() {
           <h1 className="display-tight text-balance text-[clamp(2.75rem,13vw,3.75rem)]">
             {t.join.title}
           </h1>
-          <p className="mx-auto mt-5 max-w-[24ch] text-[1.0625rem] font-medium leading-relaxed text-ink/65">
+          <p className="mx-auto mt-5 max-w-[24ch] text-[1.0625rem] font-medium leading-relaxed text-ink/70">
             {t.join.subtitle}
           </p>
         </div>
@@ -34,10 +35,15 @@ export default async function HomePage() {
         </div>
       </div>
 
-      <footer className="mt-auto pb-2 pt-10 text-center">
+      <footer className="mt-auto flex flex-col items-center gap-3 pb-2 pt-10 text-center">
         <p className="text-[0.875rem] leading-relaxed text-ink/45">
           {t.join.landingFooter}
         </p>
+        {/* Sin esto la portada no tenía ni un solo enlace -PUB-02-: quien
+            teclea el dominio sin haber escaneado un QR se quedaba sin salida. */}
+        <Link href="/inicio" prefetch={false} className="text-[0.875rem] font-semibold text-ink/60 underline underline-offset-2">
+          {t.errors.backHome}
+        </Link>
       </footer>
     </Screen>
   );

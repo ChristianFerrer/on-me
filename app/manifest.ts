@@ -1,4 +1,5 @@
 import type { MetadataRoute } from "next";
+import { INK_HEX } from "@/lib/colors";
 
 /**
  * La PWA se instala para el cliente, no para el barista: por eso `start_url`
@@ -15,8 +16,8 @@ export default function manifest(): MetadataRoute.Manifest {
     scope: "/",
     display: "standalone",
     orientation: "portrait",
-    background_color: "#0e1211",
-    theme_color: "#0e1211",
+    background_color: INK_HEX,
+    theme_color: INK_HEX,
     lang: "es",
     dir: "ltr",
     icons: [

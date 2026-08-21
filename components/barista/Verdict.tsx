@@ -53,7 +53,7 @@ export function Verdict({
       </div>
 
       {needsConfirm && onConfirm ? (
-        <div className="flex flex-col gap-2 px-6 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
+        <div className="mx-auto flex w-full max-w-[26rem] flex-col gap-2 px-6 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
           <button
             type="button"
             onClick={onConfirm}

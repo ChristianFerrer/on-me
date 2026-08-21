@@ -1,5 +1,6 @@
 import QRCode from "qrcode";
 import { cn } from "@/lib/cn";
+import { INK_HEX } from "@/lib/colors";
 
 /**
  * QR renderizado en servidor como SVG en línea.
@@ -21,7 +22,7 @@ export async function QrCode({
     type: "svg",
     errorCorrectionLevel: "M",
     margin: 0,
-    color: { dark: "#0e1211", light: "#0000" },
+    color: { dark: INK_HEX, light: "#0000" },
   });
 
   return (

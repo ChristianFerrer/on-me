@@ -30,7 +30,7 @@ export default async function InvitePage() {
           <h1 className="display-tight mt-3 text-[clamp(2.375rem,11vw,3rem)]">
             {t.invite.title}
           </h1>
-          <p className="mt-4 text-[1rem] font-medium leading-relaxed text-ink/65">
+          <p className="mt-4 text-[1rem] font-medium leading-relaxed text-ink/70">
             {fill(t.invite.subtitle, { shop: card.shop.name })}
           </p>
         </div>

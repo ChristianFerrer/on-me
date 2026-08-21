@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Plus_Jakarta_Sans } from "next/font/google";
 import { ServiceWorker } from "@/components/client/ServiceWorker";
+import { INK_HEX } from "@/lib/colors";
 import { resolveLocale } from "@/lib/i18n/server";
 import "./globals.css";
 
@@ -38,7 +39,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#0e1211",
+  themeColor: INK_HEX,
   width: "device-width",
   initialScale: 1,
   // Sin `maximumScale`/`userScalable: false`: desactivaba el pinch-zoom en

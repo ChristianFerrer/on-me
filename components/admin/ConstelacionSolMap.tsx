@@ -286,8 +286,11 @@ const FUNNEL_ORDER: NodeState[] = ["sent", "expired", "opened", "claimed", "wind
  */
 const CONSTELACION_PHASE_COLOR: Record<NodeState, string> = {
   sent: "#FFFFFF",
-  opened: "#FBBF24",
-  claimed: "#4ADE80",
+  // opened y claimed coinciden en valor exacto con --color-amber/--color-mint
+  // del sistema compartido -ADM-16-: se referencian en vez de duplicar el
+  // literal, sin cambiar el color resultante.
+  opened: "var(--color-amber)",
+  claimed: "var(--color-mint)",
   window: "#38E1FF",
   billable: "#FF00F9",
   direct: "#E9FF72",

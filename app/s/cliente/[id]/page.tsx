@@ -114,7 +114,7 @@ export default async function CustomerPage({
         tarjeta del cliente, en cambio, lleva solo el token, porque lo lee
         nuestro escáner y cuantos menos módulos tenga, más rápido decodifica.
       */}
-      <section className="mt-auto rounded-[var(--radius-card)] bg-white p-6">
+      <section className="mt-auto rounded-[var(--radius-card)] bg-chalk p-6">
         <p className="eyebrow text-ink/40">{t.barista.resend}</p>
         <p className="mt-1.5 text-[0.875rem] leading-snug text-ink/55">
           {t.barista.resendBody}

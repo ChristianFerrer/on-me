@@ -107,7 +107,7 @@ export default async function GuestPage({
           <p className="mt-4 text-[1.0625rem] font-semibold text-ink/75">
             {fill(t.guest.at, { shop: shop.name })}
           </p>
-          <p className="mt-3 text-[0.9375rem] leading-relaxed text-ink/60">
+          <p className="mt-3 text-[0.9375rem] leading-relaxed text-ink/70">
             {t.guest.body}
           </p>
           <p className="eyebrow mt-5 text-ink/40">

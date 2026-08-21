@@ -11,6 +11,7 @@ import {
   TrashIcon,
 } from "@/components/ui/Icons";
 import { cn } from "@/lib/cn";
+import { INK_HEX } from "@/lib/colors";
 import type { DeviceListItem } from "@/lib/devices";
 import { fill, formatDateTime, type Dict, type Locale } from "@/lib/i18n";
 
@@ -343,7 +344,7 @@ function DeviceQr({ value }: { value: string }) {
     void import("qrcode").then((QRCode) =>
       QRCode.toDataURL(value, {
         margin: 0,
-        color: { dark: "#0e1211", light: "#ffffff" },
+        color: { dark: INK_HEX, light: "#ffffff" },
       }).then((url) => {
         if (!cancelled) setSrc(url);
       }),

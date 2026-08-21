@@ -98,7 +98,7 @@ function Key({
       onClick={onClick}
       aria-label={label}
       className={cn(
-        "btn numeral rounded-2xl py-5 text-[1.5rem] font-semibold",
+        "btn numeral rounded-[var(--radius-field)] py-5 text-[1.5rem] font-semibold",
         muted ? "text-chalk/45" : "bg-ink-2 text-chalk",
       )}
     >
