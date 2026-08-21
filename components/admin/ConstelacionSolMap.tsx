@@ -59,10 +59,10 @@ const WOBBLE_ANGULAR_AMPLITUDE = 0.05;
 const WOBBLE_RESTLESS_BOOST = 1.8;
 /** Con una cadena tocada -zoom cerrado, muchas esferas cerca unas de otras- el propio bamboleo dificulta tocar la esfera vecina que se quiere ver a continuación: el reloj que alimenta el vaivén avanza a este ritmo, no al real, mientras haya algo seleccionado -1 = normal, más bajo = más lento, nunca 0: sigue siendo un gráfico vivo, solo menos inquieto-. */
 const WOBBLE_FOCUS_SPEED = 0.2;
-/** Fracción de displayRadius que ocupa el núcleo sólido de cada estrella -el resto es puro halo, para que el brillo pese más que el propio cuerpo, como una estrella real. */
-const STAR_CORE_SCALE = 0.5;
-/** Tamaño mínimo del núcleo sólido, para que ni siquiera un prospecto de magnitud más baja -sent/opened/descartada, sin apenas consumo- se quede en un punto casi invisible: "cuadriplicar" tiene que notarse en todas, no solo en las de más magnitud. */
-const STAR_CORE_MIN_R = 3;
+/** Fracción de displayRadius que ocupa el núcleo sólido de cada estrella -el resto es puro halo, para que el brillo pese más que el propio cuerpo, como una estrella real. A 2/3 del valor anterior -a petición, para volver de "3 veces el tamaño original" a "2 veces"-. */
+const STAR_CORE_SCALE = (1 / 3);
+/** Tamaño mínimo del núcleo sólido, para que ni siquiera un prospecto de magnitud más baja -sent/opened/descartada, sin apenas consumo- se quede en un punto casi invisible: "cuadriplicar" tiene que notarse en todas, no solo en las de más magnitud. Mismo recorte a 2/3 que STAR_CORE_SCALE. */
+const STAR_CORE_MIN_R = 2;
 
 /** El propio núcleo sólido -lo único que de verdad se pinta como círculo lleno, el halo es puro brillo difuso alrededor-: la misma fórmula la usa tanto el radio con el que se recortan las cuerdas y se separan las esferas por imán (nodeRadiusById) como el que de verdad se dibuja en el JSX, para que ninguno de los dos se desincronice del otro -si no, la cuerda se corta donde ya no hay esfera que tocar-. */
 function starCoreRadius(displayRadius: number): number {
@@ -2077,22 +2077,6 @@ export function ConstelacionSolMap({
             <stop offset="0%" stopColor="currentColor" stopOpacity={1} />
             <stop offset="100%" stopColor="currentColor" stopOpacity={0} />
           </radialGradient>
-          {/* El mismo criterio que constelacion-sun-core -claro en el centro,
-              hacia el propio color y más oscuro en el borde, no un círculo
-              plano-, pero uno por estado -no genérico con currentColor: un
-              degradado con `currentColor` dentro de un `<defs>` no siempre
-              hereda el `color` de quien lo usa -según el navegador puede
-              quedarse en un gris sin relación con el estado-, mientras que
-              color-mix() con un color literal pinta siempre bien. Solo 8
-              estados -CONSTELACION_PHASE_COLOR- así que 8 degradados fijos
-              cuestan poco y no hace falta ninguno por nodo. */}
-          {Object.entries(CONSTELACION_PHASE_COLOR).map(([state, hex]) => (
-            <radialGradient key={state} id={`constelacion-sphere-${state}`}>
-              <stop offset="0%" stopColor={`color-mix(in srgb, ${hex} 40%, white)`} />
-              <stop offset="55%" stopColor={hex} />
-              <stop offset="100%" stopColor={`color-mix(in srgb, ${hex} 65%, black)`} />
-            </radialGradient>
-          ))}
         </defs>
 
         {/* Fuera del grupo de zoom: no escala con el pellizco, como pide la especificación.
@@ -2408,17 +2392,7 @@ export function ConstelacionSolMap({
                     parpadeo en el propio círculo de dentro; sus opacidades se
                     multiplican al componerse, así que ambas se ven a la vez. */}
                 <g className="constelacion-star-twinkle" style={twinkleStyle}>
-                  {/* `constelacion-sphere-${node.state}` -uno de los 8 degradados
-                      fijos de arriba, no un color plano-: mismo criterio que el
-                      propio sol (constelacion-sun-core), claro en el centro y
-                      más oscuro en el borde, para que cada estrella se lea como
-                      una esfera de verdad, no una pastilla. */}
-                  <circle
-                    className={isWindow ? "constelacion-window-blink" : undefined}
-                    style={windowBlinkStyle}
-                    r={starCoreR}
-                    fill={`url(#constelacion-sphere-${node.state})`}
-                  />
+                  <circle className={isWindow ? "constelacion-window-blink" : undefined} style={windowBlinkStyle} r={starCoreR} fill={color} />
                   <circle r={starCoreR} fill="none" stroke={CONSTELACION_STROKE_COLOR[node.state]} strokeWidth={isMuted ? 0.7 : 0.4} />
                 </g>
                 <circle r={starTouchRadius(starCoreR)} fill="transparent" />
