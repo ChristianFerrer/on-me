@@ -26,6 +26,15 @@ export function FunnelBars({ data, t }: { data: FunnelData; t: AdminDict }) {
     <ul className="flex flex-col gap-4">
       {steps.map((step, index) => (
         <li key={step.label}>
+          {index === 2 ? (
+            // A partir de aquí las barras miden invitaciones de terceros, no
+            // clientes propios como las dos primeras: sin este rótulo, la
+            // caída de "tarjetas completadas" a "invitaciones enviadas" se
+            // lee como abandono, cuando en realidad es un cambio de unidad.
+            <p className="mb-3 mt-1 eyebrow text-chalk/35">
+              {t.funnelInvitesLabel}
+            </p>
+          ) : null}
           <div className="flex items-baseline justify-between gap-3">
             <span className="text-[0.875rem] font-medium text-chalk/65">
               {step.label}

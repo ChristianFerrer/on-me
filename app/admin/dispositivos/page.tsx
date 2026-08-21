@@ -11,7 +11,7 @@ import { getI18n } from "@/lib/i18n/server";
 
 export default async function DevicesPage() {
   const ctx = await getAdminContext();
-  if (!ctx) redirect("/admin/constelacion-sol");
+  if (!ctx) redirect("/admin/constelacion-sol?session=expired");
 
   const { locale, t } = await getI18n();
   const devices = await loadDevices(ctx.shop.id);

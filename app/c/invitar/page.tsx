@@ -40,7 +40,10 @@ export default async function InvitePage() {
             {[
               t.invite.rules.one,
               fill(t.invite.rules.two, { days: card.shop.invite_ttl_days }),
-              fill(t.invite.rules.three, { bonus: card.shop.bonus_stamps }),
+              fill(t.invite.rules.three, {
+                bonus: card.shop.bonus_stamps,
+                returnDays: card.shop.return_window_days,
+              }),
             ].map((rule, index) => (
               <li key={rule} className="flex items-start gap-4">
                 <span className="numeral mt-px w-4 shrink-0 text-[0.875rem] font-semibold text-lime">

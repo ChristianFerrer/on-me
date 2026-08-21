@@ -36,7 +36,7 @@ export default async function HomePage() {
 
       <footer className="mt-auto pb-2 pt-10 text-center">
         <p className="text-[0.875rem] leading-relaxed text-ink/45">
-          {t.errors.notFoundBody}
+          {t.join.landingFooter}
         </p>
       </footer>
     </Screen>

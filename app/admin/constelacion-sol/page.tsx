@@ -17,11 +17,16 @@ import { getI18n } from "@/lib/i18n/server";
  * clientes como estrellas, líneas rectas de carta estelar en vez del
  * diagrama de burbujas de color plano.
  */
-export default async function ConstelacionSolPage() {
+export default async function ConstelacionSolPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ session?: string }>;
+}) {
   const { locale, t } = await getI18n();
   const ctx = await getAdminContext();
 
   if (!ctx) {
+    const { session } = await searchParams;
     return (
       <Screen tone="ink" className="gap-8">
         <Link
@@ -34,6 +39,11 @@ export default async function ConstelacionSolPage() {
         </Link>
         <div className="flex flex-1 flex-col items-center justify-center gap-8">
           <Logo size="lg" tone="chalk" />
+          {session === "expired" ? (
+            <p role="status" className="-mt-4 px-4 text-center text-[0.875rem] font-medium text-amber">
+              {t.admin.sessionExpired}
+            </p>
+          ) : null}
           <LoginForm t={t.admin} />
         </div>
       </Screen>
