@@ -2432,6 +2432,20 @@ export function ConstelacionSolMap({
         </div>
       </header>
 
+      {/* Banner persistente de modo simulación -ADM-01 de la auditoría UX-:
+          antes el único indicio de que estaba encendido era el propio botón
+          en lima entre otros cuatro apilados, y activarlo vaciaba el grafo
+          real (clientes de verdad incluidos) sin ningún aviso. Fijo arriba,
+          siempre visible mientras dure -no un toast que se apaga solo-, en
+          los dos breakpoints: es información de seguridad, no decorativa. */}
+      {simulating ? (
+        <div className="pointer-events-none fixed inset-x-0 top-0 z-40 flex justify-center px-5 pt-[max(1rem,env(safe-area-inset-top))]">
+          <p className="rounded-full bg-amber px-4 py-1.5 text-center text-[0.6875rem] font-bold uppercase tracking-[0.06em] text-ink shadow-[0_4px_16px_rgba(0,0,0,0.35)]">
+            {t.admin.constelacionSimulateBanner}
+          </p>
+        </div>
+      ) : null}
+
       {/* Burbuja de "Action" en móvil/tablet -ver liveEvents.ts para el
           vocabulario y pushLiveEvent más arriba para quién la dispara-: el
           mismo suceso que alimenta el panel de escritorio (más abajo, en la
@@ -2622,8 +2636,8 @@ export function ConstelacionSolMap({
               </div>
               <dl className="mt-3 flex flex-col gap-2.5">
                 {[
-                  { value: insights.sent, label: t.admin.sent, desc: t.admin.constelacionInsightsSentDesc },
-                  { value: insights.opened, label: t.admin.opened, desc: t.admin.constelacionInsightsOpenedDesc },
+                  { value: insights.sent, label: t.admin.constelacionInsightsSentLabel, desc: t.admin.constelacionInsightsSentDesc },
+                  { value: insights.opened, label: t.admin.constelacionInsightsOpenedLabel, desc: t.admin.constelacionInsightsOpenedDesc },
                   { value: insights.claimedInvites, label: t.admin.constelacionInsightsClaimedInvites, desc: t.admin.constelacionInsightsClaimedInvitesDesc },
                   { value: insights.verifiedCustomers, label: t.admin.attrBillable, desc: t.admin.constelacionInsightsVerifiedDesc },
                   { value: customerCount, label: t.admin.constelacionCustomersLabel, desc: t.admin.constelacionInsightsTotalDesc },
@@ -2776,7 +2790,15 @@ export function ConstelacionSolMap({
                     interruptores de esta columna. */}
                 <button
                   type="button"
-                  onClick={() => setSimulating((v) => !v)}
+                  onClick={() => {
+                    // Al encenderlo -nunca al apagarlo- exige confirmación: vacía el
+                    // grafo real (clientes de verdad incluidos) y lo sustituye por
+                    // datos inventados, sin ningún otro aviso más que este botón
+                    // pasando a lima entre otros cuatro apilados detrás del mismo
+                    // interruptor. Ver también el banner persistente del header.
+                    if (!simulating && !window.confirm(t.admin.constelacionSimulateConfirm)) return;
+                    setSimulating((v) => !v);
+                  }}
                   aria-pressed={simulating}
                   aria-label={t.admin.constelacionSimulateToggle}
                   title={t.admin.constelacionSimulateToggle}

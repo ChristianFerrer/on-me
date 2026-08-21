@@ -25,6 +25,9 @@ export default async function CardPage() {
             <p className="mt-3 text-[0.9375rem] leading-relaxed text-chalk/60">
               {t.errors.notFoundBody}
             </p>
+            <ButtonLink href="/inicio" tone="ink" size="md" className="mt-6">
+              {t.errors.backHome}
+            </ButtonLink>
           </Slab>
         </div>
       </Screen>

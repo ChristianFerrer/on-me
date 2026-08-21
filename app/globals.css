@@ -367,7 +367,11 @@
   }
   .verdict-coral {
     background: var(--color-coral);
-    --verdict-ink: var(--color-chalk);
+    /* Texto oscuro, no chalk -a diferencia de slate-: chalk casi blanco sobre
+       este coral da ~2.5:1 de contraste, justo el veredicto que más urge
+       leer rápido ("no válido", con cola detrás). --color-ink sobre coral
+       está muy por encima del mínimo AA, igual que lima/ámbar/azul, que ya
+       usan el ink por defecto de .verdict sin necesitar este override. */
   }
   .verdict-slate {
     background: var(--color-ink-2);
