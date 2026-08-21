@@ -1,7 +1,8 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState } from "react";
-import { SearchIcon } from "@/components/ui/Icons";
+import { OrbitIcon, SearchIcon } from "@/components/ui/Icons";
 import { cn } from "@/lib/cn";
 import { STATE_BADGE_SKIN, stateBadgeLabel } from "@/lib/giftGraph/stateBadge";
 import type { NodeState } from "@/lib/giftGraph/types";
@@ -9,6 +10,7 @@ import { formatDateTime, type Dict, type Locale } from "@/lib/i18n";
 
 export type AttributionRow = {
   id: string;
+  guestCustomerId: string;
   guestName: string;
   guestPhone: string;
   referrerName: string;
@@ -89,6 +91,15 @@ export function AttributionsList({
                 >
                   {stateBadgeLabel(row.state, t)}
                 </span>
+                <Link
+                  href={`/admin/constelacion-sol?focus=${row.guestCustomerId}`}
+                  prefetch={false}
+                  aria-label={t.admin.attrViewInConstellation}
+                  title={t.admin.attrViewInConstellation}
+                  className="btn glass-dark size-8 shrink-0 text-chalk/60 hover:text-chalk"
+                >
+                  <OrbitIcon className="size-4" />
+                </Link>
               </div>
 
               <dl className="numeral mt-2.5 flex flex-wrap gap-x-4 gap-y-1 text-[0.6875rem] text-chalk/40">

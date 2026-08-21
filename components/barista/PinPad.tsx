@@ -73,7 +73,7 @@ export function PinPad({
           ✕
         </Key>
         <Key onClick={() => push("0")}>0</Key>
-        <Key onClick={() => setPin((p) => p.slice(0, -1))} muted label="←">
+        <Key onClick={() => setPin((p) => p.slice(0, -1))} muted label={t.backspace}>
           ⌫
         </Key>
       </div>

@@ -41,7 +41,7 @@ export function GateCard({
   return (
     <article className="glass-dark p-6">
       <div className="flex items-start justify-between gap-3">
-        <p className="eyebrow uppercase text-chalk/35">{gate.key}</p>
+        <p className="eyebrow uppercase text-chalk/60">{gate.key}</p>
         <p
           className={cn(
             "eyebrow rounded-full px-2.5 py-1",
@@ -63,7 +63,7 @@ export function GateCard({
 
       <p className="mt-2 text-[0.875rem] leading-snug text-chalk/60">{label}</p>
 
-      <p className="numeral mt-4 text-[0.8125rem] text-chalk/35">
+      <p className="numeral mt-4 text-[0.8125rem] text-chalk/60">
         {fill(t.target, { n: Math.round(gate.threshold * 100) })}
         {short ? ` · ${fill(t.insufficientBody, { n: gate.minSample, m: gate.denominator })}` : ""}
       </p>

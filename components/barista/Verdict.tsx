@@ -60,7 +60,7 @@ export function Verdict({
             disabled={busy}
             className="btn w-full bg-ink px-6 py-6 text-[1.1875rem] text-chalk disabled:opacity-50"
           >
-            {t.confirm}
+            {result.kind === "redeem_reward" ? t.results.rewardConfirm : t.results.inviteConfirm}
           </button>
           <button
             type="button"

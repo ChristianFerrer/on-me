@@ -125,7 +125,11 @@ export function Scanner({
             </div>
           ) : (
             <p className="text-center text-[0.9375rem] font-medium text-chalk/70">
-              {status === "booting" ? t.opening : t.scanning}
+              {phase.step === "sending"
+                ? t.checking
+                : status === "booting"
+                  ? t.opening
+                  : t.scanning}
             </p>
           )}
         </footer>
@@ -158,7 +162,7 @@ function Target({ active }: { active: boolean }) {
   return (
     <div
       className={cn(
-        "relative aspect-square w-full max-w-[16rem] transition-opacity duration-300",
+        "relative aspect-square w-full max-w-[min(16rem,40vh)] transition-opacity duration-300",
         active ? "opacity-100" : "opacity-25",
       )}
     >

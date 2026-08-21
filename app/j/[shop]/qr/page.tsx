@@ -39,12 +39,12 @@ export default async function JoinQrPage({
         href="/inicio"
         prefetch={false}
         aria-label={t.home.eyebrow}
-        className="fixed left-5 top-[max(1.25rem,env(safe-area-inset-top))] text-chalk/30 transition-colors hover:text-chalk/70"
+        className="fixed left-3 top-[max(0.75rem,calc(env(safe-area-inset-top)_-_0.5rem))] p-2 text-chalk/30 transition-colors hover:text-chalk/70"
       >
         <HomeIcon className="size-6" />
       </Link>
 
-      <main className="mx-auto flex min-h-dvh w-full max-w-[42rem] flex-col items-center justify-center gap-[4vh] px-8 py-10 text-center">
+      <main className="mx-auto flex min-h-dvh w-full max-w-[42rem] flex-col items-center justify-center gap-[4vh] py-10 pl-[max(2rem,env(safe-area-inset-left))] pr-[max(2rem,env(safe-area-inset-right))] text-center">
         <div>
           <p className="eyebrow text-chalk/65">{shop.name}</p>
           <h1 className="display-tight mt-3 text-[clamp(1.75rem,5vw,3rem)]">

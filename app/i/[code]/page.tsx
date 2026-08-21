@@ -155,7 +155,7 @@ function Notice({
       <div className="flex flex-1 flex-col justify-center">
         <Slab className="p-7">
           <h1 className="display text-[1.875rem]">{title}</h1>
-          <p className="mt-3 text-[0.9375rem] leading-relaxed text-chalk/60">{body}</p>
+          <p className="mt-3 text-[0.9375rem] leading-relaxed text-chalk/70">{body}</p>
           <ButtonLink href="/inicio" tone="ink" size="md" className="mt-6">
             {backHomeLabel}
           </ButtonLink>

@@ -20,13 +20,13 @@ import { getI18n } from "@/lib/i18n/server";
 export default async function ConstelacionSolPage({
   searchParams,
 }: {
-  searchParams: Promise<{ session?: string }>;
+  searchParams: Promise<{ session?: string; focus?: string }>;
 }) {
   const { locale, t } = await getI18n();
   const ctx = await getAdminContext();
+  const { session, focus } = await searchParams;
 
   if (!ctx) {
-    const { session } = await searchParams;
     return (
       <Screen tone="ink" className="gap-8">
         <Link
@@ -60,6 +60,7 @@ export default async function ConstelacionSolPage({
       returnWindowDays={ctx.shop.return_window_days}
       locale={locale}
       t={t}
+      initialFocusId={focus}
     />
   );
 }

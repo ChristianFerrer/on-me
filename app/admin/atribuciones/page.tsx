@@ -46,6 +46,7 @@ export default async function AttributionsPage() {
 
   const items: AttributionRow[] = attributions.map((row) => ({
     id: row.id,
+    guestCustomerId: row.ahijado_id,
     guestName: peopleById.get(row.ahijado_id)?.name ?? "—",
     guestPhone: peopleById.get(row.ahijado_id)?.phone ?? "",
     referrerName: peopleById.get(row.padrino_id)?.name ?? "—",

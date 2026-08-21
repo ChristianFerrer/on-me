@@ -30,7 +30,7 @@ export default async function InicioPage() {
 
   return (
     <div className="aurora-night h-dvh w-full overflow-y-auto text-chalk sm:h-auto sm:min-h-dvh" lang={locale}>
-      <main className="mx-auto flex min-h-full w-full max-w-[30rem] flex-col gap-6 px-5 pt-[max(1.75rem,env(safe-area-inset-top))] pb-[max(1.25rem,env(safe-area-inset-bottom))] sm:h-auto sm:min-h-dvh sm:max-w-2xl sm:justify-center sm:pt-10">
+      <main className="mx-auto flex min-h-full w-full max-w-[30rem] flex-col gap-6 px-5 pt-[max(1.75rem,env(safe-area-inset-top))] pb-[max(1.25rem,env(safe-area-inset-bottom))] sm:h-auto sm:min-h-dvh sm:max-w-[34rem] sm:justify-center sm:pt-10 lg:max-w-[40rem] xl:max-w-[44rem]">
         <div className="flex shrink-0 flex-col items-center gap-2.5 text-center sm:items-start sm:text-left">
           <h1 className="sr-only">{t.home.title}</h1>
           <Logo size="lg" tone="chalk" />

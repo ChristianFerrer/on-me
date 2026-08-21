@@ -17,15 +17,28 @@ export function CustomerActions({
   t,
   customerId,
   pinRequired,
+  rewardPending,
+  invitationPending,
 }: {
   t: BaristaDict;
   customerId: string;
   pinRequired: boolean;
+  /** La acción real que hará el próximo tap ya no es siempre "sellar a mano"
+      -ver BAR-15-: si hay premio o invitación pendientes, el propio servidor
+      canjea eso en vez de sellar, así que el botón debe anticiparlo. */
+  rewardPending?: boolean;
+  invitationPending?: boolean;
 }) {
   const { phase, submit, confirm, reset } = useScanFlow({
     endpoint: "/api/scan/manual",
     pinRequired,
   });
+
+  const label = rewardPending
+    ? t.stampActionReward
+    : invitationPending
+      ? t.stampActionInvite
+      : t.stampAction;
 
   return (
     <>
@@ -35,7 +48,7 @@ export function CustomerActions({
         disabled={phase.step === "sending"}
         onClick={() => void submit({ customerId })}
       >
-        {t.stampAction}
+        {label}
       </Button>
 
       {phase.step === "result" ? (

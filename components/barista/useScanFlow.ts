@@ -72,7 +72,12 @@ export function useScanFlow(options: {
         if (response.status === 403) {
           const data: unknown = await response.json().catch(() => null);
           const error = (data as { error?: string } | null)?.error;
-          setPhase({ step: "pin", wrong: error === "pin_wrong", busy: false });
+          const wrong = error === "pin_wrong";
+          // Con la atención puesta en el cliente, no en la pantalla, un PIN
+          // incorrecto que solo cambia el color del texto puede pasar
+          // desapercibido: el mismo zumbido corto que ya usa un QR roto.
+          if (wrong) buzz([40, 60, 40]);
+          setPhase({ step: "pin", wrong, busy: false });
           return;
         }
 
@@ -94,7 +99,7 @@ export function useScanFlow(options: {
         show({ kind: "invalid", reason: "network" });
       }
     },
-    [endpoint, show],
+    [endpoint, show, buzz],
   );
 
   const submit = useCallback(

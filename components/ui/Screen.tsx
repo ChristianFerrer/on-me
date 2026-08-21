@@ -30,7 +30,8 @@ export function Screen({
       <main
         className={cn(
           "mx-auto flex min-h-dvh w-full max-w-[30rem] flex-col sm:max-w-[34rem] lg:max-w-[40rem] xl:max-w-[44rem]",
-          "px-5 pt-[max(1rem,env(safe-area-inset-top))]",
+          "pl-[max(1.25rem,env(safe-area-inset-left))] pr-[max(1.25rem,env(safe-area-inset-right))]",
+          "pt-[max(1rem,env(safe-area-inset-top))]",
           "pb-[max(1.5rem,env(safe-area-inset-bottom))]",
           className,
         )}

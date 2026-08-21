@@ -22,7 +22,7 @@ export default async function CardPage() {
         <div className="flex flex-1 flex-col justify-center">
           <Slab className="p-7">
             <h1 className="display text-[1.875rem]">{t.errors.notFound}</h1>
-            <p className="mt-3 text-[0.9375rem] leading-relaxed text-chalk/60">
+            <p className="mt-3 text-[0.9375rem] leading-relaxed text-chalk/70">
               {t.errors.notFoundBody}
             </p>
             <ButtonLink href="/inicio" tone="ink" size="md" className="mt-6">
@@ -55,17 +55,17 @@ export default async function CardPage() {
               <h1 className="display-tight mt-5 text-[clamp(2.25rem,11vw,2.875rem)] text-lime">
                 {t.card.rewardTitle}
               </h1>
-              <p className="mt-4 text-[0.9375rem] leading-relaxed text-chalk/60">
+              <p className="mt-4 text-[0.9375rem] leading-relaxed text-chalk/70">
                 {t.card.rewardBody}
               </p>
             </>
           ) : (
             <>
-              <p className="display-tight numeral mt-5 text-[3.25rem]">
+              <h1 className="display-tight numeral mt-5 text-[3.25rem]">
                 {stamps}
                 <span className="text-chalk/30">/{shop.stamps_goal}</span>
-              </p>
-              <p className="mt-1 text-[0.9375rem] font-medium text-chalk/55">
+              </h1>
+              <p className="mt-1 text-[0.9375rem] font-medium text-chalk/70">
                 {remaining === 1
                   ? t.card.oneToGo
                   : fill(t.card.nToGo, { n: remaining })}
@@ -106,7 +106,7 @@ export default async function CardPage() {
           <Slab className="p-7">
             <p className="eyebrow text-lime">{t.card.inviteReady}</p>
             <p className="display mt-3 text-[1.625rem]">{t.invite.title}</p>
-            <p className="mt-2 text-[0.9375rem] leading-relaxed text-chalk/55">
+            <p className="mt-2 text-[0.9375rem] leading-relaxed text-chalk/70">
               {t.card.inviteBody}
             </p>
             <ButtonLink href="/c/invitar" tone="lime" size="md" className="mt-6">

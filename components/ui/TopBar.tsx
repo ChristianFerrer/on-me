@@ -32,7 +32,7 @@ export function TopBar({
         <Link
           href={back}
           prefetch={false}
-          className="flex items-center gap-2 text-[0.9375rem] font-medium text-chalk/70 transition-colors hover:text-chalk"
+          className="-my-2.5 flex items-center gap-2 py-2.5 text-[0.9375rem] font-medium text-chalk/70 transition-colors hover:text-chalk"
         >
           <ArrowLeftIcon className="size-4" aria-hidden />
           {backLabel}

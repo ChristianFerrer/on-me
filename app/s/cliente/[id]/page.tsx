@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { CustomerActions } from "@/components/barista/CustomerActions";
-import { ArrowLeftIcon } from "@/components/ui/Icons";
+import { ArrowLeftIcon, ScanIcon } from "@/components/ui/Icons";
 import { QrCode } from "@/components/ui/QrCode";
 import { Screen } from "@/components/ui/Screen";
 import { StampCard } from "@/components/ui/StampCard";
@@ -9,6 +9,7 @@ import { getDeviceContext, pinRequired } from "@/lib/auth/device";
 import { db } from "@/lib/db/client";
 import { env } from "@/lib/env";
 import { getI18n } from "@/lib/i18n/server";
+import { claimedInvitationFor } from "@/lib/invitations";
 import { firstName } from "@/lib/scan-service";
 
 type CustomerDetail = {
@@ -43,6 +44,7 @@ export default async function CustomerPage({
 
   const stamps = customer.passes[0]?.stamps ?? 0;
   const rewardPending = customer.passes[0]?.reward_pending ?? false;
+  const invitationPending = !rewardPending && Boolean(await claimedInvitationFor(customer.id));
 
   return (
     <Screen tone="ink" className="gap-6">
@@ -55,9 +57,19 @@ export default async function CustomerPage({
           <ArrowLeftIcon className="size-4" />
           {t.common.back}
         </Link>
-        <span className="eyebrow rounded-full bg-white/8 px-3 py-1.5 text-chalk/50">
-          {t.barista.manualBadge}
-        </span>
+        <div className="flex items-center gap-2">
+          <span className="eyebrow rounded-full bg-white/8 px-3 py-1.5 text-chalk/50">
+            {t.barista.manualBadge}
+          </span>
+          <Link
+            href="/s"
+            prefetch={false}
+            aria-label={t.barista.backToScanner}
+            className="btn glass-dark size-9 text-chalk"
+          >
+            <ScanIcon className="size-4" />
+          </Link>
+        </div>
       </header>
 
       <div>
@@ -91,6 +103,8 @@ export default async function CustomerPage({
         t={t.barista}
         customerId={customer.id}
         pinRequired={pinRequired(ctx.device)}
+        rewardPending={rewardPending}
+        invitationPending={invitationPending}
       />
 
       {/*

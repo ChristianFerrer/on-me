@@ -170,14 +170,14 @@ function DeviceRow({
         <button
           type="button"
           onClick={() => setLinkOpen((value) => !value)}
-          className="btn bg-ink-2 px-4 py-2 text-[0.8125rem] text-chalk"
+          className="btn bg-ink-2 px-4 py-3 text-[0.8125rem] text-chalk"
         >
           {linkOpen ? t.hideLink : t.viewLink}
         </button>
         <button
           type="button"
           onClick={() => setPinOpen((value) => !value)}
-          className="btn bg-ink-2 px-4 py-2 text-[0.8125rem] text-chalk"
+          className="btn bg-ink-2 px-4 py-3 text-[0.8125rem] text-chalk"
         >
           {device.hasPin ? t.changePin : t.setPin}
         </button>
@@ -186,7 +186,7 @@ function DeviceRow({
             type="button"
             onClick={() => void revoke()}
             disabled={busy}
-            className="btn bg-coral/15 px-4 py-2 text-[0.8125rem] text-coral disabled:opacity-40"
+            className="btn bg-coral/15 px-4 py-3 text-[0.8125rem] text-coral disabled:opacity-40"
           >
             {t.revoke}
           </button>

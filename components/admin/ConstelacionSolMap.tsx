@@ -852,6 +852,7 @@ export function ConstelacionSolMap({
   returnWindowDays,
   locale,
   t,
+  initialFocusId,
 }: {
   graph: GiftGraph;
   shopName: string;
@@ -860,6 +861,9 @@ export function ConstelacionSolMap({
   returnWindowDays: number;
   locale: Locale;
   t: Dict;
+  /** Id de cliente a preseleccionar al entrar -ver ADM-19: el enlace "ver en
+      la constelación" de cada fila de Visitas llega con `?focus=<id>`-. */
+  initialFocusId?: string;
 }) {
   // La página lo carga una vez en el servidor al entrar, pero esta es la
   // vista pensada para quedarse encendida en el local todo el día -no una
@@ -1032,7 +1036,16 @@ export function ConstelacionSolMap({
   const size = half * 2;
 
   const [pan, setPan] = useState<Pan>({ x: 0, y: 0, scale: 1 });
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  // ADM-19: el enlace "ver en la constelación" de cada fila de Visitas llega
+  // con `?focus=<id de cliente>` -ver initialFocusId-; se preselecciona en el
+  // propio inicializador perezoso de useState, no en un efecto, para que no
+  // haga falta un render extra ni volver a seleccionar en cada sondeo de
+  // LIVE_POLL_MS que refresca `graph`.
+  const [selectedId, setSelectedId] = useState<string | null>(() =>
+    initialFocusId && initialGraph.nodes.some((n) => n.id === initialFocusId)
+      ? initialFocusId
+      : null,
+  );
   // ADM-04: el propio grafo es un único <svg> con gestos solo de puntero,
   // así que ningún nodo es enfocable por teclado -la pantalla principal del
   // panel quedaba inaccesible sin ratón/tacto-. En vez de intentar hacer
@@ -2075,7 +2088,7 @@ export function ConstelacionSolMap({
                 className="flex w-full items-center justify-between gap-3 rounded-xl px-3 py-2.5 text-left text-[0.875rem] font-medium text-chalk transition-colors hover:bg-white/8 focus-visible:bg-white/8"
               >
                 <span className="truncate">{node.name}</span>
-                <span className="shrink-0 text-[0.75rem] font-normal text-chalk/45">
+                <span className="shrink-0 text-[0.75rem] font-normal text-chalk/60">
                   {stateBadgeLabel(node.state, t)}
                 </span>
               </button>
@@ -2476,8 +2489,8 @@ export function ConstelacionSolMap({
             compartido por las cuatro pantallas del panel en vez de que esta
             vista reinvente el suyo: aquí ya solo queda la placa del local. */}
         <div className="pointer-events-none flex min-w-0 flex-col gap-0.5">
-          <p className="truncate text-[1rem] font-extrabold leading-none tracking-[-0.01em] text-chalk">{shopName}</p>
-          <p className="eyebrow truncate text-[0.625rem] text-chalk/45">
+          <h1 className="truncate text-[1rem] font-extrabold leading-none tracking-[-0.01em] text-chalk">{shopName}</h1>
+          <p className="eyebrow truncate text-[0.625rem] text-chalk/60">
             {t.admin.referralMap} · {customerCount} {t.admin.constelacionCustomersLabel}
           </p>
         </div>
@@ -2573,7 +2586,7 @@ export function ConstelacionSolMap({
             className="glass-dark pointer-events-auto flex h-full min-h-0 flex-col p-3"
             style={{ background: "rgba(10,14,13,0.32)" }}
           >
-            <p className="eyebrow shrink-0 text-chalk/40">
+            <p className="eyebrow shrink-0 text-chalk/60">
               {t.admin.constelacionActionFeedTitle}
               {liveEvents.length > 0 ? ` · ${fill(t.admin.constelacionActionFeedCount, { n: liveEvents.length })}` : ""}
             </p>
@@ -2583,7 +2596,7 @@ export function ConstelacionSolMap({
                 por si el propio usuario se había desplazado a leer el historial. */}
             <div ref={liveFeedScrollRef} className="scrollbar-glass mt-2 flex min-h-0 flex-1 flex-col gap-2.5 overflow-y-auto pr-1">
               {liveEvents.length === 0 ? (
-                <p className="text-[0.6875rem] text-chalk/35">{t.admin.constelacionActionFeedEmpty}</p>
+                <p className="text-[0.6875rem] text-chalk/60">{t.admin.constelacionActionFeedEmpty}</p>
               ) : (
                 liveEvents.map((event) => {
                   const hasName = event.name !== "";
@@ -2601,11 +2614,11 @@ export function ConstelacionSolMap({
                         <p className={cn("text-[0.6875rem] leading-snug", hasName ? "font-semibold text-chalk/90" : "text-chalk/55")}>
                           {liveEventMessage(event.kind, event.name, t, event.stampNumber)}
                           {" · "}
-                          <span className="font-normal text-chalk/45">
+                          <span className="font-normal text-chalk/60">
                             {liveEventDetail(event.kind, t, { state: event.state, stampsGoal, stampNumber: event.stampNumber })}
                           </span>
                         </p>
-                        <p className="mt-0.5 text-[0.5625rem] text-chalk/35">{eventTimeLabel(event.ts)}</p>
+                        <p className="mt-0.5 text-[0.5625rem] text-chalk/60">{eventTimeLabel(event.ts)}</p>
                       </div>
                     </div>
                   );
@@ -2680,7 +2693,7 @@ export function ConstelacionSolMap({
               style={{ background: "rgba(10,14,13,0.32)" }}
             >
             <div className="scrollbar-hidden flex min-h-0 flex-1 flex-col overflow-y-auto p-3">
-              <p className="eyebrow shrink-0 text-chalk/40">{t.admin.constelacionInsightsTitle}</p>
+              <p className="eyebrow shrink-0 text-chalk/60">{t.admin.constelacionInsightsTitle}</p>
               <div className="mt-2 shrink-0 rounded-2xl p-3" style={{ background: "rgba(233,255,114,0.1)" }}>
                 <p className="numeral text-[1.75rem] font-extrabold leading-none text-lime">{insights.referredPct}%</p>
                 <p className="mt-1 text-[0.6875rem] leading-snug text-chalk/70">{t.admin.constelacionInsightsReferredPct}</p>
@@ -2705,7 +2718,7 @@ export function ConstelacionSolMap({
                     <dd className="numeral shrink-0 text-[1.0625rem] font-bold leading-none text-chalk/90">{row.value}</dd>
                     <div className="min-w-0">
                       <dt className="text-[0.6875rem] leading-snug text-chalk/80">{row.label}</dt>
-                      <dd className="mt-0.5 text-[0.5625rem] leading-snug text-chalk/40">{row.desc}</dd>
+                      <dd className="mt-0.5 text-[0.5625rem] leading-snug text-chalk/60">{row.desc}</dd>
                     </div>
                   </div>
                 ))}
@@ -2716,8 +2729,8 @@ export function ConstelacionSolMap({
                   estado que ya vive en `dl` de arriba, repetida en dos
                   sitios distintos de la pantalla. */}
               <div className="mt-3 shrink-0 border-t border-white/8 pt-3">
-                <p className="eyebrow text-chalk/40">{t.admin.constelacionLegendTitle}</p>
-                <p className="mt-0.5 text-[0.625rem] leading-snug text-chalk/30">{t.admin.constelacionLegendDesc}</p>
+                <p className="eyebrow text-chalk/60">{t.admin.constelacionLegendTitle}</p>
+                <p className="mt-0.5 text-[0.625rem] leading-snug text-chalk/60">{t.admin.constelacionLegendDesc}</p>
                 <div className="mt-2 flex flex-col gap-1.5">
                   {FUNNEL_ORDER.map((state) => {
                     const isMutedRow = CONSTELACION_MUTED_STATES.has(state);
@@ -2740,14 +2753,14 @@ export function ConstelacionSolMap({
                           />
                         </span>
                         <span className="min-w-0 flex-1 truncate">{stateBadgeLabel(state, t)}</span>
-                        <span className="numeral text-[0.625rem] text-chalk/40">{funnelCounts.get(state) ?? 0}</span>
+                        <span className="numeral text-[0.625rem] text-chalk/60">{funnelCounts.get(state) ?? 0}</span>
                       </div>
                     );
                   })}
                 </div>
-                <p className="mt-2.5 border-t border-white/8 pt-2.5 text-[0.5625rem] leading-tight text-chalk/40">{t.admin.constelacionSizeLegend}</p>
-                <p className="mt-1.5 text-[0.5625rem] leading-tight text-chalk/40">{t.admin.constelacionBrightnessLegend}</p>
-                <p className="mt-1.5 text-[0.5625rem] leading-tight text-chalk/40">{t.admin.constelacionHaloLegend}</p>
+                <p className="mt-2.5 border-t border-white/8 pt-2.5 text-[0.5625rem] leading-tight text-chalk/60">{t.admin.constelacionSizeLegend}</p>
+                <p className="mt-1.5 text-[0.5625rem] leading-tight text-chalk/60">{t.admin.constelacionBrightnessLegend}</p>
+                <p className="mt-1.5 text-[0.5625rem] leading-tight text-chalk/60">{t.admin.constelacionHaloLegend}</p>
               </div>
             </div>
             </div>
@@ -2807,7 +2820,7 @@ export function ConstelacionSolMap({
                   opacity: controlsOpen ? 1 : 0,
                 }}
               >
-                <button type="button" onClick={resetView} aria-label={t.admin.resetView} className="btn glass-dark size-11 text-chalk">
+                <button type="button" onClick={resetView} aria-label={t.admin.resetView} title={t.admin.resetView} className="btn glass-dark size-11 text-chalk">
                   <CompassIcon className="size-5" />
                 </button>
                 <button
@@ -2815,6 +2828,7 @@ export function ConstelacionSolMap({
                   onClick={() => setHudVisible((v) => !v)}
                   aria-pressed={hudVisible}
                   aria-label={t.admin.constelacionToggleHud}
+                  title={t.admin.constelacionToggleHud}
                   className={cn("btn size-11", hudVisible ? "bg-lime text-ink" : "glass-dark text-chalk")}
                 >
                   {hudVisible ? <EyeIcon className="size-5" /> : <EyeOffIcon className="size-5" />}
@@ -2829,7 +2843,7 @@ export function ConstelacionSolMap({
                   onClick={() => setHideDirectLinks((v) => !v)}
                   aria-pressed={!hideDirectLinks}
                   aria-label={t.admin.constelacionHideDirectLinks}
-                  title={t.admin.constelacionSettings}
+                  title={t.admin.constelacionHideDirectLinks}
                   className={cn("btn size-11", !hideDirectLinks ? "bg-lime text-ink" : "glass-dark text-chalk")}
                 >
                   <SettingsIcon className="size-5" />
@@ -2861,7 +2875,7 @@ export function ConstelacionSolMap({
                     inferior -es igualmente "una exploración a pantalla completa, no
                     una tarjeta más"-, así que este icono sigue siendo el camino
                     directo a puertas y señales, juntas en /admin/metricas. */}
-                <Link href="/admin/metricas" prefetch={false} aria-label={t.admin.navMetrics} className="btn glass-dark size-11 text-chalk">
+                <Link href="/admin/metricas" prefetch={false} aria-label={t.admin.navMetrics} title={t.admin.navMetrics} className="btn glass-dark size-11 text-chalk">
                   <PulseIcon className="size-5" />
                 </Link>
               </div>
