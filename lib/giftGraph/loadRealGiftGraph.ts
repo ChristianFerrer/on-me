@@ -1,4 +1,5 @@
 import { assertNoQueryError, db } from "@/lib/db/client";
+import { computeReferralDepth, findChainRoots } from "@/lib/giftGraph/referralDepth";
 import { firstName } from "@/lib/scan-service";
 import type { Edge, GiftGraph, Node, NodeState } from "@/lib/giftGraph/types";
 
@@ -66,8 +67,7 @@ export async function loadRealGiftGraph(shopId: string, establishmentName: strin
     childrenOf.set(inv.padrino_id, [...(childrenOf.get(inv.padrino_id) ?? []), childId]);
   }
 
-  const hasPadrino = new Set(invs.filter((inv) => inv.claimed_by).map((inv) => inv.claimed_by as string));
-  const chainRoots = customerIds.filter((id) => !hasPadrino.has(id));
+  const chainRoots = findChainRoots(customerIds, invs);
   for (const rootId of chainRoots) {
     edges.push({ from: ESTABLISHMENT_ID, to: rootId, giftedAt: createdAtOf.get(rootId) ?? new Date(0).toISOString() });
   }
@@ -150,25 +150,14 @@ export async function loadRealGiftGraph(shopId: string, establishmentName: strin
     };
   }
 
-  const nodes: Node[] = [];
-  const roots: string[] = [];
-
-  function walk(id: string, depth: number, rootId: string, seen: Set<string>) {
-    if (seen.has(id)) return; // guarda de cordura: no debería haber ciclos
-    seen.add(id);
-    nodes.push(buildNode(id, depth, rootId));
-    for (const childId of childrenOf.get(id) ?? []) walk(childId, depth + 1, rootId, seen);
-  }
-
-  const seen = new Set<string>();
-  for (const rootId of chainRoots) {
-    roots.push(rootId);
-    walk(rootId, 1, rootId, seen);
-  }
+  const depthById = computeReferralDepth(chainRoots, childrenOf);
+  const nodes: Node[] = [...depthById.entries()].map(([id, { depth, rootId }]) =>
+    buildNode(id, depth, rootId),
+  );
 
   return {
     establishment: { id: ESTABLISHMENT_ID, name: establishmentName },
-    roots,
+    roots: chainRoots,
     nodes,
     edges,
   };

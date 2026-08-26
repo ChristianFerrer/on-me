@@ -167,6 +167,17 @@
     border-radius: var(--radius-card);
   }
 
+  /* Tarjeta de /admin/metricas: la spec de esa página pide un ciruela
+     translúcido y un radio de 18px propios, no el --radius-card/glass-dark
+     del resto del panel -mismo criterio que la paleta de la constelación,
+     una desviación deliberada y documentada, no un descuido-. */
+  .metrics-card {
+    background: rgba(12, 10, 20, 0.72);
+    backdrop-filter: blur(18px);
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    border-radius: 18px;
+  }
+
   /* Barra de scroll a juego con el resto del material oscuro -grafito
      translúcido, fina, sin flechas- para los paneles con overflow-y-auto
      (feed de actividad y panel de insights de la vista sol): la barra por
