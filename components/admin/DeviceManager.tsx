@@ -62,7 +62,7 @@ export function DeviceManager({
 
   return (
     <div className="flex flex-col gap-6">
-      <form onSubmit={createDevice} className="flex gap-2.5">
+      <form onSubmit={createDevice} className="flex gap-2.5 md:max-w-md">
         <input
           value={name}
           onChange={(event) => setName(event.target.value)}

@@ -20,7 +20,7 @@ export default async function DevicesPage() {
     <Screen
       tone="ink"
       fullWidth
-      className="gap-7 pb-28 transition-[padding-left] duration-200 ease-[var(--ease-out-soft)] md:mx-0 md:max-w-3xl md:pb-10 md:pl-[calc(var(--admin-sidebar-width,16rem)+2rem)] md:pr-10"
+      className="gap-7 pb-28 transition-[padding-left] duration-200 ease-[var(--ease-out-soft)] md:pb-10 md:pl-[calc(var(--admin-sidebar-width,16rem)+2rem)] md:pr-10"
     >
       <header className="flex items-center gap-3 pt-2">
         <Link

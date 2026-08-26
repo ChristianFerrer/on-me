@@ -57,7 +57,7 @@ export function AttributionsList({
 
   return (
     <div className="flex flex-col gap-2.5">
-      <div className="relative">
+      <div className="relative md:max-w-sm">
         <SearchIcon className="pointer-events-none absolute left-4 top-1/2 size-4 -translate-y-1/2 text-chalk/35" />
         <input
           value={query}
