@@ -32,7 +32,7 @@ export default async function MetricsPage() {
   const data = await loadFunnel(ctx.shop.id);
 
   return (
-    <Screen tone="ink" className="gap-8 pb-28 md:max-w-none md:pb-10 md:pl-72 md:pr-10">
+    <Screen tone="ink" fullWidth className="gap-8 pb-28 md:pb-10 md:pl-72 md:pr-10">
       <header className="flex items-center gap-3 pt-2">
         <Link
           href="/inicio"

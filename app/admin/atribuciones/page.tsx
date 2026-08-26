@@ -56,7 +56,7 @@ export default async function AttributionsPage() {
   }));
 
   return (
-    <Screen tone="ink" className="gap-5 pb-28 md:mx-0 md:max-w-3xl md:pb-10 md:pl-72 md:pr-10">
+    <Screen tone="ink" fullWidth className="gap-5 pb-28 md:mx-0 md:max-w-3xl md:pb-10 md:pl-72 md:pr-10">
       <header className="sticky top-0 z-10 -mx-5 flex items-center gap-3 bg-ink/85 px-5 py-3.5 backdrop-blur-lg md:mx-0 md:rounded-2xl md:px-5">
         <Link
           href="/inicio"

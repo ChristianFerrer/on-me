@@ -13,11 +13,26 @@ export function Screen({
   children,
   className,
   tone = "aurora",
+  fullWidth = false,
 }: {
   children: React.ReactNode;
   className?: string;
   /** aurora: degradado de cliente · quiet: degradado apagado · ink: degradado nocturno, pantallas de trabajo */
   tone?: "aurora" | "quiet" | "ink";
+  /**
+   * Sin la cadena de max-w propia -pensada para que la tarjeta móvil crezca
+   * por breakpoint, no para el panel de escritorio real-. `cn()` no
+   * resuelve utilidades de Tailwind en conflicto -no es tailwind-merge-, así
+   * que un className del caller como `md:max-w-none` no le gana a las reglas
+   * `lg:`/`xl:` de este propio componente: en la hoja de estilos compilada
+   * los breakpoints siempre quedan en orden ascendente sin importar el
+   * className recibido, y la última regla de la cascada para esa propiedad
+   * es la que gana -`lg:max-w-[40rem]`/`xl:max-w-[44rem]`, no el `md:` del
+   * caller-. Cualquier página que necesite otro ancho en escritorio activa
+   * `fullWidth` y pone su propio max-w por className, sin ninguna regla de
+   * este componente con la que competir.
+   */
+  fullWidth?: boolean;
 }) {
   const skin = {
     aurora: "aurora text-ink",
@@ -29,7 +44,8 @@ export function Screen({
     <div className={cn("min-h-dvh w-full", skin)}>
       <main
         className={cn(
-          "mx-auto flex min-h-dvh w-full max-w-[30rem] flex-col sm:max-w-[34rem] lg:max-w-[40rem] xl:max-w-[44rem]",
+          "mx-auto flex min-h-dvh w-full flex-col",
+          !fullWidth && "max-w-[30rem] sm:max-w-[34rem] lg:max-w-[40rem] xl:max-w-[44rem]",
           "pl-[max(1.25rem,env(safe-area-inset-left))] pr-[max(1.25rem,env(safe-area-inset-right))]",
           "pt-[max(1rem,env(safe-area-inset-top))]",
           "pb-[max(1.5rem,env(safe-area-inset-bottom))]",
