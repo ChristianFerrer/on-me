@@ -17,11 +17,11 @@ import type { Dict } from "@/lib/i18n";
 type AdminDict = Dict["admin"];
 export type AdminSection = "constelacion" | "metricas" | "dispositivos" | "atribuciones";
 
-/** Ancho del sidebar de escritorio: el resto de las páginas del panel reservan este mismo hueco. */
+/** Ancho del sidebar de escritorio desplegado. */
 export const ADMIN_SIDEBAR_WIDTH = "16rem";
-/** Ancho del sidebar plegado -solo iconos-, disponible en las pantallas que pasan `collapsible`. */
+/** Ancho del sidebar de escritorio plegado -solo iconos-, su estado por defecto. */
 export const ADMIN_SIDEBAR_WIDTH_COLLAPSED = "4.75rem";
-/** Variable CSS con el ancho real del sidebar en este momento -16rem salvo que esta página lo haya plegado-: las pantallas a medida (los mapas de constelación) la leen para no dejar un hueco vacío o quedar tapadas cuando el sidebar se pliega. */
+/** Variable CSS con el ancho real del sidebar en este momento: todas las páginas del panel la leen para su propio padding izquierdo, así que se ajustan solas al plegar/desplegar sin que cada una tenga que enterarse del estado por su cuenta. */
 const SIDEBAR_WIDTH_VAR = "--admin-sidebar-width";
 
 /**
@@ -38,30 +38,30 @@ const SIDEBAR_WIDTH_VAR = "--admin-sidebar-width";
  * marcados -uno oculto en cada breakpoint-, no dos componentes separados:
  * así ambos comparten la lista de items y no pueden desincronizarse.
  *
- * `collapsible` -apagado por defecto- añade un botón para plegar el sidebar
- * a solo iconos: pensado para las pantallas a pantalla completa (los mapas
- * de constelación), donde el lienzo agradece cada centímetro. El resto del
- * panel no lo pasa, así que se queda igual que siempre.
+ * El sidebar de escritorio arranca plegado a solo iconos -mismo criterio
+ * en las cuatro pantallas del panel, nunca una empieza distinta de las
+ * demás- y un botón lo despliega a la versión con etiquetas cuando hace
+ * falta. Plegado por defecto porque es el mismo panel de un piloto de un
+ * solo local: la lista de cuatro secciones se reconoce por icono casi de
+ * inmediato, y el ancho que se ahorra es ancho real para el contenido de
+ * cada pantalla.
  */
 export function BottomNav({
   t,
   active,
-  collapsible = false,
 }: {
   t: AdminDict;
   active?: AdminSection;
-  collapsible?: boolean;
 }) {
-  const [collapsed, setCollapsed] = useState(false);
-  const isCollapsed = collapsible && collapsed;
+  const [collapsed, setCollapsed] = useState(true);
 
   useEffect(() => {
-    const width = isCollapsed ? ADMIN_SIDEBAR_WIDTH_COLLAPSED : ADMIN_SIDEBAR_WIDTH;
+    const width = collapsed ? ADMIN_SIDEBAR_WIDTH_COLLAPSED : ADMIN_SIDEBAR_WIDTH;
     document.documentElement.style.setProperty(SIDEBAR_WIDTH_VAR, width);
     return () => {
       document.documentElement.style.removeProperty(SIDEBAR_WIDTH_VAR);
     };
-  }, [isCollapsed]);
+  }, [collapsed]);
 
   const items: { key: AdminSection; href: string; label: string; icon: React.ReactNode }[] = [
     { key: "constelacion", href: "/admin/constelacion-sol", label: t.referralMap, icon: <OrbitIcon className="size-5" /> },
@@ -119,31 +119,31 @@ export function BottomNav({
       </nav>
 
       <nav
-        style={{ width: isCollapsed ? ADMIN_SIDEBAR_WIDTH_COLLAPSED : ADMIN_SIDEBAR_WIDTH }}
+        style={{ width: collapsed ? ADMIN_SIDEBAR_WIDTH_COLLAPSED : ADMIN_SIDEBAR_WIDTH }}
         className={cn(
           "fixed inset-y-0 left-0 z-40 hidden flex-col gap-1 rounded-none border-y-0 border-l-0 border-r border-white/10 bg-black p-4 transition-[width] duration-200 ease-[var(--ease-out-soft)] md:flex",
-          isCollapsed && "items-center px-2",
+          collapsed && "items-center px-2",
         )}
       >
-        <Link href="/inicio" prefetch={false} className={cn("pb-6 pt-2", isCollapsed ? "px-0" : "px-2")}>
-          {isCollapsed ? <Mark className="size-3.5" /> : <Logo tone="chalk" />}
+        <Link href="/inicio" prefetch={false} className={cn("pb-6 pt-2", collapsed ? "px-0" : "px-2")}>
+          {collapsed ? <Mark className="size-3.5" /> : <Logo tone="chalk" />}
         </Link>
         {items.map((item) => (
           <Link
             key={item.key}
             href={item.href}
             prefetch={false}
-            title={isCollapsed ? item.label : undefined}
+            title={collapsed ? item.label : undefined}
             className={cn(
               "flex items-center gap-3 rounded-xl py-2.5 text-[0.875rem] font-semibold transition-colors",
-              isCollapsed ? "justify-center px-2.5" : "px-3",
+              collapsed ? "justify-center px-2.5" : "px-3",
               active === item.key
                 ? "bg-lime/12 text-lime"
                 : "text-chalk/55 hover:bg-white/6 hover:text-chalk",
             )}
           >
             {item.icon}
-            {isCollapsed ? null : item.label}
+            {collapsed ? null : item.label}
           </Link>
         ))}
 
@@ -159,17 +159,15 @@ export function BottomNav({
             Dentro del propio recuadro, pegado a su borde, se lee como lo
             que es: un control del sidebar, no un botón suelto encima del
             mapa. */}
-        {collapsible ? (
-          <button
-            type="button"
-            onClick={() => setCollapsed((v) => !v)}
-            aria-pressed={isCollapsed}
-            aria-label={isCollapsed ? t.constelacionExpandSidebar : t.constelacionCollapseSidebar}
-            className="btn glass-dark absolute right-3 bottom-6 size-6 shrink-0 text-chalk/60 hover:text-chalk"
-          >
-            <ChevronDownIcon className={cn("size-3.5 transition-transform duration-200 ease-[var(--ease-out-soft)]", isCollapsed ? "-rotate-90" : "rotate-90")} />
-          </button>
-        ) : null}
+        <button
+          type="button"
+          onClick={() => setCollapsed((v) => !v)}
+          aria-pressed={collapsed}
+          aria-label={collapsed ? t.constelacionExpandSidebar : t.constelacionCollapseSidebar}
+          className="btn glass-dark absolute right-3 bottom-6 size-6 shrink-0 text-chalk/60 hover:text-chalk"
+        >
+          <ChevronDownIcon className={cn("size-3.5 transition-transform duration-200 ease-[var(--ease-out-soft)]", collapsed ? "-rotate-90" : "rotate-90")} />
+        </button>
       </nav>
     </>
   );

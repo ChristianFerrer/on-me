@@ -83,21 +83,81 @@ export function DeviceManager({
       {devices.length === 0 ? (
         <p className="text-[0.9375rem] text-chalk/45">{t.noDevices}</p>
       ) : (
-        <ul className="flex flex-col gap-3">
-          {devices.map((device) => (
-            <DeviceRow
-              key={device.id}
-              t={t}
-              device={device}
-              baseUrl={baseUrl}
-              locale={locale}
-              onChanged={() => router.refresh()}
-            />
-          ))}
-        </ul>
+        <>
+          {/* Tarjetas: solo móvil. */}
+          <ul className="flex flex-col gap-3 md:hidden">
+            {devices.map((device) => (
+              <DeviceRow
+                key={device.id}
+                t={t}
+                device={device}
+                baseUrl={baseUrl}
+                locale={locale}
+                onChanged={() => router.refresh()}
+              />
+            ))}
+          </ul>
+
+          {/* Tabla: desde md, una fila por dispositivo en vez de una tarjeta completa. */}
+          <div className="glass-dark hidden overflow-x-auto rounded-xl md:block">
+            <table className="w-full text-left text-[0.8125rem]">
+              <thead>
+                <tr className="text-chalk/40">
+                  <th className="px-3.5 py-2.5 font-medium">{t.newDevice}</th>
+                  <th className="px-3.5 py-2.5 font-medium">{t.online}</th>
+                  <th className="px-3.5 py-2.5 font-medium">{t.pin}</th>
+                  <th className="px-3.5 py-2.5" />
+                </tr>
+              </thead>
+              <tbody>
+                {devices.map((device) => (
+                  <DeviceTableRow
+                    key={device.id}
+                    t={t}
+                    device={device}
+                    baseUrl={baseUrl}
+                    locale={locale}
+                    onChanged={() => router.refresh()}
+                  />
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
       )}
     </div>
   );
+}
+
+/**
+ * Copiar el enlace y revocar la sesión: idénticos en la tarjeta de móvil y
+ * en la fila de tabla de escritorio, así que viven una sola vez aquí en vez
+ * de duplicarse en los dos componentes que los usan.
+ */
+function useDeviceActions(deviceId: string, link: string, onChanged: () => void) {
+  const [copied, setCopied] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  async function copyLink() {
+    await navigator.clipboard.writeText(link);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }
+
+  async function revoke(confirmMessage: string) {
+    if (busy || !window.confirm(confirmMessage)) return;
+    setBusy(true);
+    try {
+      const response = await fetch(`/api/admin/devices/${deviceId}/revoke`, {
+        method: "POST",
+      });
+      if (response.ok) onChanged();
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return { copied, busy, copyLink, revoke };
 }
 
 function DeviceRow({
@@ -115,29 +175,8 @@ function DeviceRow({
 }) {
   const [linkOpen, setLinkOpen] = useState(false);
   const [pinOpen, setPinOpen] = useState(false);
-  const [copied, setCopied] = useState(false);
-  const [busy, setBusy] = useState(false);
-
   const link = `${baseUrl}/s/${device.token}`;
-
-  async function copyLink() {
-    await navigator.clipboard.writeText(link);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  }
-
-  async function revoke() {
-    if (busy || !window.confirm(t.confirmRevoke)) return;
-    setBusy(true);
-    try {
-      const response = await fetch(`/api/admin/devices/${device.id}/revoke`, {
-        method: "POST",
-      });
-      if (response.ok) onChanged();
-    } finally {
-      setBusy(false);
-    }
-  }
+  const { copied, busy, copyLink, revoke } = useDeviceActions(device.id, link, onChanged);
 
   return (
     <li className="glass-dark rounded-2xl p-5">
@@ -185,7 +224,7 @@ function DeviceRow({
         {device.hasActiveSession ? (
           <button
             type="button"
-            onClick={() => void revoke()}
+            onClick={() => void revoke(t.confirmRevoke)}
             disabled={busy}
             className="btn bg-coral/15 px-4 py-3 text-[0.8125rem] text-coral disabled:opacity-40"
           >
@@ -226,6 +265,124 @@ function DeviceRow({
         />
       ) : null}
     </li>
+  );
+}
+
+/** Misma fila que DeviceRow, pero como <tr> -para la tabla de escritorio-: comparte lógica vía useDeviceActions, no JSX. */
+function DeviceTableRow({
+  t,
+  device,
+  baseUrl,
+  locale,
+  onChanged,
+}: {
+  t: AdminDict;
+  device: DeviceListItem;
+  baseUrl: string;
+  locale: Locale;
+  onChanged: () => void;
+}) {
+  const [linkOpen, setLinkOpen] = useState(false);
+  const [pinOpen, setPinOpen] = useState(false);
+  const link = `${baseUrl}/s/${device.token}`;
+  const { copied, busy, copyLink, revoke } = useDeviceActions(device.id, link, onChanged);
+
+  return (
+    <>
+      <tr className="border-t border-white/8">
+        <td className="max-w-56 truncate px-3.5 py-3 font-semibold">{device.name}</td>
+        <td className="px-3.5 py-3 text-chalk/60">
+          <span className="flex items-center gap-1.5">
+            <span
+              className={cn(
+                "size-1.5 shrink-0 rounded-full",
+                device.hasActiveSession ? "bg-lime" : "bg-chalk/25",
+              )}
+            />
+            {device.hasActiveSession ? t.online : t.offline}
+            {device.lastSeenAt
+              ? ` · ${fill(t.lastSeen, { t: formatDateTime(device.lastSeenAt, locale) })}`
+              : ""}
+          </span>
+        </td>
+        <td className="px-3.5 py-3">
+          <span
+            className={cn(
+              "eyebrow rounded-full px-2.5 py-1",
+              device.hasPin ? "bg-white/8 text-chalk/50" : "bg-amber/15 text-amber",
+            )}
+          >
+            {device.hasPin ? t.pinSet : t.noPin}
+          </span>
+        </td>
+        <td className="px-3.5 py-3 text-right">
+          <div className="flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => setLinkOpen((value) => !value)}
+              className="btn bg-ink-2 px-3 py-2 text-[0.8125rem] text-chalk"
+            >
+              {linkOpen ? t.hideLink : t.viewLink}
+            </button>
+            <button
+              type="button"
+              onClick={() => setPinOpen((value) => !value)}
+              className="btn bg-ink-2 px-3 py-2 text-[0.8125rem] text-chalk"
+            >
+              {device.hasPin ? t.changePin : t.setPin}
+            </button>
+            {device.hasActiveSession ? (
+              <button
+                type="button"
+                onClick={() => void revoke(t.confirmRevoke)}
+                disabled={busy}
+                className="btn bg-coral/15 px-3 py-2 text-[0.8125rem] text-coral disabled:opacity-40"
+              >
+                {t.revoke}
+              </button>
+            ) : null}
+          </div>
+        </td>
+      </tr>
+
+      {linkOpen ? (
+        <tr className="border-t border-white/8">
+          <td colSpan={4} className="p-4">
+            <div className="flex items-center gap-4 rounded-xl bg-ink-2 p-4">
+              <DeviceQr value={link} />
+              <div className="min-w-0 flex-1">
+                <p className="text-[0.8125rem] text-chalk/45">{t.deviceLinkHint}</p>
+                <p className="mt-1.5 break-all text-[0.8125rem] font-medium text-chalk/80">{link}</p>
+                <button
+                  type="button"
+                  onClick={() => void copyLink()}
+                  className="btn mt-3 gap-1.5 bg-lime px-4 py-2 text-[0.8125rem] text-ink"
+                >
+                  {copied ? <CheckIcon className="size-4" /> : <CopyIcon className="size-4" />}
+                  {copied ? t.copied : t.copyLink}
+                </button>
+              </div>
+            </div>
+          </td>
+        </tr>
+      ) : null}
+
+      {pinOpen ? (
+        <tr className="border-t border-white/8">
+          <td colSpan={4} className="p-4">
+            <PinForm
+              t={t}
+              deviceId={device.id}
+              hasPin={device.hasPin}
+              onDone={() => {
+                setPinOpen(false);
+                onChanged();
+              }}
+            />
+          </td>
+        </tr>
+      ) : null}
+    </>
   );
 }
 

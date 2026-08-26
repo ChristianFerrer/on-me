@@ -2906,7 +2906,7 @@ export function ConstelacionSolMap({
         ) : null}
       </footer>
 
-      <BottomNav t={t.admin} active="constelacion" collapsible />
+      <BottomNav t={t.admin} active="constelacion" />
     </div>
   );
 }
