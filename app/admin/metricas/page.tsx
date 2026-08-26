@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { BottomNav } from "@/components/admin/BottomNav";
 import { FunnelBars } from "@/components/admin/FunnelBars";
 import { GateCard } from "@/components/admin/GateCard";
+import { StatCard } from "@/components/admin/StatCard";
 import { WaveChart } from "@/components/admin/WaveChart";
 import { HomeIcon, ShieldIcon } from "@/components/ui/Icons";
 import { Screen } from "@/components/ui/Screen";
@@ -47,9 +48,32 @@ export default async function MetricsPage() {
         </div>
       </header>
 
+      {/* Misma información que FunnelBars de más abajo, pero en tarjetas con
+          su propia mini-gráfica en vez de una lista con barras -solo
+          escritorio: en móvil la lista sigue siendo más legible en una
+          columna estrecha-. Fuera de la cuadrícula de 2 columnas de más
+          abajo y a todo el ancho, como la fila de tarjetas de resumen de
+          cualquier dashboard: confinarla a media pantalla la encogía sin
+          necesidad. */}
+      <section className="hidden flex-col gap-5 md:flex">
+        <h2 className="eyebrow text-chalk/40">{t.admin.title}</h2>
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(11rem,1fr))] gap-3">
+          <StatCard label={t.admin.signups} value={data.signups} points={data.series.signups} accent="var(--color-lime)" />
+          <StatCard label={t.admin.cards} value={data.cards} />
+        </div>
+
+        <p className="eyebrow text-chalk/35">{t.admin.funnelInvitesLabel}</p>
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(11rem,1fr))] gap-3">
+          <StatCard label={t.admin.sent} value={data.sent} points={data.series.sent} accent="var(--color-mint)" />
+          <StatCard label={t.admin.opened} value={data.opened} points={data.series.opened} accent="var(--color-azure)" />
+          <StatCard label={t.admin.redeemed} value={data.redeemed} points={data.series.redeemed} accent="var(--color-amber)" />
+          <StatCard label={t.admin.returns} value={data.returns} points={data.series.returns} accent="var(--color-coral)" />
+        </div>
+      </section>
+
       <div className="flex flex-col gap-8 lg:grid lg:grid-cols-2 lg:items-start lg:gap-10">
         <div className="flex flex-col gap-8">
-          <section className="glass-dark flex flex-col gap-3 p-6">
+          <section className="glass-dark flex flex-col gap-3 p-6 md:hidden">
             <h2 className="eyebrow text-chalk/40">{t.admin.title}</h2>
             <FunnelBars data={data} t={t.admin} />
           </section>

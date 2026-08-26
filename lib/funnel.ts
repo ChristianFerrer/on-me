@@ -20,10 +20,20 @@ export type FunnelData = {
     /** Escaneos de los últimos 7 días, para detectar abuso del dispositivo. */
     scansLast7Days: number;
   };
-  /** Series diarias para las gráficas de línea del panel. */
+  /**
+   * Series diarias para las gráficas de línea del panel. `cards` no tiene
+   * serie propia: `passes.cards_completed` es un contador que se pisa en
+   * cada actualización, no un registro de cuándo se completó cada tarjeta,
+   * así que no hay forma de repartirlo por día sin una tabla de eventos
+   * nueva.
+   */
   series: {
     signups: DailyPoint[];
     scans: DailyPoint[];
+    sent: DailyPoint[];
+    opened: DailyPoint[];
+    redeemed: DailyPoint[];
+    returns: DailyPoint[];
   };
 };
 
@@ -49,6 +59,10 @@ export async function loadFunnel(shopId: string): Promise<FunnelData> {
     recentScans,
     signupSeries,
     scanSeries,
+    sentSeries,
+    openedSeries,
+    redeemedSeries,
+    returnsSeries,
   ] = await Promise.all([
     countOf(counter("customers").eq("shop_id", shopId)),
     // Suma en memoria: en el piloto son cientos de filas, no millones.
@@ -92,6 +106,38 @@ export async function loadFunnel(shopId: string): Promise<FunnelData> {
       .eq("kind", "stamp")
       .gte("created_at", seriesSince)
       .returns<{ created_at: string }[]>(),
+    db()
+      .from("invitations")
+      .select("sent_at")
+      .eq("shop_id", shopId)
+      .not("sent_at", "is", null)
+      .gte("sent_at", seriesSince)
+      .returns<{ sent_at: string }[]>(),
+    db()
+      .from("invitations")
+      .select("opened_at")
+      .eq("shop_id", shopId)
+      .not("opened_at", "is", null)
+      .gte("opened_at", seriesSince)
+      .returns<{ opened_at: string }[]>(),
+    db()
+      .from("invitations")
+      .select("redeemed_at")
+      .eq("shop_id", shopId)
+      .not("redeemed_at", "is", null)
+      .gte("redeemed_at", seriesSince)
+      .returns<{ redeemed_at: string }[]>(),
+    // Mismo filtro que el contador de `returns` -state billable-, no solo
+    // "tiene fecha de retorno": una atribución puede volver y aun así no
+    // ser facturable todavía si el propio criterio de negocio no se cumple.
+    db()
+      .from("attributions")
+      .select("returned_at")
+      .eq("shop_id", shopId)
+      .eq("state", "billable")
+      .not("returned_at", "is", null)
+      .gte("returned_at", seriesSince)
+      .returns<{ returned_at: string }[]>(),
   ]);
 
   const cards = (cardsRows.data ?? []).reduce(
@@ -128,6 +174,18 @@ export async function loadFunnel(shopId: string): Promise<FunnelData> {
     series: {
       signups: bucketDays(signupSeries.data ?? []),
       scans: bucketDays(scanSeries.data ?? []),
+      sent: bucketDays(
+        (sentSeries.data ?? []).map((row) => ({ created_at: row.sent_at })),
+      ),
+      opened: bucketDays(
+        (openedSeries.data ?? []).map((row) => ({ created_at: row.opened_at })),
+      ),
+      redeemed: bucketDays(
+        (redeemedSeries.data ?? []).map((row) => ({ created_at: row.redeemed_at })),
+      ),
+      returns: bucketDays(
+        (returnsSeries.data ?? []).map((row) => ({ created_at: row.returned_at })),
+      ),
     },
   };
 }
