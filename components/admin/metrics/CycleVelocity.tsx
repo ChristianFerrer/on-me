@@ -1,7 +1,13 @@
+/** Escala común fija -spec §7.4-: 30 días, no la ventana de retorno del
+ * local -que puede ser mayor o menor según el negocio-, para que las cuatro
+ * barras sean comparables entre sí sin que cambien de tamaño relativo cada
+ * vez que alguien ajusta la ventana en la configuración. */
+const SCALE_DAYS = 30;
+
 /**
- * Cuatro barras sobre la misma escala -la ventana de retorno del local-: la
- * ventana en sí es la cuarta barra, en gris, para que las otras tres se
- * lean contra su tamaño real, no contra un máximo arbitrario.
+ * Cuatro barras sobre la misma escala de 0 a 30 días: la ventana de retorno
+ * del local es la cuarta barra, en gris, de referencia -para leer las otras
+ * tres contra ella-, pero ya no define la escala.
  */
 export function CycleVelocity({
   steps,
@@ -22,7 +28,7 @@ export function CycleVelocity({
   return (
     <div className="flex flex-col gap-4">
       {bars.map((bar) => {
-        const pct = bar.days !== null ? Math.min((bar.days / windowDays) * 100, 100) : 0;
+        const pct = bar.days !== null ? Math.min((bar.days / SCALE_DAYS) * 100, 100) : 0;
         const isWindow = "isWindow" in bar && bar.isWindow;
         return (
           <div key={bar.label}>

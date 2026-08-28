@@ -190,6 +190,20 @@
     border-radius: 18px;
   }
 
+  /* Tipografía propia de /admin/metricas -spec §3-, misma desviación
+     deliberada que .metrics-card: Outfit para títulos y texto, IBM Plex
+     Mono para todo número/fórmula -sobre `.numeral`, la clase que ya usa
+     toda la app para cifras tabulares, aquí redefinida en vez de creada de
+     cero-. Las variables `--font-outfit`/`--font-metrics-mono` las publica
+     `next/font` en app/admin/metricas/page.tsx; el resto de la app no
+     declara esas variables, así que fuera de este scope no cambia nada. */
+  .metrics-scope {
+    font-family: var(--font-outfit), var(--font-sans);
+  }
+  .metrics-scope .numeral {
+    font-family: var(--font-metrics-mono), ui-monospace, monospace;
+  }
+
   /* Barra de scroll a juego con el resto del material oscuro -grafito
      translúcido, fina, sin flechas- para los paneles con overflow-y-auto
      (feed de actividad y panel de insights de la vista sol): la barra por

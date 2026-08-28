@@ -47,7 +47,13 @@ export function CohortGrid({
               {row.cellsPct.map((pct, week) => (
                 <td key={week} className="px-1.5 py-2 text-center">
                   {pct === null ? (
-                    <span className="text-chalk/25">{futureLabel}</span>
+                    <span
+                      title={futureLabel}
+                      aria-label={futureLabel}
+                      className="inline-flex size-8 items-center justify-center rounded-md bg-white/3 text-[0.75rem] text-chalk/25"
+                    >
+                      —
+                    </span>
                   ) : (
                     <span
                       className="numeral inline-flex size-8 items-center justify-center rounded-md text-[0.75rem] font-semibold"

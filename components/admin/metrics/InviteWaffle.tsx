@@ -41,13 +41,21 @@ export function InviteWaffle({
   }
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="grid grid-cols-[repeat(auto-fill,17px)] gap-[3px]">
+    <div className="flex min-w-0 flex-col gap-4">
+      {/* `min-w-0` en el propio grid, no solo en el contenedor: vive dentro
+          de columnas flex/grid que por defecto tienen `min-width: auto`, así
+          que sin esto el grid crece para caber su contenido intrínseco en
+          una sola fila en vez de envolver -el bug de "una sola fila" no era
+          el `auto-fill`, era que nunca llegaba a tener un ancho acotado
+          contra el que envolver-. `minmax(17px,1fr)` en vez de un `17px`
+          fijo: así los cuadrados de la última fila reparten el ancho sobrante
+          en vez de dejarlo vacío a la derecha. */}
+      <div className="grid min-w-0 grid-cols-[repeat(auto-fill,minmax(17px,1fr))] gap-[5px]">
         {squares.map((key, index) => (
           <div
             key={index}
             title={labels[key]}
-            className="size-[17px] shrink-0 rounded-[3px]"
+            className="aspect-square shrink-0 rounded-[4px] transition-transform hover:scale-110"
             style={{ background: GROUP_COLOR[key] }}
           />
         ))}

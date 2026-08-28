@@ -20,17 +20,17 @@ export function KpiCard({
   alarm?: boolean;
 }) {
   return (
-    <div className="metrics-card p-[18px]">
-      <p className="text-[0.8125rem] font-medium text-chalk/60">{label}</p>
+    <div className="metrics-card flex flex-col justify-center gap-1.5 px-[18px] py-[17px]">
+      <p className="truncate text-[0.8125rem] font-medium text-chalk/60">{label}</p>
       <p
         className={cn(
-          "numeral mt-2 text-[1.625rem] font-semibold",
+          "numeral truncate text-[30px] font-medium tracking-[-0.045em]",
           value === null ? "text-chalk/35" : alarm ? "text-coral" : "text-chalk",
         )}
       >
         {value ?? insufficientLabel}
       </p>
-      <p className="numeral mt-1.5 text-[0.75rem] text-chalk/35">{formula}</p>
+      <p className="numeral truncate text-[0.75rem] text-chalk/35">{formula}</p>
     </div>
   );
 }
