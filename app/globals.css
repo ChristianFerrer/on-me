@@ -51,6 +51,12 @@
   --radius-pill: 999px;
 
   --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
+
+  /* El sidebar del panel pasa a fijo (etiquetas visibles) a partir de
+     1000px, no de `md` (768px): a esa anchura una barra de solo iconos ya
+     tiene sitio de sobra para el texto, y por debajo -tablet vertical
+     incluida- sigue siendo la barra inferior de pestañas. */
+  --breakpoint-nav: 1000px;
 }
 
 /* ============================================================================
@@ -60,6 +66,12 @@
 @layer base {
   :root {
     color-scheme: light;
+    /* Ancho fijo del sidebar de escritorio del panel -leído por las 4
+       pantallas del panel para su propio padding izquierdo, ver
+       BottomNav.tsx-. Ya no cambia en tiempo de ejecución -el sidebar no
+       se pliega-, así que vive aquí como valor estático en vez de
+       fijarse por JS en cada carga. */
+    --admin-sidebar-width: 16rem;
   }
 
   * {

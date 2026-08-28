@@ -28,26 +28,24 @@ const TAP_MAX_DISTANCE_PX = 8;
 const TAP_MAX_DURATION_MS = 400;
 
 /**
- * Alto real de BottomNav en móvil/tablet -por debajo de `md`, donde sigue
- * siendo una barra inferior fija, ver BottomNav.tsx-, sin la zona segura
- * -que la propia barra ya reserva aparte con su pb-[env(...)]-: padding
- * vertical (py-2.5 arriba y abajo) + icono (size-5) + hueco (gap-1) +
+ * Alto real de BottomNav en móvil/tablet -por debajo de `nav` (1000px),
+ * donde sigue siendo una barra inferior fija, ver BottomNav.tsx-, sin la
+ * zona segura -que la propia barra ya reserva aparte con su pb-[env(...)]-:
+ * padding vertical (py-2.5 arriba y abajo) + icono (size-5) + hueco (gap-1) +
  * etiqueta (text-[0.625rem] leading-none) = 1.25 + 1.25 + 0.25 + 0.625rem =
  * 3.375rem. La columna de leyenda/iconos, el aviso inferior y la ficha (ver
  * ConstelacionSheet) suman esto a su margen normal de borde de pantalla
  * -1.25rem- vía `pb-[calc(3.375rem+env(safe-area-inset-bottom)+1.25rem)]`
- * para no quedar tapados por la barra. A partir de `md` BottomNav se
+ * para no quedar tapados por la barra. A partir de `nav` BottomNav se
  * convierte en un sidebar IZQUIERDO de ancho fijo -ADMIN_SIDEBAR_WIDTH en
- * BottomNav.tsx, hoy "16rem"-, así que ahí ya no hay barra inferior que
- * despejar -cae a `md:pb-[max(1.25rem,env(safe-area-inset-bottom))]`, el
- * margen de siempre- pero sí hueco a la izquierda que respetar -de ahí
- * `md:left-[calc(var(--admin-sidebar-width,16rem)+0.75rem)]` en la columna
- * de la leyenda, 0.75rem siendo el mismo hueco que ya usa `left-3`-. Esta
- * vista pasa `collapsible` a BottomNav -único sitio del panel que lo hace-,
- * así que el ancho del sidebar no es fijo: BottomNav publica su ancho real
- * en la variable CSS `--admin-sidebar-width` -16rem desplegado, 4.75rem
- * plegado- y aquí se lee con ese mismo nombre, 16rem de reserva por si el
- * valor no llegó a fijarse a tiempo -SSR/primer pintado-. */
+ * BottomNav.tsx, "16rem", ya no plegable-, así que ahí ya no hay barra
+ * inferior que despejar -cae a `nav:pb-[max(1.25rem,env(safe-area-inset-bottom))]`,
+ * el margen de siempre- pero sí hueco a la izquierda que respetar -de ahí
+ * `nav:left-[calc(var(--admin-sidebar-width,16rem)+0.75rem)]` en la columna
+ * de la leyenda, 0.75rem siendo el mismo hueco que ya usa `left-3`-. El
+ * ancho del sidebar es un valor estático -`--admin-sidebar-width` en
+ * globals.css-, no algo que BottomNav fije por JS: 16rem es tanto el valor
+ * real como la reserva por si la variable no cargó a tiempo. */
 
 /** Radianes por frame de la rotación de fondo, y cuánto tarda en reanudarse tras soltar. */
 const ROTATION_PER_FRAME = 0.00019;
@@ -2008,7 +2006,7 @@ export function ConstelacionSolMap({
   }
 
   return (
-    <div className="fixed inset-0 aurora-night text-chalk transition-[left] duration-200 ease-[var(--ease-out-soft)] md:left-[var(--admin-sidebar-width,16rem)]">
+    <div className="fixed inset-0 aurora-night text-chalk nav:left-[var(--admin-sidebar-width,16rem)]">
       {/* Capa de grano: sin ella el degradado nocturno se bandea en pantallas OLED. */}
       <svg className="pointer-events-none fixed inset-0 z-10 h-full w-full opacity-[0.15]" aria-hidden="true">
         <filter id="constelacion-grain">
@@ -2486,7 +2484,7 @@ export function ConstelacionSolMap({
       {/* z-30, por encima de la leyenda y la columna de iconos (z-20): en viewports
           bajos -móvil en horizontal- la leyenda puede crecer hasta solaparse con la
           cabecera, y el botón de volver tiene que seguir pudiéndose tocar. */}
-      <header className="pointer-events-none fixed inset-x-0 top-0 z-30 flex items-start justify-between gap-3 px-5 pt-[max(1rem,env(safe-area-inset-top))] transition-[padding-left] duration-200 ease-[var(--ease-out-soft)] md:pl-[calc(var(--admin-sidebar-width,16rem)+1.25rem)]">
+      <header className="pointer-events-none fixed inset-x-0 top-0 z-30 flex items-start justify-between gap-3 px-5 pt-[max(1rem,env(safe-area-inset-top))] nav:pl-[calc(var(--admin-sidebar-width,16rem)+1.25rem)]">
         {/* El botón de inicio se mudó a BottomNav -el logo del sidebar en
             escritorio, un icono propio en la barra inferior de móvil-,
             compartido por las cuatro pantallas del panel en vez de que esta
@@ -2522,7 +2520,7 @@ export function ConstelacionSolMap({
           Debajo de la fila de la cabecera -no encima-, con su propio offset
           fijo: la cabecera es de alto constante, no medido, así que no hace
           falta un ResizeObserver como el de la ficha. Oculta en escritorio
-          -md:hidden-, ahí ya está el panel de al lado.
+          -nav:hidden, el mismo punto de quiebre que el sidebar-, ahí ya está el panel de al lado.
 
           Como una notificación de verdad, no solo un texto flotando: el
           punto a la izquierda lleva el mismo color que la propia estrella
@@ -2532,7 +2530,7 @@ export function ConstelacionSolMap({
           animate-ping, le da el pulso de "esto acaba de pasar" que un
           simple texto centrado no transmite. */}
       <div
-        className="pointer-events-none fixed inset-x-0 z-40 flex justify-center px-5 md:hidden"
+        className="pointer-events-none fixed inset-x-0 z-40 flex justify-center px-5 nav:hidden"
         style={{ top: "calc(max(1rem,env(safe-area-inset-top)) + 3.5rem)" }}
       >
         <div
@@ -2562,7 +2560,7 @@ export function ConstelacionSolMap({
           efecto imán- vive dentro del SVG de arriba, no aquí: pertenece
           al mundo que se pellizca y arrastra, no a este overlay fijo. */}
       <div
-        className="pointer-events-none fixed inset-y-0 left-3 z-20 flex flex-col justify-end pt-[max(1.25rem,env(safe-area-inset-top))] pb-[calc(3.375rem+env(safe-area-inset-bottom)+1.25rem)] transition-[left] duration-200 ease-[var(--ease-out-soft)] md:left-[calc(var(--admin-sidebar-width,16rem)+0.75rem)] md:flex-row md:items-end md:justify-start md:gap-3 md:pb-[max(1.25rem,env(safe-area-inset-bottom))] md:pt-16"
+        className="pointer-events-none fixed inset-y-0 left-3 z-20 flex flex-col justify-end pt-[max(1.25rem,env(safe-area-inset-top))] pb-[calc(3.375rem+env(safe-area-inset-bottom)+1.25rem)] nav:left-[calc(var(--admin-sidebar-width,16rem)+0.75rem)] nav:flex-row nav:items-end nav:justify-start nav:gap-3 nav:pb-[max(1.25rem,env(safe-area-inset-bottom))] nav:pt-16"
       >
         {/* Panel de escritorio -"como si fuera un chat en vivo"-: mismos
             sucesos que la burbuja de arriba, pero como historial que se
@@ -2584,7 +2582,7 @@ export function ConstelacionSolMap({
             título del local: la cabecera fija (flecha + placa) vive en su
             propio overlay encima de este, y sin ese margen extra el panel
             a toda pantalla quedaba justo debajo tapándolo visualmente. */}
-        <div className="hidden min-h-0 md:flex md:w-64 md:flex-col md:self-stretch">
+        <div className="hidden min-h-0 nav:flex nav:w-64 nav:flex-col nav:self-stretch">
           <div
             className="glass-dark pointer-events-auto flex h-full min-h-0 flex-col p-3"
             style={{ background: "rgba(10,14,13,0.32)" }}
@@ -2897,7 +2895,7 @@ export function ConstelacionSolMap({
       </div>
 
       <footer
-        className="pointer-events-none fixed inset-x-0 bottom-0 z-20 flex flex-col items-center gap-3 px-5 pb-[calc(3.375rem+env(safe-area-inset-bottom)+1.25rem)] transition-[padding-left] duration-200 ease-[var(--ease-out-soft)] md:pb-[max(1.25rem,env(safe-area-inset-bottom))] md:pl-[calc(var(--admin-sidebar-width,16rem)+1.25rem)]"
+        className="pointer-events-none fixed inset-x-0 bottom-0 z-20 flex flex-col items-center gap-3 px-5 pb-[calc(3.375rem+env(safe-area-inset-bottom)+1.25rem)] nav:pb-[max(1.25rem,env(safe-area-inset-bottom))] nav:pl-[calc(var(--admin-sidebar-width,16rem)+1.25rem)]"
       >
         {!selectedNode && !touched ? (
           <p className="text-[0.65625rem] text-chalk/32 transition-opacity duration-300">

@@ -20,13 +20,13 @@ export default async function DevicesPage() {
     <Screen
       tone="ink"
       fullWidth
-      className="gap-7 pb-28 transition-[padding-left] duration-200 ease-[var(--ease-out-soft)] md:pb-10 md:pl-[calc(var(--admin-sidebar-width,16rem)+2rem)] md:pr-10"
+      className="gap-7 pb-28 md:pb-10 nav:pl-[calc(var(--admin-sidebar-width,16rem)+2rem)] nav:pr-10"
     >
       <header className="flex items-center gap-3 pt-2">
         <Link
           href="/inicio"
           prefetch={false}
-          className="-m-2 p-2 text-chalk/45 transition-colors hover:text-chalk md:hidden"
+          className="-m-2 p-2 text-chalk/45 transition-colors hover:text-chalk nav:hidden"
           aria-label={t.home.eyebrow}
         >
           <HomeIcon className="size-6" />
