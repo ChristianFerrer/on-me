@@ -247,9 +247,21 @@ export async function loadMetricsPage(
     noReturn,
   };
 
+  // `cards` -tarjetas completadas- no tiene fecha por evento
+  // (passes.cards_completed es un contador que se pisa, no un registro), así
+  // que nunca se puede acotar al rango elegido. Cualquier puerta o KPI que
+  // lo use como denominador tiene que comparar contra el mismo histórico
+  // completo en el numerador -mezclar un numerador del periodo con un
+  // denominador siempre-histórico fue el bug de P1 (81/77 → 26/77 al
+  // acotar el rango, sin que el propio rango explicara ese salto)-.
+  const allTimeSent = allInvitations.filter((i) => i.sent_at).length;
+  const allTimeRedeemed = allInvitations.filter((i) => i.state === "redeemed").length;
+  const allTimeStayed = allAttributions.filter((a) => a.state === "billable").length;
+  const allTimeInvitedSignups = allCustomers.filter((c) => c.source === "invitation").length;
+
   // -------------------------------------------------------------- integridad
   const integrity = {
-    invitesExceedCards: sent > cards,
+    invitesExceedCards: allTimeSent > cards,
     redeemsExceedOpened: redeemed > opened,
     returnsExceedRedeems: stayed > redeemed,
   };
@@ -258,8 +270,8 @@ export async function loadMetricsPage(
   const producesCustomers = {
     coffeesPerStayed: ratio(redeemed, stayed),
     giftPerformance: ratio(stayed, redeemed),
-    newPer10Cards: cards >= MIN_SAMPLE ? (invitedSignups / cards) * 10 : null,
-    stayedPer10Cards: cards >= MIN_SAMPLE ? (stayed / cards) * 10 : null,
+    newPer10Cards: cards >= MIN_SAMPLE ? (allTimeInvitedSignups / cards) * 10 : null,
+    stayedPer10Cards: cards >= MIN_SAMPLE ? (allTimeStayed / cards) * 10 : null,
   };
 
   // -------------------------------------------------------------- cascada
@@ -304,10 +316,14 @@ export async function loadMetricsPage(
   };
 
   // ------------------------------------------------------------- 3 puertas
+  // Las tres, siempre sobre el histórico completo -no solo P1, que es la
+  // única con `cards` en el denominador: son una cadena (p2 encadena con el
+  // "sent" de p1), así que si una eslabón es siempre-histórico, las tres
+  // tienen que serlo para no comparar periodos distintos entre sí-.
   const gates = {
-    p1: evaluateGate("p1", sent, cards, GATE_CONFIG.p1.threshold, GATE_CONFIG.p1.minSample),
-    p2: evaluateGate("p2", redeemed, sent, GATE_CONFIG.p2.threshold, GATE_CONFIG.p2.minSample),
-    p3: evaluateGate("p3", stayed, redeemed, GATE_CONFIG.p3.threshold, GATE_CONFIG.p3.minSample),
+    p1: evaluateGate("p1", allTimeSent, cards, GATE_CONFIG.p1.threshold, GATE_CONFIG.p1.minSample),
+    p2: evaluateGate("p2", allTimeRedeemed, allTimeSent, GATE_CONFIG.p2.threshold, GATE_CONFIG.p2.minSample),
+    p3: evaluateGate("p3", allTimeStayed, allTimeRedeemed, GATE_CONFIG.p3.threshold, GATE_CONFIG.p3.minSample),
   };
 
   // --------------------------------------------------------- velocidad ciclo
@@ -585,11 +601,14 @@ export async function loadMetricsPage(
     })
     .map((c) => ({ id: c.id, name: nameOf(c.id) }));
 
+  // Mismo umbral que lifecycleOf -no el (15,45) literal de la spec, que
+  // solapaba con "activo" en el tramo 15-30 y era la causa de que esta
+  // lista tuviera muchos más nombres que la propia cifra de "dormidos"-.
   const dormantToReactivate = allCustomers
     .map((c) => ({ c, daysAgo: lastStampDaysAgo(c.id) }))
     .filter(
       (row): row is { c: CustomerRow; daysAgo: number } =>
-        row.daysAgo !== null && row.daysAgo >= 15 && row.daysAgo <= 45,
+        row.daysAgo !== null && row.daysAgo > ACTIVE_DAYS && row.daysAgo <= DORMANT_MAX_DAYS,
     )
     .map(({ c, daysAgo }) => ({ id: c.id, name: nameOf(c.id), lastSeenDays: daysAgo }));
 
