@@ -24,7 +24,7 @@ export function StampCard({
   return (
     <ul
       className={cn(
-        "grid grid-cols-[repeat(auto-fit,minmax(2.75rem,1fr))] gap-2.5",
+        "grid grid-cols-[repeat(auto-fit,minmax(2.5rem,1fr))] gap-2",
         className,
       )}
     >
@@ -36,7 +36,7 @@ export function StampCard({
           <li
             key={i}
             className={cn(
-              "numeral flex aspect-square items-center justify-center rounded-full text-[clamp(0.8125rem,3.2vw,1.125rem)] font-semibold transition-colors",
+              "numeral flex aspect-square items-center justify-center rounded-full text-[clamp(0.75rem,3vw,1.0625rem)] font-semibold transition-colors",
               filled
                 ? tone === "dark"
                   ? "bg-lime text-ink"

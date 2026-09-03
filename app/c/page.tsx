@@ -35,13 +35,13 @@ export default async function CardPage() {
   const { shop } = card;
 
   return (
-    <Screen className="gap-4 pb-8">
+    <Screen className="gap-3 pb-4">
       <TopBar />
 
       {/* Sin `stagger` aquí: CardLive ya trae el suyo para su propio
           contenido -tenerlos anidados solo reiniciaba la cascada dos veces
           sin aportar nada-. */}
-      <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-3">
         <CardLive
           customerId={card.customer.id}
           shopName={shop.name}
@@ -71,23 +71,26 @@ export default async function CardPage() {
         />
 
         {/* ------------------------------------------------- código para la barra */}
-        <section className="rounded-[var(--radius-card)] bg-white p-7">
+        <section className="rounded-[var(--radius-card)] bg-white p-4">
           <p className="eyebrow text-center text-ink/40">{t.card.showToBarista}</p>
           {/*
             Fondo blanco puro y no vidrio: un QR sobre un degradado pierde
             contraste y el escáner tarda más. Lleva el token pelado, no una
             URL —cuantos menos módulos, antes decodifica— y va incrustado en
-            el HTML para que se vea sin cobertura.
+            el HTML para que se vea sin cobertura. Más pequeño que antes -a
+            la distancia a la que el barista lo escanea de tu propio móvil no
+            hace falta tan grande, y aquí la pantalla entera tiene que caber
+            sin scroll-.
           */}
           <QrCode
             value={card.customer.token}
             label={t.card.showToBarista}
-            className="mx-auto mt-5 w-full max-w-[14rem]"
+            className="mx-auto mt-2.5 w-full max-w-[9rem]"
           />
         </section>
       </div>
 
-      <footer className="mt-auto flex items-center justify-end pt-6">
+      <footer className="mt-auto flex items-center justify-end pt-3">
         <Link href="/privacidad" className="eyebrow text-ink/45 underline underline-offset-2">
           {t.join.consentLink}
         </Link>

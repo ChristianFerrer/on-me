@@ -94,8 +94,8 @@ export function CardLive({
   const remaining = goal - stamps;
 
   return (
-    <div className="stagger flex flex-col gap-4">
-      <Slab className="p-7">
+    <div className="stagger flex flex-col gap-3">
+      <Slab className="p-5">
         <div className="flex items-start justify-between gap-3">
           <p className="eyebrow text-chalk/65">{shopName}</p>
           <OfflineBadge label={labels.offline} />
@@ -103,10 +103,10 @@ export function CardLive({
 
         {rewardPending ? (
           <>
-            <h1 className="display-tight mt-5 text-[clamp(2.25rem,11vw,2.875rem)] text-lime">
+            <h1 className="display-tight mt-3 text-[clamp(2rem,10vw,2.5rem)] text-lime">
               {labels.rewardTitle}
             </h1>
-            <p className="mt-4 text-[0.9375rem] leading-relaxed text-chalk/70">{labels.rewardBody}</p>
+            <p className="mt-3 text-[0.9375rem] leading-relaxed text-chalk/70">{labels.rewardBody}</p>
           </>
         ) : (
           <>
@@ -114,10 +114,10 @@ export function CardLive({
                 grandes ahora, ya dicen cuántas llevas sin obligar a leer un
                 número aparte. Esta línea se queda porque no es un recuento,
                 es ánimo -"te quedan 3"-, y eso las esferas no lo dicen. */}
-            <p className="mt-1 text-[1.0625rem] font-medium text-chalk/80">
+            <p className="mt-1 text-[0.9375rem] font-medium text-chalk/80">
               {remaining === 1 ? labels.oneToGo : fill(labels.nToGo, { n: remaining })}
             </p>
-            <StampCard stamps={stamps} goal={goal} tone="dark" className="mt-5" />
+            <StampCard stamps={stamps} goal={goal} tone="dark" className="mt-2.5" />
           </>
         )}
       </Slab>
@@ -130,27 +130,30 @@ export function CardLive({
         usedHint={labels.oracleUsedHint}
       />
 
-      <div className="flex flex-col gap-2.5">
-        <div className="glass-dark flex items-center gap-3 rounded-2xl px-5 py-4">
-          <CoffeeIcon className="size-5 shrink-0 text-lime" />
-          <span className="flex-1 text-[0.9375rem] font-medium">{labels.freeCoffees}</span>
-          <span className="numeral text-[1.0625rem] font-bold">{cardsCompleted}</span>
+      {/* Una sola fila, no dos apiladas -mismo trato visual de siempre, solo
+          la mitad de alto-: en una pantalla que ya tiene que caber entera,
+          esa segunda fila era el ítem más fácil de fundir sin perder nada. */}
+      <div className="grid grid-cols-2 gap-2.5">
+        <div className="glass-dark flex items-center gap-2 rounded-2xl px-3.5 py-2.5">
+          <CoffeeIcon className="size-4 shrink-0 text-lime" />
+          <span className="min-w-0 flex-1 truncate text-[0.8125rem] font-medium">{labels.freeCoffees}</span>
+          <span className="numeral shrink-0 text-[0.9375rem] font-bold">{cardsCompleted}</span>
         </div>
         <Link
           href="/c/invitar"
           prefetch={false}
-          className="glass-dark flex items-center gap-3 rounded-2xl px-5 py-4 transition-[filter] hover:brightness-125"
+          className="glass-dark flex items-center gap-2 rounded-2xl px-3.5 py-2.5 transition-[filter] hover:brightness-125"
         >
-          <GiftIcon className="size-5 shrink-0 text-lime" />
-          <span className="flex-1 text-[0.9375rem] font-medium">{labels.inviteRowLabel}</span>
-          <span className="numeral text-[1.0625rem] font-bold">{inviteCount}</span>
+          <GiftIcon className="size-4 shrink-0 text-lime" />
+          <span className="min-w-0 flex-1 truncate text-[0.8125rem] font-medium">{labels.inviteRowLabel}</span>
+          <span className="numeral shrink-0 text-[0.9375rem] font-bold">{inviteCount}</span>
         </Link>
       </div>
 
       {returnedGuests > 0 ? (
-        <section className="rounded-[var(--radius-card)] bg-lime p-6">
+        <section className="rounded-[var(--radius-card)] bg-lime p-4">
           <p className="eyebrow text-ink/50">{labels.guestReturned}</p>
-          <p className="mt-2 text-[1rem] font-semibold leading-snug">
+          <p className="mt-1.5 text-[0.9375rem] font-semibold leading-snug">
             {fill(labels.guestReturnedBody, { n: bonusStamps })}
           </p>
         </section>
