@@ -41,10 +41,18 @@ export function Screen({
   }[tone];
 
   return (
-    <div className={cn("min-h-dvh w-full", skin)}>
+    // `svh` -viewport pequeño, el mínimo posible-, no `dvh`: en algunas
+    // versiones de Safari iOS el valor de `dvh` en la primera pintura no
+    // sigue de forma fiable el estado real de la barra de direcciones, y
+    // un `min-height` corto deja ver el fondo claro del body por debajo
+    // -la barra blanca reportada en /inicio-. `svh` nunca es mayor que el
+    // área visible real en ningún estado de esa barra, así que el fondo
+    // nunca se queda corto; el único coste es que no "crece" solo al
+    // plegarse la barra, algo puramente cosmético para un fondo.
+    <div className={cn("min-h-svh w-full", skin)}>
       <main
         className={cn(
-          "mx-auto flex min-h-dvh w-full flex-col",
+          "mx-auto flex min-h-svh w-full flex-col",
           !fullWidth && "max-w-[30rem] sm:max-w-[34rem] lg:max-w-[40rem] xl:max-w-[44rem]",
           "pl-[max(1.25rem,env(safe-area-inset-left))] pr-[max(1.25rem,env(safe-area-inset-right))]",
           "pt-[max(1rem,env(safe-area-inset-top))]",

@@ -42,7 +42,11 @@ export default async function JoinQrPage({
   const displayUrl = url.replace(/^https?:\/\//, "");
 
   return (
-    <div className="aurora-night min-h-dvh w-full text-chalk" lang={locale}>
+    // `svh`, no `dvh` -mismo motivo que Screen.tsx-: Safari iOS no calcula
+    // `dvh` de forma fiable en la primera pintura, y este cartel puede
+    // acabar abierto en un móvil -no solo en el monitor del mostrador- vía
+    // `?from=/s`.
+    <div className="aurora-night min-h-svh w-full text-chalk" lang={locale}>
       <Link
         href={backHref}
         prefetch={false}
@@ -52,7 +56,7 @@ export default async function JoinQrPage({
         <HomeIcon className="size-6" />
       </Link>
 
-      <main className="mx-auto flex min-h-dvh w-full max-w-[42rem] flex-col items-center justify-center gap-[4vh] py-10 pl-[max(2rem,env(safe-area-inset-left))] pr-[max(2rem,env(safe-area-inset-right))] text-center">
+      <main className="mx-auto flex min-h-svh w-full max-w-[42rem] flex-col items-center justify-center gap-[4vh] py-10 pl-[max(2rem,env(safe-area-inset-left))] pr-[max(2rem,env(safe-area-inset-right))] text-center">
         <div>
           <p className="eyebrow text-chalk/65">{shop.name}</p>
           <h1 className="display-tight mt-3 text-[clamp(1.75rem,5vw,3rem)]">

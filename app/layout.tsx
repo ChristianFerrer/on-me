@@ -58,7 +58,10 @@ export default async function RootLayout({
 
   return (
     <html lang={locale} className={jakarta.variable}>
-      <body className="min-h-dvh antialiased">
+      {/* `svh`, no `dvh`: ver el comentario en Screen.tsx -mismo motivo, el
+          suelo real de cada pantalla vive ahí, este solo evita que el body
+          en sí quede más corto que ese suelo en algún estado de Safari. */}
+      <body className="min-h-svh antialiased">
         {children}
         <ServiceWorker />
       </body>
