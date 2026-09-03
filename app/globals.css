@@ -354,6 +354,12 @@
   .anim-scanline {
     animation: scanline 2.1s ease-in-out infinite;
   }
+  /* Pulso suave invitando a tocar el oráculo -no `flood`/`rise-in`, que son
+     de un solo uso al aparecer: este se repite en bucle mientras el botón
+     sigue sin abrirse. */
+  .anim-oracle-pulse {
+    animation: oracle-pulse 2.4s ease-out infinite;
+  }
 
   .stagger > * {
     animation: rise-in 0.5s var(--ease-out-soft) both;
@@ -479,6 +485,16 @@
   }
   to {
     transform: scaleX(0);
+  }
+}
+
+@keyframes oracle-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(210, 251, 79, 0.35);
+  }
+  50% {
+    box-shadow: 0 0 0 10px rgba(210, 251, 79, 0);
   }
 }
 

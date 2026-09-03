@@ -1,11 +1,14 @@
 import { cn } from "@/lib/cn";
 
 /**
- * Los sellos, en una sola fila.
+ * Los sellos, en una cuadrícula que envuelve sola.
  *
- * Una fila se lee de un vistazo como una barra de progreso; una cuadrícula
- * obliga a contar. El sello es un punto lleno y lo que falta es un aro fino:
- * no hace falta nada más para saber cuánto queda.
+ * `auto-fit`/`minmax` en vez de una fila `flex-1` fija: antes los círculos
+ * se encogían lo que hiciera falta para caber siempre en una sola fila -con
+ * tarjetas largas (goal > 8) quedaban minúsculos-. Con un mínimo generoso
+ * por círculo, el propio grid decide cuántos caben por fila y pasa a una
+ * segunda -o tercera- fila sola cuando no caben más, sin que haga falta
+ * calcular nada por `goal`.
  */
 export function StampCard({
   stamps,
@@ -19,7 +22,12 @@ export function StampCard({
   tone?: "light" | "dark";
 }) {
   return (
-    <ul className={cn("flex items-center gap-[max(0.4rem,1.6%)]", className)}>
+    <ul
+      className={cn(
+        "grid grid-cols-[repeat(auto-fit,minmax(2.75rem,1fr))] gap-2.5",
+        className,
+      )}
+    >
       {Array.from({ length: goal }, (_, i) => {
         const filled = i < stamps;
         const next = i === stamps;
@@ -28,7 +36,7 @@ export function StampCard({
           <li
             key={i}
             className={cn(
-              "numeral flex aspect-square min-w-0 flex-1 items-center justify-center rounded-full text-[clamp(0.5rem,2.4vw,0.6875rem)] font-semibold transition-colors",
+              "numeral flex aspect-square items-center justify-center rounded-full text-[clamp(0.8125rem,3.2vw,1.125rem)] font-semibold transition-colors",
               filled
                 ? tone === "dark"
                   ? "bg-lime text-ink"
@@ -39,10 +47,7 @@ export function StampCard({
               next && (tone === "dark" ? "border-lime/60" : "border-ink/45"),
             )}
           >
-            {/* Con muchos sellos el círculo baja de ~24px en 320-375px y el
-                número deja de leerse: por debajo de ese umbral basta el
-                patrón lleno/vacío, así que el dígito se oculta ahí -BAR-18-. */}
-            <span className={goal > 10 ? "max-[380px]:hidden" : undefined}>{i + 1}</span>
+            {i + 1}
           </li>
         );
       })}
