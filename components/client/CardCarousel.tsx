@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { CoffeeColdIcon, CoffeeIcon, GiftIcon, OrbitIcon, QrIcon, SparkleIcon } from "@/components/ui/Icons";
+import { CoffeeColdIcon, CoffeeIcon, EyeIcon, GiftIcon, QrIcon, SparkleIcon } from "@/components/ui/Icons";
 import { ClientConstellation } from "@/components/client/ClientConstellation";
 import { cn } from "@/lib/cn";
 import { fill } from "@/lib/i18n";
@@ -237,14 +237,14 @@ export function CardCarousel({
     },
     {
       id: "oracle",
-      icon: <SparkleIcon className="size-[62%]" />,
+      icon: <EyeIcon className="size-[62%]" />,
       label: labels.oracleLabel,
       ariaLabel: labels.oracleCta,
       badge: oracleUnseen ? 1 : 0,
     },
     {
       id: "constellation",
-      icon: <OrbitIcon className="size-[62%]" />,
+      icon: <SparkleIcon className="size-[62%]" />,
       label: labels.constellationLabel,
     },
   ];
@@ -298,45 +298,47 @@ export function CardCarousel({
           const active = idx === i;
           const live = !active && (tab.badge ?? 0) > 0;
           return (
-            <button
-              key={tab.id}
-              ref={(el) => {
-                tabRefs.current[i] = el;
-              }}
-              type="button"
-              role="tab"
-              id={`card-tab-${tab.id}`}
-              aria-selected={active}
-              aria-controls={`card-slide-${tab.id}`}
-              aria-label={tab.ariaLabel ?? tab.label}
-              tabIndex={active ? 0 : -1}
-              onClick={() => goTo(i)}
-              className={cn(
-                "flex size-[clamp(44px,7.6vh,54px)] flex-col items-center justify-center gap-1 rounded-[17px] border transition-[transform,background,border-color] duration-200 active:scale-[0.92]",
-                active
-                  ? "border-lime bg-lime text-ink shadow-[0_6px_18px_rgba(210,251,79,0.28)]"
-                  : live
-                    ? "border-lime/36 bg-lime/[.13] text-lime"
-                    : "border-white/[.09] bg-black/60 text-chalk/45",
-              )}
-            >
-              <span className="relative flex items-center justify-center">
-                {tab.icon}
-                {tab.badge ? (
-                  <span className="numeral absolute -right-2.5 -top-2.5 flex min-w-[19px] items-center justify-center rounded-full border-2 border-white bg-[#ff3b30] px-1 text-[10px] font-semibold leading-[17px] text-white shadow-[0_2px_8px_rgba(0,0,0,.4)]">
-                    {tab.badge}
-                  </span>
-                ) : null}
-              </span>
+            <div key={tab.id} className="flex flex-col items-center gap-1">
+              <button
+                ref={(el) => {
+                  tabRefs.current[i] = el;
+                }}
+                type="button"
+                role="tab"
+                id={`card-tab-${tab.id}`}
+                aria-selected={active}
+                aria-controls={`card-slide-${tab.id}`}
+                aria-label={tab.ariaLabel ?? tab.label}
+                tabIndex={active ? 0 : -1}
+                onClick={() => goTo(i)}
+                className={cn(
+                  "flex size-[clamp(44px,7.6vh,54px)] items-center justify-center rounded-[17px] border transition-[transform,background,border-color] duration-200 active:scale-[0.92]",
+                  active
+                    ? "border-lime bg-lime text-ink shadow-[0_6px_18px_rgba(210,251,79,0.28)]"
+                    : live
+                      ? "border-lime/36 bg-lime/[.13] text-lime"
+                      : "border-white/[.09] bg-black/60 text-chalk/45",
+                )}
+              >
+                <span className="relative flex items-center justify-center">
+                  {tab.icon}
+                  {tab.badge ? (
+                    <span className="numeral absolute -right-2.5 -top-2.5 flex min-w-[19px] items-center justify-center rounded-full border-2 border-white bg-[#ff3b30] px-1 text-[10px] font-semibold leading-[17px] text-white shadow-[0_2px_8px_rgba(0,0,0,.4)]">
+                      {tab.badge}
+                    </span>
+                  ) : null}
+                </span>
+              </button>
               <small
+                aria-hidden="true"
                 className={cn(
                   "text-[9px] font-medium not-italic transition-colors",
-                  active ? "text-ink/75" : "text-chalk/30",
+                  active ? "text-ink" : "text-ink/55",
                 )}
               >
                 {tab.label}
               </small>
-            </button>
+            </div>
           );
         })}
       </div>
