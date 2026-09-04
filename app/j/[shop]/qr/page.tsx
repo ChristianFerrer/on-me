@@ -67,7 +67,7 @@ export default async function JoinQrPage({
         {/* La tarjeta del QR se queda blanca a propósito, gradiente o no
             detrás: menos contraste, más tarda el escáner en decodificar. */}
         <div className="w-full max-w-[min(70vw,26rem)] rounded-[var(--radius-card)] bg-white p-[6%] shadow-[0_2rem_5rem_-1.5rem_rgba(7,9,8,0.55)]">
-          <QrCode value={url} label={t.poster.eyebrow} className="w-full" />
+          <QrCode value={url} label={t.poster.eyebrow} className="aspect-square w-full" />
         </div>
 
         <div>

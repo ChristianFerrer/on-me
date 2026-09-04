@@ -122,7 +122,7 @@ export default async function CustomerPage({
         <QrCode
           value={`${env.baseUrl}/c/${customer.token}`}
           label={t.barista.resend}
-          className="mx-auto mt-5 w-36"
+          className="mx-auto mt-5 aspect-square w-36"
         />
       </section>
     </Screen>

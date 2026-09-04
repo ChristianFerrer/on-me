@@ -30,7 +30,18 @@ export async function QrCode({
       role="img"
       aria-label={label ?? "QR"}
       className={cn(
-        "select-none-hard [&>svg]:h-auto [&>svg]:w-full [&>svg]:[shape-rendering:crispEdges]",
+        // El SVG siempre a `size-full` -reclama todo el hueco que le dé el
+        // wrapper- con `object-contain` -pero se dibuja dentro de ese hueco
+        // respetando su 1:1 real, nunca estirado-. Antes era
+        // `w-full h-auto`: si el wrapper terminaba más ancho que alto -como
+        // puede pasar en /c, donde ahora el wrapper solo tiene que caber en
+        // una caja que no es cuadrada-, el QR salía más alto que el hueco
+        // disponible y el `overflow-hidden` de fuera se comía la parte de
+        // abajo. `object-contain` no depende de la forma del wrapper: cada
+        // caller decide esa forma con su propio className -`aspect-square`
+        // si quiere que el ancho mande, o `size-full` si el wrapper ya la
+        // resuelve el hueco que lo contiene-.
+        "select-none-hard [&>svg]:size-full [&>svg]:object-contain [&>svg]:[shape-rendering:crispEdges]",
         className,
       )}
       dangerouslySetInnerHTML={{ __html: svg }}
