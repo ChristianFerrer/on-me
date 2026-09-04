@@ -204,6 +204,20 @@
     font-family: var(--font-metrics-mono), ui-monospace, monospace;
   }
 
+  /* Misma desviación deliberada que .metrics-scope, para /c: Outfit para
+     títulos y texto, IBM Plex Mono para todo número -sobre `.numeral`-.
+     `--font-card`/`--font-card-mono` las publica `next/font` en
+     app/c/page.tsx; nombres propios y no compartidos con `.metrics-scope`
+     a propósito, aunque la técnica sea la misma -cada pantalla carga su
+     propio par de fuentes, así que reutilizar el nombre de variable
+     mezclaría qué página cargó cuál-. */
+  .card-scope {
+    font-family: var(--font-card), var(--font-sans);
+  }
+  .card-scope .numeral {
+    font-family: var(--font-card-mono), ui-monospace, monospace;
+  }
+
   /* Barra de scroll a juego con el resto del material oscuro -grafito
      translúcido, fina, sin flechas- para los paneles con overflow-y-auto
      (feed de actividad y panel de insights de la vista sol): la barra por
@@ -360,6 +374,23 @@
   .anim-oracle-pulse {
     animation: oracle-pulse 2.4s ease-out infinite;
   }
+  /* Sello siguiente, en la fila de progreso de /c: mismo trato que el
+     "next" de toda la vida -aquí sin número, un simple parpadeo de
+     opacidad invitando a fijarse en cuál es el próximo-. */
+  .anim-dot-pulse {
+    animation: dot-pulse 2.2s ease-in-out infinite;
+  }
+  /* Parpadeo de cada estrella en ClientConstellation.tsx -mismo espíritu
+     que el glow que respira de /admin/constelacion-sol, pero mucho más
+     simple: aquí no hace falta rAF ni física de bamboleo, un puñado de
+     nodos en una tarjeta pequeña no necesita ese nivel de detalle-.
+     `transform-box: fill-box` para que el `scale` de un `<g>` SVG gire
+     sobre su propio centro y no sobre el origen del viewBox. */
+  .anim-star-twinkle {
+    transform-origin: center;
+    transform-box: fill-box;
+    animation: star-twinkle 3.4s ease-in-out infinite;
+  }
 
   .stagger > * {
     animation: rise-in 0.5s var(--ease-out-soft) both;
@@ -495,6 +526,28 @@
   }
   50% {
     box-shadow: 0 0 0 10px rgba(210, 251, 79, 0);
+  }
+}
+
+@keyframes dot-pulse {
+  0%,
+  100% {
+    opacity: 0.5;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes star-twinkle {
+  0%,
+  100% {
+    opacity: 0.75;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.08);
   }
 }
 
