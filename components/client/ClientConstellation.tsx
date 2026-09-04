@@ -36,12 +36,15 @@ export function ClientConstellation({
   emptyTitle,
   emptyBody,
   emptyCta,
+  emptyCtaDisabled,
 }: {
   customerName: string;
   loadingLabel: string;
   emptyTitle: string;
   emptyBody: string;
   emptyCta: string;
+  /** Sin invitaciones que sacar todavía -0/0-, nada que elegir de verdad. */
+  emptyCtaDisabled: boolean;
 }) {
   const [graph, setGraph] = useState<GiftGraph | null>(null);
 
@@ -82,14 +85,23 @@ export function ClientConstellation({
           {emptyTitle}
         </h2>
         <p className="text-[clamp(11.5px,1.95vh,13.5px)] leading-[1.45] text-white/72">{emptyBody}</p>
-        <Link
-          href="/c/invitar"
-          prefetch={false}
-          onClick={(event) => event.stopPropagation()}
-          className="mt-1 rounded-full bg-lime px-[18px] py-[clamp(10px,1.9vh,14px)] text-[clamp(12.5px,2vh,15px)] font-bold text-ink transition-[filter] hover:brightness-110 active:scale-[0.97]"
-        >
-          {emptyCta}
-        </Link>
+        {emptyCtaDisabled ? (
+          <span
+            aria-disabled="true"
+            className="mt-1 cursor-not-allowed rounded-full bg-white/10 px-[18px] py-[clamp(10px,1.9vh,14px)] text-[clamp(12.5px,2vh,15px)] font-bold text-white/30"
+          >
+            {emptyCta}
+          </span>
+        ) : (
+          <Link
+            href="/c/invitar"
+            prefetch={false}
+            onClick={(event) => event.stopPropagation()}
+            className="mt-1 rounded-full bg-lime px-[18px] py-[clamp(10px,1.9vh,14px)] text-[clamp(12.5px,2vh,15px)] font-bold text-ink transition-[filter] hover:brightness-110 active:scale-[0.97]"
+          >
+            {emptyCta}
+          </Link>
+        )}
       </div>
     );
   }

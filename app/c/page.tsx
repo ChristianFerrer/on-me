@@ -108,7 +108,6 @@ export default async function CardPage() {
             cardsCompleted: card.cardsCompleted,
             inviteCount: card.activeInvites.length + card.pendingGrants,
             returnedGuests: card.returnedGuests,
-            hasInvited: card.invitesSentCount > 0,
           }}
           labels={{
             ofGoal: t.card.ofGoal,

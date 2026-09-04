@@ -33,6 +33,5 @@ export async function GET() {
     cardsCompleted: card.cardsCompleted,
     inviteCount: card.activeInvites.length + card.pendingGrants,
     returnedGuests: card.returnedGuests,
-    hasInvited: card.invitesSentCount > 0,
   });
 }

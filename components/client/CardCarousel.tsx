@@ -23,7 +23,6 @@ type Status = {
   cardsCompleted: number;
   inviteCount: number;
   returnedGuests: number;
-  hasInvited: boolean;
 };
 
 type StoredOracle = { stamps: number; message: string };
@@ -114,7 +113,7 @@ export function CardCarousel({
     };
   }, []);
 
-  const { stamps, rewardPending, cardsCompleted, inviteCount, returnedGuests, hasInvited } = status;
+  const { stamps, rewardPending, cardsCompleted, inviteCount, returnedGuests } = status;
   const remaining = goal - stamps;
 
   // El oráculo -galleta de la suerte, no chiste por sello-: un sello nuevo
@@ -212,13 +211,16 @@ export function CardCarousel({
   const oracleUnseen = !oracleOpened;
   const inviteHref = "/c/invitar";
 
+  // Los cinco iconos siempre se pueden tocar -son los que enseñan el
+  // detalle de cada tarjeta, incluida la que está en 0-: lo que se
+  // desactiva es la acción de dentro de cada tarjeta que no tiene nada que
+  // hacer todavía (mostrar código, elegir a quién), no el acceso a verla.
   const icons: {
     id: SlideId;
     icon: React.ReactNode;
     label: string;
     ariaLabel?: string;
     badge?: number;
-    disabled?: boolean;
   }[] = [
     { id: "code", icon: <QrIcon className="size-[62%]" />, label: labels.codeLabel },
     {
@@ -226,14 +228,12 @@ export function CardCarousel({
       icon: <CoffeeIcon className="size-[62%]" />,
       label: labels.freeCoffeeLabel,
       badge: cardsCompleted,
-      disabled: cardsCompleted === 0,
     },
     {
       id: "gift",
       icon: <GiftIcon className="size-[62%]" />,
       label: labels.giftLabel,
       badge: inviteCount,
-      disabled: inviteCount === 0,
     },
     {
       id: "oracle",
@@ -246,7 +246,6 @@ export function CardCarousel({
       id: "constellation",
       icon: <OrbitIcon className="size-[62%]" />,
       label: labels.constellationLabel,
-      disabled: !hasInvited,
     },
   ];
 
@@ -297,7 +296,7 @@ export function CardCarousel({
       >
         {icons.map((tab, i) => {
           const active = idx === i;
-          const live = !active && !tab.disabled && (tab.badge ?? 0) > 0;
+          const live = !active && (tab.badge ?? 0) > 0;
           return (
             <button
               key={tab.id}
@@ -310,24 +309,15 @@ export function CardCarousel({
               aria-selected={active}
               aria-controls={`card-slide-${tab.id}`}
               aria-label={tab.ariaLabel ?? tab.label}
-              aria-disabled={tab.disabled}
-              disabled={tab.disabled}
-              tabIndex={tab.disabled ? -1 : active ? 0 : -1}
-              onClick={() => {
-                if (!tab.disabled) goTo(i);
-              }}
+              tabIndex={active ? 0 : -1}
+              onClick={() => goTo(i)}
               className={cn(
-                "flex size-[clamp(44px,7.6vh,54px)] flex-col items-center justify-center gap-1 rounded-[17px] border transition-[transform,background,border-color] duration-200",
-                tab.disabled
-                  ? "cursor-not-allowed border-white/[.06] bg-black/25 text-chalk/20 opacity-50"
-                  : cn(
-                      "active:scale-[0.92]",
-                      active
-                        ? "border-lime bg-lime text-ink shadow-[0_6px_18px_rgba(210,251,79,0.28)]"
-                        : live
-                          ? "border-lime/36 bg-lime/[.13] text-lime"
-                          : "border-white/[.09] bg-black/60 text-chalk/45",
-                    ),
+                "flex size-[clamp(44px,7.6vh,54px)] flex-col items-center justify-center gap-1 rounded-[17px] border transition-[transform,background,border-color] duration-200 active:scale-[0.92]",
+                active
+                  ? "border-lime bg-lime text-ink shadow-[0_6px_18px_rgba(210,251,79,0.28)]"
+                  : live
+                    ? "border-lime/36 bg-lime/[.13] text-lime"
+                    : "border-white/[.09] bg-black/60 text-chalk/45",
               )}
             >
               <span className="relative flex items-center justify-center">
@@ -341,7 +331,7 @@ export function CardCarousel({
               <small
                 className={cn(
                   "text-[9px] font-medium not-italic transition-colors",
-                  tab.disabled ? "text-chalk/20" : active ? "text-ink/75" : "text-chalk/30",
+                  active ? "text-ink/75" : "text-chalk/30",
                 )}
               >
                 {tab.label}
@@ -392,8 +382,14 @@ export function CardCarousel({
                   <p className="text-[clamp(11.5px,1.95vh,13.5px)] leading-[1.45] text-white/72">{labels.freeCoffeeBody}</p>
                   <button
                     type="button"
+                    disabled={cardsCompleted === 0}
                     onClick={() => goTo(0)}
-                    className="mt-1 rounded-full bg-lime px-[18px] py-[clamp(10px,1.9vh,14px)] text-[clamp(12.5px,2vh,15px)] font-bold text-ink transition-[filter] hover:brightness-110 active:scale-[0.97]"
+                    className={cn(
+                      "mt-1 rounded-full px-[18px] py-[clamp(10px,1.9vh,14px)] text-[clamp(12.5px,2vh,15px)] font-bold transition-[filter]",
+                      cardsCompleted === 0
+                        ? "cursor-not-allowed bg-white/10 text-chalk/30"
+                        : "bg-lime text-ink hover:brightness-110 active:scale-[0.97]",
+                    )}
                   >
                     {labels.showCodeCta}
                   </button>
@@ -421,14 +417,23 @@ export function CardCarousel({
                     >
                       {labels.giftNotNow}
                     </button>
-                    <Link
-                      href={inviteHref}
-                      prefetch={false}
-                      onClick={(event) => event.stopPropagation()}
-                      className="flex-1 rounded-full bg-lime px-[18px] py-[clamp(10px,1.9vh,14px)] text-[clamp(12.5px,2vh,15px)] font-bold text-ink transition-[filter] hover:brightness-110 active:scale-[0.97]"
-                    >
-                      {labels.giftChoose}
-                    </Link>
+                    {inviteCount > 0 ? (
+                      <Link
+                        href={inviteHref}
+                        prefetch={false}
+                        onClick={(event) => event.stopPropagation()}
+                        className="flex-1 rounded-full bg-lime px-[18px] py-[clamp(10px,1.9vh,14px)] text-[clamp(12.5px,2vh,15px)] font-bold text-ink transition-[filter] hover:brightness-110 active:scale-[0.97]"
+                      >
+                        {labels.giftChoose}
+                      </Link>
+                    ) : (
+                      <span
+                        aria-disabled="true"
+                        className="flex-1 cursor-not-allowed rounded-full bg-white/10 px-[18px] py-[clamp(10px,1.9vh,14px)] text-[clamp(12.5px,2vh,15px)] font-bold text-chalk/30"
+                      >
+                        {labels.giftChoose}
+                      </span>
+                    )}
                   </div>
                   {idx === i ? <TimerBar touching={touching} onDone={() => goTo(0)} /> : null}
                 </div>
@@ -451,6 +456,7 @@ export function CardCarousel({
                     emptyTitle={labels.constellationEmptyTitle}
                     emptyBody={labels.constellationEmptyBody}
                     emptyCta={labels.giftChoose}
+                    emptyCtaDisabled={inviteCount === 0}
                   />
                   {idx === i ? <TimerBar touching={touching} onDone={() => goTo(0)} /> : null}
                 </div>
