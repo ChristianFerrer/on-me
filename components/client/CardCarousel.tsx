@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { CoffeeIcon, GiftIcon, OrbitIcon, QrIcon, SparkleIcon } from "@/components/ui/Icons";
+import { CoffeeColdIcon, CoffeeIcon, GiftIcon, OrbitIcon, QrIcon, SparkleIcon } from "@/components/ui/Icons";
 import { ClientConstellation } from "@/components/client/ClientConstellation";
 import { cn } from "@/lib/cn";
 import { fill } from "@/lib/i18n";
@@ -23,6 +23,7 @@ type Status = {
   cardsCompleted: number;
   inviteCount: number;
   returnedGuests: number;
+  hasInvited: boolean;
 };
 
 type StoredOracle = { stamps: number; message: string };
@@ -113,7 +114,7 @@ export function CardCarousel({
     };
   }, []);
 
-  const { stamps, rewardPending, cardsCompleted, inviteCount, returnedGuests } = status;
+  const { stamps, rewardPending, cardsCompleted, inviteCount, returnedGuests, hasInvited } = status;
   const remaining = goal - stamps;
 
   // El oráculo -galleta de la suerte, no chiste por sello-: un sello nuevo
@@ -211,33 +212,57 @@ export function CardCarousel({
   const oracleUnseen = !oracleOpened;
   const inviteHref = "/c/invitar";
 
-  const icons: { id: SlideId; icon: React.ReactNode; label: string; ariaLabel?: string; badge?: number }[] = [
-    { id: "code", icon: <QrIcon className="size-[45%]" />, label: labels.codeLabel },
-    { id: "free", icon: <CoffeeIcon className="size-[45%]" />, label: labels.freeCoffeeLabel, badge: cardsCompleted },
-    { id: "gift", icon: <GiftIcon className="size-[45%]" />, label: labels.giftLabel, badge: inviteCount },
+  const icons: {
+    id: SlideId;
+    icon: React.ReactNode;
+    label: string;
+    ariaLabel?: string;
+    badge?: number;
+    disabled?: boolean;
+  }[] = [
+    { id: "code", icon: <QrIcon className="size-[62%]" />, label: labels.codeLabel },
+    {
+      id: "free",
+      icon: <CoffeeIcon className="size-[62%]" />,
+      label: labels.freeCoffeeLabel,
+      badge: cardsCompleted,
+      disabled: cardsCompleted === 0,
+    },
+    {
+      id: "gift",
+      icon: <GiftIcon className="size-[62%]" />,
+      label: labels.giftLabel,
+      badge: inviteCount,
+      disabled: inviteCount === 0,
+    },
     {
       id: "oracle",
-      icon: <SparkleIcon className="size-[45%]" />,
+      icon: <SparkleIcon className="size-[62%]" />,
       label: labels.oracleLabel,
       ariaLabel: labels.oracleCta,
       badge: oracleUnseen ? 1 : 0,
     },
-    { id: "constellation", icon: <OrbitIcon className="size-[45%]" />, label: labels.constellationLabel },
+    {
+      id: "constellation",
+      icon: <OrbitIcon className="size-[62%]" />,
+      label: labels.constellationLabel,
+      disabled: !hasInvited,
+    },
   ];
 
   return (
     <>
-      <div className="card-scope mx-4 flex-none rounded-[22px] border border-white/[.09] bg-white/[.055] p-[15px] backdrop-blur-[14px]">
+      <div className="card-scope mx-4 flex-none rounded-[22px] border border-white/[.09] bg-black/60 p-[15px] text-chalk backdrop-blur-[14px]">
         <div className="flex items-baseline gap-2.5">
           <div className="flex flex-none items-baseline gap-[7px]">
             <b className="numeral text-[clamp(24px,5.4vh,32px)] font-medium leading-none tracking-[-0.05em] text-lime">
               {stamps}
             </b>
-            <em className="text-[clamp(11.5px,1.9vh,13.5px)] font-medium not-italic text-white/55">
+            <em className="text-[clamp(11.5px,1.9vh,13.5px)] font-medium not-italic text-chalk/55">
               {fill(labels.ofGoal, { goal })}
             </em>
           </div>
-          <div className="ml-auto text-right text-[clamp(10.5px,1.75vh,12.5px)] leading-[1.25] text-white/55">
+          <div className="ml-auto text-right text-[clamp(10.5px,1.75vh,12.5px)] leading-[1.25] text-chalk/55">
             {rewardPending ? labels.readyHint : remaining === 1 ? labels.oneToGo : fill(labels.nToGo, { n: remaining })}
           </div>
         </div>
@@ -249,15 +274,15 @@ export function CardCarousel({
               <span
                 key={i}
                 className={cn(
-                  "flex aspect-square items-center justify-center rounded-full border transition-colors duration-300",
+                  "flex aspect-square items-center justify-center rounded-[8px] border transition-colors duration-300",
                   filled
                     ? "border-lime bg-lime text-ink shadow-[0_0_12px_rgba(210,251,79,0.3)]"
                     : next
                       ? "anim-dot-pulse border-lime/60 text-lime"
-                      : "border-white/15 text-white/22",
+                      : "border-white/15 text-chalk/22",
                 )}
               >
-                <CoffeeIcon className="size-[56%]" />
+                {filled ? <CoffeeIcon className="size-[56%]" /> : <CoffeeColdIcon className="size-[56%]" />}
               </span>
             );
           })}
@@ -272,7 +297,7 @@ export function CardCarousel({
       >
         {icons.map((tab, i) => {
           const active = idx === i;
-          const live = !active && (tab.badge ?? 0) > 0;
+          const live = !active && !tab.disabled && (tab.badge ?? 0) > 0;
           return (
             <button
               key={tab.id}
@@ -285,15 +310,24 @@ export function CardCarousel({
               aria-selected={active}
               aria-controls={`card-slide-${tab.id}`}
               aria-label={tab.ariaLabel ?? tab.label}
-              tabIndex={active ? 0 : -1}
-              onClick={() => goTo(i)}
+              aria-disabled={tab.disabled}
+              disabled={tab.disabled}
+              tabIndex={tab.disabled ? -1 : active ? 0 : -1}
+              onClick={() => {
+                if (!tab.disabled) goTo(i);
+              }}
               className={cn(
-                "flex size-[clamp(44px,7.6vh,54px)] flex-col items-center justify-center gap-1 rounded-[17px] border transition-[transform,background,border-color] duration-200 active:scale-[0.92]",
-                active
-                  ? "border-lime bg-lime text-ink shadow-[0_6px_18px_rgba(210,251,79,0.28)]"
-                  : live
-                    ? "border-lime/36 bg-lime/[.13] text-lime"
-                    : "border-white/[.09] bg-white/[.055] text-white/45",
+                "flex size-[clamp(44px,7.6vh,54px)] flex-col items-center justify-center gap-1 rounded-[17px] border transition-[transform,background,border-color] duration-200",
+                tab.disabled
+                  ? "cursor-not-allowed border-white/[.06] bg-black/25 text-chalk/20 opacity-50"
+                  : cn(
+                      "active:scale-[0.92]",
+                      active
+                        ? "border-lime bg-lime text-ink shadow-[0_6px_18px_rgba(210,251,79,0.28)]"
+                        : live
+                          ? "border-lime/36 bg-lime/[.13] text-lime"
+                          : "border-white/[.09] bg-black/60 text-chalk/45",
+                    ),
               )}
             >
               <span className="relative flex items-center justify-center">
@@ -307,7 +341,7 @@ export function CardCarousel({
               <small
                 className={cn(
                   "text-[9px] font-medium not-italic transition-colors",
-                  active ? "text-ink/75" : "text-white/30",
+                  tab.disabled ? "text-chalk/20" : active ? "text-ink/75" : "text-chalk/30",
                 )}
               >
                 {tab.label}
@@ -342,14 +376,13 @@ export function CardCarousel({
               style={{ width: "var(--cw)" }}
             >
               {tab.id === "code" ? (
-                <div className="flex size-full flex-col items-center justify-center gap-2.5 bg-white p-[clamp(11px,2vh,17px)] shadow-[0_14px_44px_rgba(0,0,0,.38)]">
-                  <p className="eyebrow text-center text-ink/40">{labels.showToBarista}</p>
+                <div className="flex size-full items-center justify-center bg-white p-[clamp(11px,2vh,17px)] shadow-[0_14px_44px_rgba(0,0,0,.38)]">
                   {qr}
                 </div>
               ) : null}
 
               {tab.id === "free" ? (
-                <div className="card-scope flex size-full flex-col items-center justify-center gap-[clamp(7px,1.4vh,12px)] border border-lime/30 bg-[linear-gradient(158deg,rgba(214,243,76,.15),rgba(255,255,255,.05))] p-[clamp(17px,3vh,26px)] text-center backdrop-blur-[18px]">
+                <div className="card-scope flex size-full flex-col items-center justify-center gap-[clamp(7px,1.4vh,12px)] border border-lime/30 bg-[linear-gradient(158deg,rgba(214,243,76,.22),rgba(10,14,13,.82))] p-[clamp(17px,3vh,26px)] text-center text-chalk backdrop-blur-[18px]">
                   <p className="numeral text-[clamp(36px,8.8vh,56px)] font-medium leading-none tracking-[-0.05em] text-lime">
                     {cardsCompleted}
                   </p>
@@ -369,7 +402,7 @@ export function CardCarousel({
               ) : null}
 
               {tab.id === "gift" ? (
-                <div className="card-scope flex size-full flex-col items-center justify-center gap-[clamp(7px,1.4vh,12px)] border border-lime/30 bg-[linear-gradient(158deg,rgba(214,243,76,.15),rgba(255,255,255,.05))] p-[clamp(17px,3vh,26px)] text-center backdrop-blur-[18px]">
+                <div className="card-scope flex size-full flex-col items-center justify-center gap-[clamp(7px,1.4vh,12px)] border border-lime/30 bg-[linear-gradient(158deg,rgba(214,243,76,.22),rgba(10,14,13,.82))] p-[clamp(17px,3vh,26px)] text-center text-chalk backdrop-blur-[18px]">
                   {returnedGuests > 0 ? <p className="eyebrow text-lime">{labels.guestReturned}</p> : null}
                   <p className="numeral text-[clamp(36px,8.8vh,56px)] font-medium leading-none tracking-[-0.05em] text-lime">
                     {inviteCount}
@@ -402,7 +435,7 @@ export function CardCarousel({
               ) : null}
 
               {tab.id === "oracle" ? (
-                <div className="card-scope flex size-full flex-col items-center justify-center gap-[clamp(7px,1.4vh,12px)] border border-lime/30 bg-[linear-gradient(158deg,rgba(214,243,76,.15),rgba(255,255,255,.05))] p-[clamp(17px,3vh,26px)] text-center backdrop-blur-[18px]">
+                <div className="card-scope flex size-full flex-col items-center justify-center gap-[clamp(7px,1.4vh,12px)] border border-lime/30 bg-[linear-gradient(158deg,rgba(214,243,76,.22),rgba(10,14,13,.82))] p-[clamp(17px,3vh,26px)] text-center text-chalk backdrop-blur-[18px]">
                   <p className="text-[clamp(15px,3.1vh,22px)] italic leading-[1.4] text-white/94">
                     {oracleMessage ? `“${oracleMessage}”` : ""}
                   </p>
@@ -411,7 +444,7 @@ export function CardCarousel({
               ) : null}
 
               {tab.id === "constellation" ? (
-                <div className="card-scope relative flex size-full flex-col items-center justify-center border border-lime/30 bg-[linear-gradient(158deg,rgba(214,243,76,.15),rgba(255,255,255,.05))] backdrop-blur-[18px]">
+                <div className="card-scope relative flex size-full flex-col items-center justify-center border border-lime/30 bg-[linear-gradient(158deg,rgba(214,243,76,.22),rgba(10,14,13,.82))] text-chalk backdrop-blur-[18px]">
                   <ClientConstellation
                     customerName={customerFirstName}
                     loadingLabel={labels.constellationLoading}
@@ -429,7 +462,7 @@ export function CardCarousel({
 
       <p
         className={cn(
-          "min-h-[14px] flex-none px-4 text-center text-[clamp(10px,1.6vh,11.5px)] font-semibold uppercase tracking-[0.15em] text-white/55 transition-opacity duration-300",
+          "min-h-[14px] flex-none px-4 text-center text-[clamp(10px,1.6vh,11.5px)] font-semibold uppercase tracking-[0.15em] text-ink/55 transition-opacity duration-300",
           idx === 0 ? "opacity-100" : "opacity-0",
         )}
       >

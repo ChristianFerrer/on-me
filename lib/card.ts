@@ -19,6 +19,8 @@ export type CardData = {
   canCreateInvite: boolean;
   /** Invitados suyos que volvieron y pagaron. */
   returnedGuests: number;
+  /** Invitaciones que ha creado alguna vez, en cualquier estado -incluidas ya usadas o caducadas-. 0 solo si nunca invitó a nadie: es lo que decide si su constelación tiene algo que enseñar. */
+  invitesSentCount: number;
 };
 
 export async function loadCard(token: string): Promise<CardData | null> {
@@ -75,5 +77,6 @@ export async function loadCard(token: string): Promise<CardData | null> {
     pendingGrants,
     canCreateInvite: pendingGrants > 0,
     returnedGuests: attributionsResult.data?.length ?? 0,
+    invitesSentCount: invites.length,
   };
 }

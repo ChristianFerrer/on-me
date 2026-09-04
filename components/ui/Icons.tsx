@@ -64,6 +64,16 @@ export function CoffeeIcon(props: IconProps) {
   );
 }
 
+/** Mismo café, sin el vapor: el sello todavía por consumir en la tarjeta de progreso de /c -CoffeeIcon de arriba, con vapor, es el ya consumido-. */
+export function CoffeeColdIcon(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M4 8.5h13v6a5 5 0 0 1-5 5H9a5 5 0 0 1-5-5z" />
+      <path d="M17 10h1.5a2.5 2.5 0 0 1 0 5H17" />
+    </svg>
+  );
+}
+
 export function ScanIcon(props: IconProps) {
   return (
     <svg {...base(props)}>
