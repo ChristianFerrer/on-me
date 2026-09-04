@@ -71,8 +71,9 @@ export const es = {
     visits: "{n} visitas",
     freeCoffees: "cafés gratis",
     inviteRowLabel: "invitaciones",
+    inviteCta: "enviar invitación",
+    oracleLabel: "oráculo",
     oracleCta: "toca para ver tu oráculo",
-    oracleUsedHint: "vuelve con tu próximo café",
     oracleMessages: [
       "hoy el universo huele a café recién hecho.",
       "una sorpresa te espera antes de que se enfríe tu próxima taza.",
@@ -671,8 +672,9 @@ export const en: Dict = {
     visits: "{n} visits",
     freeCoffees: "free coffees",
     inviteRowLabel: "invites",
+    inviteCta: "send invite",
+    oracleLabel: "oracle",
     oracleCta: "tap to see your oracle",
-    oracleUsedHint: "come back with your next coffee",
     oracleMessages: [
       "today the universe smells like fresh coffee.",
       "a surprise awaits before your next cup goes cold.",
@@ -1264,8 +1266,9 @@ export const fr: Dict = {
     visits: "{n} visites",
     freeCoffees: "cafés offerts",
     inviteRowLabel: "invitations",
+    inviteCta: "envoyer une invitation",
+    oracleLabel: "oracle",
     oracleCta: "touche pour voir ton oracle",
-    oracleUsedHint: "reviens avec ton prochain café",
     oracleMessages: [
       "aujourd'hui, l'univers sent le café fraîchement fait.",
       "une surprise t'attend avant que ta prochaine tasse refroidisse.",
@@ -1857,8 +1860,9 @@ export const de: Dict = {
     visits: "{n} Besuche",
     freeCoffees: "Gratis-Kaffees",
     inviteRowLabel: "Einladungen",
+    inviteCta: "Einladung senden",
+    oracleLabel: "Orakel",
     oracleCta: "tippen für dein Orakel",
-    oracleUsedHint: "komm mit deinem nächsten Kaffee wieder",
     oracleMessages: [
       "heute riecht das Universum nach frischem Kaffee.",
       "eine Überraschung wartet, bevor deine nächste Tasse kalt wird.",
