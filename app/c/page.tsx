@@ -87,10 +87,7 @@ export default async function CardPage() {
         </div>
       </header>
 
-      <main
-        className="flex min-h-0 flex-1 flex-col gap-[clamp(9px,2.1vh,16px)] py-[clamp(9px,2.1vh,16px)] pb-[max(0.75rem,env(safe-area-inset-bottom))]"
-        style={{ ["--cw" as string]: "min(80vw, 44vh, 400px)" }}
-      >
+      <main className="flex min-h-0 flex-1 flex-col gap-[clamp(9px,2.1vh,16px)] py-[clamp(9px,2.1vh,16px)] pb-[max(0.75rem,env(safe-area-inset-bottom))]">
         <CardCarousel
           customerId={card.customer.id}
           customerFirstName={firstName(card.customer.name)}

@@ -310,7 +310,7 @@ export function CardCarousel({
         role="tablist"
         aria-label={labels.constellationLabel}
         onKeyDown={onTabsKeyDown}
-        className="flex flex-none justify-center gap-[clamp(11px,3.6vw,20px)] px-4 pb-1 pt-0.5"
+        className="flex flex-none justify-between px-4 pb-1 pt-0.5"
       >
         {icons.map((tab, i) => {
           const active = idx === i;
@@ -361,7 +361,7 @@ export function CardCarousel({
         })}
       </div>
 
-      <div className="relative flex min-h-0 flex-1 items-center">
+      <div className="relative flex min-h-0 flex-1 px-4">
         <div
           ref={trackRef}
           onScroll={onTrackScroll}
@@ -369,8 +369,7 @@ export function CardCarousel({
           onPointerUp={() => setTouching(false)}
           onPointerCancel={() => setTouching(false)}
           onPointerLeave={() => setTouching(false)}
-          className="flex w-full snap-x snap-mandatory gap-3.5 overflow-x-auto overflow-y-hidden scroll-smooth py-1.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-          style={{ paddingInline: "calc((100% - var(--cw)) / 2)" }}
+          className="flex h-full w-full snap-x snap-mandatory gap-3.5 overflow-x-auto overflow-y-hidden scroll-smooth [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         >
           {icons.map((tab, i) => (
             <div
@@ -380,10 +379,9 @@ export function CardCarousel({
               id={`card-slide-${tab.id}`}
               aria-labelledby={`card-tab-${tab.id}`}
               className={cn(
-                "relative aspect-square flex-none snap-center overflow-hidden rounded-[clamp(18px,3.3vh,26px)] transition-[transform,opacity] duration-300",
+                "relative h-full w-full flex-none snap-center overflow-hidden rounded-[clamp(18px,3.3vh,26px)] transition-[transform,opacity] duration-300",
                 idx === i ? "scale-100 opacity-100" : "scale-90 opacity-45",
               )}
-              style={{ width: "var(--cw)" }}
             >
               {tab.id === "code" ? (
                 <div className="flex size-full items-center justify-center rounded-[clamp(18px,3.3vh,26px)] bg-white p-[clamp(11px,2vh,17px)] shadow-[0_14px_44px_rgba(0,0,0,.38)]">
