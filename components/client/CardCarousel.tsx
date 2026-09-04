@@ -25,7 +25,7 @@ type Status = {
   returnedGuests: number;
 };
 
-type StoredOracle = { stamps: number; message: string };
+type StoredOracle = { stamps: number; message: string; hint: string };
 
 function oracleStorageKey(customerId: string): string {
   return `onme:oracle:${customerId}`;
@@ -69,6 +69,8 @@ export function CardCarousel({
     oracleLabel: string;
     oracleCta: string;
     oracleMessages: string[];
+    oracleUnlockHints: string[];
+    oracleFullHint: string;
     constellationLabel: string;
     constellationLoading: string;
     constellationEmptyTitle: string;
@@ -80,6 +82,7 @@ export function CardCarousel({
   const [touching, setTouching] = useState(false);
   const [oracleOpened, setOracleOpened] = useState(false);
   const [oracleMessage, setOracleMessage] = useState<string | null>(null);
+  const [oracleHint, setOracleHint] = useState<string | null>(null);
 
   const trackRef = useRef<HTMLDivElement>(null);
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
@@ -136,9 +139,11 @@ export function CardCarousel({
       if (stored && stored.stamps === stamps) {
         setOracleOpened(true);
         setOracleMessage(stored.message);
+        setOracleHint(stored.hint);
       } else {
         setOracleOpened(false);
         setOracleMessage(null);
+        setOracleHint(null);
       }
     }
 
@@ -149,12 +154,25 @@ export function CardCarousel({
     function revealOnArrival() {
       if (idx !== 3 || oracleOpened) return;
       const picked = labels.oracleMessages[Math.floor(Math.random() * labels.oracleMessages.length)];
+      // La pista de "vuelve con el siguiente café" es tan de broma como el
+      // mensaje: se sortea de la misma bolsa de frases -no una sola fija-,
+      // pero todas dicen lo mismo en el fondo -qué café desbloquea la
+      // siguiente-, así que da igual cuál toque, nunca miente.
+      const nextStamp = Math.min(stamps + 1, goal);
+      const pickedHint =
+        stamps >= goal
+          ? labels.oracleFullHint
+          : fill(
+              labels.oracleUnlockHints[Math.floor(Math.random() * labels.oracleUnlockHints.length)],
+              { n: nextStamp },
+            );
       setOracleMessage(picked);
+      setOracleHint(pickedHint);
       setOracleOpened(true);
       try {
         window.localStorage.setItem(
           oracleStorageKey(customerId),
-          JSON.stringify({ stamps, message: picked } satisfies StoredOracle),
+          JSON.stringify({ stamps, message: picked, hint: pickedHint } satisfies StoredOracle),
         );
       } catch {
         // Sin localStorage: el oráculo sigue funcionando, solo "olvida" el
@@ -368,13 +386,13 @@ export function CardCarousel({
               style={{ width: "var(--cw)" }}
             >
               {tab.id === "code" ? (
-                <div className="flex size-full items-center justify-center bg-white p-[clamp(11px,2vh,17px)] shadow-[0_14px_44px_rgba(0,0,0,.38)]">
+                <div className="flex size-full items-center justify-center rounded-[clamp(18px,3.3vh,26px)] bg-white p-[clamp(11px,2vh,17px)] shadow-[0_14px_44px_rgba(0,0,0,.38)]">
                   {qr}
                 </div>
               ) : null}
 
               {tab.id === "free" ? (
-                <div className="card-scope flex size-full flex-col items-center justify-center gap-[clamp(7px,1.4vh,12px)] border border-lime/30 bg-[linear-gradient(158deg,rgba(214,243,76,.22),rgba(10,14,13,.82))] p-[clamp(17px,3vh,26px)] text-center text-chalk backdrop-blur-[18px]">
+                <div className="card-scope flex size-full flex-col items-center justify-center gap-[clamp(7px,1.4vh,12px)] rounded-[clamp(18px,3.3vh,26px)] border border-lime/30 bg-[linear-gradient(158deg,rgba(214,243,76,.22),rgba(10,14,13,.82))] p-[clamp(17px,3vh,26px)] text-center text-chalk backdrop-blur-[18px]">
                   <p className="numeral text-[clamp(36px,8.8vh,56px)] font-medium leading-none tracking-[-0.05em] text-lime">
                     {cardsCompleted}
                   </p>
@@ -400,7 +418,7 @@ export function CardCarousel({
               ) : null}
 
               {tab.id === "gift" ? (
-                <div className="card-scope flex size-full flex-col items-center justify-center gap-[clamp(7px,1.4vh,12px)] border border-lime/30 bg-[linear-gradient(158deg,rgba(214,243,76,.22),rgba(10,14,13,.82))] p-[clamp(17px,3vh,26px)] text-center text-chalk backdrop-blur-[18px]">
+                <div className="card-scope flex size-full flex-col items-center justify-center gap-[clamp(7px,1.4vh,12px)] rounded-[clamp(18px,3.3vh,26px)] border border-lime/30 bg-[linear-gradient(158deg,rgba(214,243,76,.22),rgba(10,14,13,.82))] p-[clamp(17px,3vh,26px)] text-center text-chalk backdrop-blur-[18px]">
                   {returnedGuests > 0 ? <p className="eyebrow text-lime">{labels.guestReturned}</p> : null}
                   <p className="numeral text-[clamp(36px,8.8vh,56px)] font-medium leading-none tracking-[-0.05em] text-lime">
                     {inviteCount}
@@ -442,16 +460,21 @@ export function CardCarousel({
               ) : null}
 
               {tab.id === "oracle" ? (
-                <div className="card-scope flex size-full flex-col items-center justify-center gap-[clamp(7px,1.4vh,12px)] border border-lime/30 bg-[linear-gradient(158deg,rgba(214,243,76,.22),rgba(10,14,13,.82))] p-[clamp(17px,3vh,26px)] text-center text-chalk backdrop-blur-[18px]">
+                <div className="card-scope flex size-full flex-col items-center justify-center gap-[clamp(7px,1.4vh,12px)] rounded-[clamp(18px,3.3vh,26px)] border border-lime/30 bg-[linear-gradient(158deg,rgba(214,243,76,.22),rgba(10,14,13,.82))] p-[clamp(17px,3vh,26px)] text-center text-chalk backdrop-blur-[18px]">
                   <p className="text-[clamp(15px,3.1vh,22px)] italic leading-[1.4] text-white/94">
                     {oracleMessage ? `“${oracleMessage}”` : ""}
                   </p>
+                  {oracleHint ? (
+                    <p className="mt-[clamp(6px,1.2vh,11px)] border-t border-white/[.09] pt-[clamp(6px,1.2vh,11px)] text-[clamp(10px,1.6vh,11.5px)] leading-[1.4] text-white/40">
+                      {oracleHint}
+                    </p>
+                  ) : null}
                   {idx === i ? <TimerBar touching={touching} onDone={() => goTo(0)} /> : null}
                 </div>
               ) : null}
 
               {tab.id === "constellation" ? (
-                <div className="card-scope relative flex size-full flex-col items-center justify-center border border-lime/30 bg-[linear-gradient(158deg,rgba(214,243,76,.22),rgba(10,14,13,.82))] text-chalk backdrop-blur-[18px]">
+                <div className="card-scope relative flex size-full flex-col items-center justify-center rounded-[clamp(18px,3.3vh,26px)] border border-lime/30 bg-[linear-gradient(158deg,rgba(214,243,76,.22),rgba(10,14,13,.82))] text-chalk backdrop-blur-[18px]">
                   <ClientConstellation
                     customerName={customerFirstName}
                     loadingLabel={labels.constellationLoading}

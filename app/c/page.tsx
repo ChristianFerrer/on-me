@@ -132,6 +132,8 @@ export default async function CardPage() {
             oracleLabel: t.card.oracleLabel,
             oracleCta: t.card.oracleCta,
             oracleMessages: t.card.oracleMessages,
+            oracleUnlockHints: t.card.oracleUnlockHints,
+            oracleFullHint: t.card.oracleFullHint,
             constellationLabel: t.card.constellationLabel,
             constellationLoading: t.card.constellationLoading,
             constellationEmptyTitle: t.card.constellationEmptyTitle,

@@ -103,6 +103,15 @@ export const es = {
       "la cafeína de hoy trae buena energía.",
       "confía en el proceso. y en la máquina de espresso.",
     ],
+    oracleUnlockHints: [
+      "la siguiente frase se desbloquea con tu café número {n}.",
+      "el oráculo solo acepta pago en cafés: el número {n} destapa el resto.",
+      "shhh, lo demás se cuenta en tu café número {n}.",
+      "más sabiduría te espera en el café {n}. paciencia, mortal.",
+      "esto era solo el aperitivo. el café {n} trae el plato fuerte.",
+      "el oráculo funciona con cafeína: vuelve en el café {n}.",
+    ],
+    oracleFullHint: "el oráculo ha dicho todo lo que sabe... por ahora.",
   },
 
   invite: {
@@ -719,6 +728,15 @@ export const en: Dict = {
       "today's caffeine brings good energy.",
       "trust the process. and the espresso machine.",
     ],
+    oracleUnlockHints: [
+      "the next line unlocks with your coffee number {n}.",
+      "the oracle only accepts payment in coffee: cup {n} unlocks the rest.",
+      "shh, the rest gets told at your coffee number {n}.",
+      "more wisdom awaits at coffee {n}. patience, mortal.",
+      "that was just the appetizer. coffee {n} brings the main course.",
+      "the oracle runs on caffeine: come back for coffee {n}.",
+    ],
+    oracleFullHint: "the oracle has said all it knows... for now.",
   },
 
   invite: {
@@ -1328,6 +1346,15 @@ export const fr: Dict = {
       "la caféine du jour apporte une bonne énergie.",
       "fais confiance au processus. et à la machine à espresso.",
     ],
+    oracleUnlockHints: [
+      "la prochaine phrase se débloque avec ton café numéro {n}.",
+      "l'oracle n'accepte qu'un paiement en café : le numéro {n} débloque la suite.",
+      "chut, la suite se raconte à ton café numéro {n}.",
+      "plus de sagesse t'attend au café {n}. patience, mortel.",
+      "ce n'était que l'apéritif. le café {n} apporte le plat principal.",
+      "l'oracle carbure à la caféine : reviens pour le café {n}.",
+    ],
+    oracleFullHint: "l'oracle a dit tout ce qu'il sait... pour l'instant.",
   },
 
   invite: {
@@ -1937,6 +1964,15 @@ export const de: Dict = {
       "das Koffein von heute bringt gute Energie.",
       "vertrau dem Prozess. und der Espressomaschine.",
     ],
+    oracleUnlockHints: [
+      "der nächste Satz wird mit deinem Kaffee Nummer {n} freigeschaltet.",
+      "das Orakel nimmt nur Kaffee als Bezahlung: Nummer {n} schaltet den Rest frei.",
+      "pssst, der Rest kommt bei deinem Kaffee Nummer {n}.",
+      "mehr Weisheit wartet bei Kaffee {n}. Geduld, Sterblicher.",
+      "das war nur die Vorspeise. Kaffee {n} bringt den Hauptgang.",
+      "das Orakel läuft mit Koffein: komm zurück für Kaffee {n}.",
+    ],
+    oracleFullHint: "das Orakel hat alles gesagt, was es weiß... fürs Erste.",
   },
 
   invite: {
