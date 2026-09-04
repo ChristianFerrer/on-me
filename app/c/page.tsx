@@ -77,8 +77,8 @@ export default async function CardPage() {
     >
       <OfflineBadge label={t.card.offline} />
 
-      <header className="flex-none px-4 pt-[max(0.75rem,env(safe-area-inset-top))]">
-        <div className="glass-dark flex items-center gap-2.5 rounded-full px-[18px] py-[clamp(10px,1.9vh,14px)] text-chalk">
+      <header className="flex-none px-4 pt-[max(0.5rem,env(safe-area-inset-top))]">
+        <div className="glass-dark flex items-center gap-2.5 rounded-full px-[18px] py-[clamp(8px,1.4vh,11px)] text-chalk">
           <Mark className="anim-oracle-pulse size-2" />
           <span className="text-[clamp(15px,2.6vh,17px)] font-extrabold tracking-[-0.02em]">OnMe</span>
           <span className="ml-auto truncate text-[clamp(10px,1.7vh,11.5px)] font-semibold uppercase tracking-[0.2em] text-chalk/55">
@@ -87,7 +87,7 @@ export default async function CardPage() {
         </div>
       </header>
 
-      <main className="flex min-h-0 flex-1 flex-col gap-[clamp(9px,2.1vh,16px)] py-[clamp(9px,2.1vh,16px)] pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+      <main className="flex min-h-0 flex-1 flex-col gap-[clamp(6px,1.3vh,10px)] py-[clamp(6px,1.3vh,10px)] pb-2">
         <CardCarousel
           customerId={card.customer.id}
           customerFirstName={firstName(card.customer.name)}
@@ -139,7 +139,7 @@ export default async function CardPage() {
         />
       </main>
 
-      <footer className="flex-none px-4 pb-[max(0.5rem,env(safe-area-inset-bottom))] text-right">
+      <footer className="flex-none px-4 pb-[max(0.375rem,env(safe-area-inset-bottom))] text-right">
         <Link href="/privacidad" className="eyebrow text-ink/45 underline underline-offset-2">
           {t.join.consentLink}
         </Link>

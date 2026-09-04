@@ -269,7 +269,7 @@ export function CardCarousel({
 
   return (
     <>
-      <div className="card-scope mx-4 flex-none rounded-[22px] border border-white/[.09] bg-black/60 p-[15px] text-chalk backdrop-blur-[14px]">
+      <div className="card-scope mx-4 flex-none rounded-[22px] border border-white/[.09] bg-black/60 p-[12px] text-chalk backdrop-blur-[14px]">
         <div className="flex items-baseline gap-2.5">
           <div className="flex flex-none items-baseline gap-[7px]">
             <b className="numeral text-[clamp(24px,5.4vh,32px)] font-medium leading-none tracking-[-0.05em] text-lime">
@@ -283,7 +283,7 @@ export function CardCarousel({
             {rewardPending ? labels.readyHint : remaining === 1 ? labels.oneToGo : fill(labels.nToGo, { n: remaining })}
           </div>
         </div>
-        <div className="mt-[clamp(10px,1.9vh,14px)] grid grid-cols-10 gap-[clamp(4px,1.1vw,7px)]">
+        <div className="mt-[clamp(7px,1.3vh,10px)] grid grid-cols-10 gap-[clamp(4px,1.1vw,7px)]">
           {Array.from({ length: goal }, (_, i) => {
             const filled = i < stamps;
             const next = i === stamps;
@@ -310,7 +310,7 @@ export function CardCarousel({
         role="tablist"
         aria-label={labels.constellationLabel}
         onKeyDown={onTabsKeyDown}
-        className="flex flex-none justify-between px-4 pb-1 pt-0.5"
+        className="flex flex-none justify-between px-4"
       >
         {icons.map((tab, i) => {
           const active = idx === i;
