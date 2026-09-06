@@ -332,14 +332,24 @@ export function CardCarousel({
               className={cn(
                 "flex size-[clamp(44px,7.6vh,54px)] items-center justify-center rounded-[17px] border transition-[transform,background,border-color] duration-200 active:scale-[0.92]",
                 active
-                  ? "border-lime bg-lime text-ink shadow-[0_6px_18px_rgba(210,251,79,0.28)]"
+                  ? "border-2 border-lime bg-black/70 text-lime shadow-[0_0_0_1px_rgba(210,251,79,.25),0_6px_18px_rgba(210,251,79,.22)]"
                   : live
-                    ? "border-lime/36 bg-lime/[.13] text-lime"
-                    : "border-white/[.09] bg-black/60 text-chalk/45",
+                    ? "border-lime/55 bg-black/55 text-lime"
+                    : "border-white/[.09] bg-black/60 text-chalk",
               )}
             >
+              {/*
+                El icono nunca hereda su opacidad del color -`text-chalk/45`,
+                por ejemplo-: con varios trazos que se cruzan -el lazo y la
+                caja de GiftIcon, por ejemplo- un color translúcido por trazo
+                deja ver la unión como una costura más oscura, cada trazo se
+                compone por separado. El `opacity` de abajo, en cambio, pinta
+                el icono entero opaco y difumina el conjunto ya compuesto en
+                una sola pasada: sin costuras, y el badge -fuera de este
+                span- no se ve afectado.
+              */}
               <span className="relative flex items-center justify-center">
-                {tab.icon}
+                <span className={active || live ? undefined : "opacity-45"}>{tab.icon}</span>
                 {tab.badge ? (
                   <span className="numeral absolute -right-2.5 -top-2.5 flex min-w-[19px] items-center justify-center rounded-full border-2 border-white bg-[#ff3b30] px-1 text-[10px] font-semibold leading-[17px] text-white shadow-[0_2px_8px_rgba(0,0,0,.4)]">
                     {tab.badge}
@@ -384,7 +394,7 @@ export function CardCarousel({
               ) : null}
 
               {tab.id === "free" ? (
-                <div className="card-scope flex size-full flex-col items-center justify-center gap-[clamp(7px,1.4vh,12px)] rounded-[clamp(18px,3.3vh,26px)] border border-lime/30 bg-[linear-gradient(158deg,rgba(214,243,76,.22),rgba(10,14,13,.82))] p-[clamp(17px,3vh,26px)] text-center text-chalk backdrop-blur-[18px]">
+                <div className="card-scope flex size-full flex-col items-center justify-center gap-[clamp(7px,1.4vh,12px)] rounded-[clamp(18px,3.3vh,26px)] border border-lime/30 bg-[linear-gradient(158deg,rgba(58,82,22,.92),rgba(10,14,13,.92))] p-[clamp(17px,3vh,26px)] text-center text-chalk backdrop-blur-[18px]">
                   <p className="eyebrow text-white/45">{tab.label}</p>
                   <p className="numeral text-[clamp(36px,8.8vh,56px)] font-medium leading-none tracking-[-0.05em] text-lime">
                     {cardsCompleted}
@@ -411,7 +421,7 @@ export function CardCarousel({
               ) : null}
 
               {tab.id === "gift" ? (
-                <div className="card-scope flex size-full flex-col items-center justify-center gap-[clamp(7px,1.4vh,12px)] rounded-[clamp(18px,3.3vh,26px)] border border-lime/30 bg-[linear-gradient(158deg,rgba(214,243,76,.22),rgba(10,14,13,.82))] p-[clamp(17px,3vh,26px)] text-center text-chalk backdrop-blur-[18px]">
+                <div className="card-scope flex size-full flex-col items-center justify-center gap-[clamp(7px,1.4vh,12px)] rounded-[clamp(18px,3.3vh,26px)] border border-lime/30 bg-[linear-gradient(158deg,rgba(58,82,22,.92),rgba(10,14,13,.92))] p-[clamp(17px,3vh,26px)] text-center text-chalk backdrop-blur-[18px]">
                   <p className="eyebrow text-white/45">{tab.label}</p>
                   {returnedGuests > 0 ? <p className="eyebrow text-lime">{labels.guestReturned}</p> : null}
                   <p className="numeral text-[clamp(36px,8.8vh,56px)] font-medium leading-none tracking-[-0.05em] text-lime">
@@ -454,7 +464,7 @@ export function CardCarousel({
               ) : null}
 
               {tab.id === "oracle" ? (
-                <div className="card-scope flex size-full flex-col items-center justify-center gap-[clamp(7px,1.4vh,12px)] rounded-[clamp(18px,3.3vh,26px)] border border-lime/30 bg-[linear-gradient(158deg,rgba(214,243,76,.22),rgba(10,14,13,.82))] p-[clamp(17px,3vh,26px)] text-center text-chalk backdrop-blur-[18px]">
+                <div className="card-scope flex size-full flex-col items-center justify-center gap-[clamp(7px,1.4vh,12px)] rounded-[clamp(18px,3.3vh,26px)] border border-lime/30 bg-[linear-gradient(158deg,rgba(58,82,22,.92),rgba(10,14,13,.92))] p-[clamp(17px,3vh,26px)] text-center text-chalk backdrop-blur-[18px]">
                   <p className="eyebrow text-white/45">{tab.label}</p>
                   <p className="text-[clamp(15px,3.1vh,22px)] italic leading-[1.4] text-white/94">
                     {oracleMessage ? `“${oracleMessage}”` : ""}
@@ -469,7 +479,7 @@ export function CardCarousel({
               ) : null}
 
               {tab.id === "constellation" ? (
-                <div className="card-scope relative flex size-full flex-col rounded-[clamp(18px,3.3vh,26px)] border border-lime/30 bg-[linear-gradient(158deg,rgba(214,243,76,.22),rgba(10,14,13,.82))] text-chalk backdrop-blur-[18px]">
+                <div className="card-scope relative flex size-full flex-col rounded-[clamp(18px,3.3vh,26px)] border border-lime/30 bg-[linear-gradient(158deg,rgba(58,82,22,.92),rgba(10,14,13,.92))] text-chalk backdrop-blur-[18px]">
                   <p className="eyebrow flex-none pt-[clamp(14px,2.6vh,20px)] text-center text-white/45">{tab.label}</p>
                   <div className="min-h-0 flex-1">
                     <ClientConstellation
