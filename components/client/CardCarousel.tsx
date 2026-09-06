@@ -316,47 +316,37 @@ export function CardCarousel({
           const active = idx === i;
           const live = !active && (tab.badge ?? 0) > 0;
           return (
-            <div key={tab.id} className="flex flex-col items-center gap-1">
-              <button
-                ref={(el) => {
-                  tabRefs.current[i] = el;
-                }}
-                type="button"
-                role="tab"
-                id={`card-tab-${tab.id}`}
-                aria-selected={active}
-                aria-controls={`card-slide-${tab.id}`}
-                aria-label={tab.ariaLabel ?? tab.label}
-                tabIndex={active ? 0 : -1}
-                onClick={() => goTo(i)}
-                className={cn(
-                  "flex size-[clamp(44px,7.6vh,54px)] items-center justify-center rounded-[17px] border transition-[transform,background,border-color] duration-200 active:scale-[0.92]",
-                  active
-                    ? "border-lime bg-lime text-ink shadow-[0_6px_18px_rgba(210,251,79,0.28)]"
-                    : live
-                      ? "border-lime/36 bg-lime/[.13] text-lime"
-                      : "border-white/[.09] bg-black/60 text-chalk/45",
-                )}
-              >
-                <span className="relative flex items-center justify-center">
-                  {tab.icon}
-                  {tab.badge ? (
-                    <span className="numeral absolute -right-2.5 -top-2.5 flex min-w-[19px] items-center justify-center rounded-full border-2 border-white bg-[#ff3b30] px-1 text-[10px] font-semibold leading-[17px] text-white shadow-[0_2px_8px_rgba(0,0,0,.4)]">
-                      {tab.badge}
-                    </span>
-                  ) : null}
-                </span>
-              </button>
-              <small
-                aria-hidden="true"
-                className={cn(
-                  "text-[9px] font-medium not-italic transition-colors",
-                  active ? "text-ink" : "text-ink/55",
-                )}
-              >
-                {tab.label}
-              </small>
-            </div>
+            <button
+              key={tab.id}
+              ref={(el) => {
+                tabRefs.current[i] = el;
+              }}
+              type="button"
+              role="tab"
+              id={`card-tab-${tab.id}`}
+              aria-selected={active}
+              aria-controls={`card-slide-${tab.id}`}
+              aria-label={tab.ariaLabel ?? tab.label}
+              tabIndex={active ? 0 : -1}
+              onClick={() => goTo(i)}
+              className={cn(
+                "flex size-[clamp(44px,7.6vh,54px)] items-center justify-center rounded-[17px] border transition-[transform,background,border-color] duration-200 active:scale-[0.92]",
+                active
+                  ? "border-lime bg-lime text-ink shadow-[0_6px_18px_rgba(210,251,79,0.28)]"
+                  : live
+                    ? "border-lime/36 bg-lime/[.13] text-lime"
+                    : "border-white/[.09] bg-black/60 text-chalk/45",
+              )}
+            >
+              <span className="relative flex items-center justify-center">
+                {tab.icon}
+                {tab.badge ? (
+                  <span className="numeral absolute -right-2.5 -top-2.5 flex min-w-[19px] items-center justify-center rounded-full border-2 border-white bg-[#ff3b30] px-1 text-[10px] font-semibold leading-[17px] text-white shadow-[0_2px_8px_rgba(0,0,0,.4)]">
+                    {tab.badge}
+                  </span>
+                ) : null}
+              </span>
+            </button>
           );
         })}
       </div>
@@ -384,13 +374,18 @@ export function CardCarousel({
               )}
             >
               {tab.id === "code" ? (
-                <div className="flex size-full items-center justify-center rounded-[clamp(18px,3.3vh,26px)] bg-white p-[clamp(11px,2vh,17px)] shadow-[0_14px_44px_rgba(0,0,0,.38)]">
-                  {qr}
+                <div className="flex size-full flex-col items-center gap-[clamp(6px,1.2vh,10px)] rounded-[clamp(18px,3.3vh,26px)] bg-white p-[clamp(11px,2vh,17px)] shadow-[0_14px_44px_rgba(0,0,0,.38)]">
+                  <p className="eyebrow flex-none text-ink/40">{tab.label}</p>
+                  <div className="flex min-h-0 w-full flex-1 items-center justify-center">{qr}</div>
+                  <p className="flex-none text-[clamp(10px,1.6vh,11.5px)] font-semibold uppercase tracking-[0.15em] text-ink/45">
+                    {labels.showToBarista}
+                  </p>
                 </div>
               ) : null}
 
               {tab.id === "free" ? (
                 <div className="card-scope flex size-full flex-col items-center justify-center gap-[clamp(7px,1.4vh,12px)] rounded-[clamp(18px,3.3vh,26px)] border border-lime/30 bg-[linear-gradient(158deg,rgba(214,243,76,.22),rgba(10,14,13,.82))] p-[clamp(17px,3vh,26px)] text-center text-chalk backdrop-blur-[18px]">
+                  <p className="eyebrow text-white/45">{tab.label}</p>
                   <p className="numeral text-[clamp(36px,8.8vh,56px)] font-medium leading-none tracking-[-0.05em] text-lime">
                     {cardsCompleted}
                   </p>
@@ -417,6 +412,7 @@ export function CardCarousel({
 
               {tab.id === "gift" ? (
                 <div className="card-scope flex size-full flex-col items-center justify-center gap-[clamp(7px,1.4vh,12px)] rounded-[clamp(18px,3.3vh,26px)] border border-lime/30 bg-[linear-gradient(158deg,rgba(214,243,76,.22),rgba(10,14,13,.82))] p-[clamp(17px,3vh,26px)] text-center text-chalk backdrop-blur-[18px]">
+                  <p className="eyebrow text-white/45">{tab.label}</p>
                   {returnedGuests > 0 ? <p className="eyebrow text-lime">{labels.guestReturned}</p> : null}
                   <p className="numeral text-[clamp(36px,8.8vh,56px)] font-medium leading-none tracking-[-0.05em] text-lime">
                     {inviteCount}
@@ -459,6 +455,7 @@ export function CardCarousel({
 
               {tab.id === "oracle" ? (
                 <div className="card-scope flex size-full flex-col items-center justify-center gap-[clamp(7px,1.4vh,12px)] rounded-[clamp(18px,3.3vh,26px)] border border-lime/30 bg-[linear-gradient(158deg,rgba(214,243,76,.22),rgba(10,14,13,.82))] p-[clamp(17px,3vh,26px)] text-center text-chalk backdrop-blur-[18px]">
+                  <p className="eyebrow text-white/45">{tab.label}</p>
                   <p className="text-[clamp(15px,3.1vh,22px)] italic leading-[1.4] text-white/94">
                     {oracleMessage ? `“${oracleMessage}”` : ""}
                   </p>
@@ -472,15 +469,18 @@ export function CardCarousel({
               ) : null}
 
               {tab.id === "constellation" ? (
-                <div className="card-scope relative flex size-full flex-col items-center justify-center rounded-[clamp(18px,3.3vh,26px)] border border-lime/30 bg-[linear-gradient(158deg,rgba(214,243,76,.22),rgba(10,14,13,.82))] text-chalk backdrop-blur-[18px]">
-                  <ClientConstellation
-                    customerName={customerFirstName}
-                    loadingLabel={labels.constellationLoading}
-                    emptyTitle={labels.constellationEmptyTitle}
-                    emptyBody={labels.constellationEmptyBody}
-                    emptyCta={labels.giftChoose}
-                    emptyCtaDisabled={inviteCount === 0}
-                  />
+                <div className="card-scope relative flex size-full flex-col rounded-[clamp(18px,3.3vh,26px)] border border-lime/30 bg-[linear-gradient(158deg,rgba(214,243,76,.22),rgba(10,14,13,.82))] text-chalk backdrop-blur-[18px]">
+                  <p className="eyebrow flex-none pt-[clamp(14px,2.6vh,20px)] text-center text-white/45">{tab.label}</p>
+                  <div className="min-h-0 flex-1">
+                    <ClientConstellation
+                      customerName={customerFirstName}
+                      loadingLabel={labels.constellationLoading}
+                      emptyTitle={labels.constellationEmptyTitle}
+                      emptyBody={labels.constellationEmptyBody}
+                      emptyCta={labels.giftChoose}
+                      emptyCtaDisabled={inviteCount === 0}
+                    />
+                  </div>
                   {idx === i ? <TimerBar touching={touching} onDone={() => goTo(0)} /> : null}
                 </div>
               ) : null}
@@ -488,15 +488,6 @@ export function CardCarousel({
           ))}
         </div>
       </div>
-
-      <p
-        className={cn(
-          "min-h-[14px] flex-none px-4 text-center text-[clamp(10px,1.6vh,11.5px)] font-semibold uppercase tracking-[0.15em] text-ink/55 transition-opacity duration-300",
-          idx === 0 ? "opacity-100" : "opacity-0",
-        )}
-      >
-        {idx === 0 ? labels.showToBarista : ""}
-      </p>
     </>
   );
 }
