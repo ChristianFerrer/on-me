@@ -5,6 +5,14 @@ import type { Edge, GiftGraph, Node, NodeState } from "@/lib/giftGraph/types";
 
 const ESTABLISHMENT_ID = "shop";
 
+/** El embed de PostgREST -ver más abajo- no lo infiere solo el `Database` de este proyecto: mismo patrón que app/s/cliente/[id]/page.tsx, un tipo explícito y `.returns<T[]>()`. */
+type CustomerWithPass = {
+  id: string;
+  name: string;
+  created_at: string;
+  passes: { stamps: number; cards_completed: number; updated_at: string }[];
+};
+
 /**
  * El grafo real de saltos, de la tabla de verdad: el padrino de cada cliente
  * sale de `invitations` (padrino_id → claimed_by, igual que `referralTree`),
@@ -26,12 +34,21 @@ const ESTABLISHMENT_ID = "shop";
  *   existe para pares padrino/ahijado-.
  */
 export async function loadRealGiftGraph(shopId: string, establishmentName: string): Promise<GiftGraph> {
+  // `passes` va incrustado en la propia consulta de `customers` -en vez de
+  // un segundo viaje aparte, a partir de los ids del primero-: son 1:1
+  // (unique(customer_id), ver la migración), así que el embed de PostgREST
+  // basta con tomar `passes[0]`, y ahorra un viaje entero a Supabase en el
+  // camino crítico de la primera pantalla que se ve tras entrar al panel.
   const [
     { data: customers, error: custErr },
     { data: invitations, error: invErr },
     { data: attributions, error: attrErr },
   ] = await Promise.all([
-    db().from("customers").select("id, name, created_at").eq("shop_id", shopId),
+    db()
+      .from("customers")
+      .select("id, name, created_at, passes(stamps, cards_completed, updated_at)")
+      .eq("shop_id", shopId)
+      .returns<CustomerWithPass[]>(),
     db()
       .from("invitations")
       .select("id, padrino_id, claimed_by, state, code, created_at, sent_at, opened_at, claimed_at, expires_at")
@@ -45,14 +62,9 @@ export async function loadRealGiftGraph(shopId: string, establishmentName: strin
   const customerRows = customers ?? [];
   const customerIds = customerRows.map((c) => c.id);
 
-  const { data: passes, error: passErr } = customerIds.length
-    ? await db().from("passes").select("customer_id, stamps, cards_completed, updated_at").in("customer_id", customerIds)
-    : { data: [], error: null };
-  assertNoQueryError(passErr, `passes.customer_id in shop=${shopId}`);
-
   const names = new Map(customerRows.map((c) => [c.id, firstName(c.name)]));
   const createdAtOf = new Map(customerRows.map((c) => [c.id, c.created_at]));
-  const passByCustomer = new Map((passes ?? []).map((p) => [p.customer_id, p]));
+  const passByCustomer = new Map(customerRows.map((c) => [c.id, c.passes[0]]));
   const attrByAhijado = new Map((attributions ?? []).map((a) => [a.ahijado_id, a]));
   const invs = invitations ?? [];
 

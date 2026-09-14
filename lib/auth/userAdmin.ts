@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import type { User } from "@supabase/supabase-js";
 import { sendPasswordReset } from "@/lib/auth/admin";
 import { assertNoQueryError, db } from "@/lib/db/client";
 
@@ -26,8 +27,8 @@ export type UserAdminError =
  * fecha), Supabase Auth -vía `auth.admin`, la misma `db()` con
  * `service_role`- para todo lo que vive en la cuenta (email, si está
  * bloqueada, último acceso). No hay tabla propia que duplique ese email:
- * pedirlo a Auth es una llamada más por miembro, pero evita que se
- * desincronice si alguien lo cambia desde fuera de este panel.
+ * pedirlo a Auth es una llamada más, pero evita que se desincronice si
+ * alguien lo cambia desde fuera de este panel.
  */
 export async function loadShopMembers(shopId: string): Promise<ShopMember[]> {
   const { data: rows, error } = await db()
@@ -40,12 +41,14 @@ export async function loadShopMembers(shopId: string): Promise<ShopMember[]> {
   const members = rows ?? [];
   if (members.length === 0) return [];
 
-  const users = await Promise.all(
-    members.map((member) => db().auth.admin.getUserById(member.user_id)),
-  );
+  // Antes, una llamada a la API de admin por cada fila -N llamadas para N
+  // admins de este local-; ahora, una sola pasada por todas las cuentas
+  // del proyecto entero -listAllAuthUsers, la misma que usa el alta para
+  // buscar por email-, sea cual sea N.
+  const userById = new Map((await listAllAuthUsers()).map((u) => [u.id, u]));
 
-  return members.map((member, i) => {
-    const user = users[i].data.user;
+  return members.map((member) => {
+    const user = userById.get(member.user_id);
     const bannedUntil = user?.banned_until ?? null;
     return {
       id: member.id,
@@ -69,16 +72,21 @@ async function countOwners(shopId: string): Promise<number> {
   return count ?? 0;
 }
 
-/** Busca por email entre las cuentas de Supabase Auth -no hay `getUserByEmail` en la API de admin-, paginando. Vale para el puñado de cuentas que tiene un solo local. */
-async function findAuthUserByEmail(email: string) {
+/** Todas las cuentas de Supabase Auth del proyecto, paginando -la API de admin no tiene filtro por id ni por email, así que no hay forma de pedir solo las que hacen falta-. Vale para el puñado de cuentas que tiene un proyecto de un solo local: una llamada, o unas pocas si hubiera cientos de admins. */
+async function listAllAuthUsers(): Promise<User[]> {
   const perPage = 200;
+  const all: User[] = [];
   for (let page = 1; ; page += 1) {
     const { data, error } = await db().auth.admin.listUsers({ page, perPage });
-    if (error || !data) return null;
-    const match = data.users.find((user) => user.email?.toLowerCase() === email);
-    if (match) return match;
-    if (data.users.length < perPage) return null;
+    if (error || !data) return all;
+    all.push(...data.users);
+    if (data.users.length < perPage) return all;
   }
+}
+
+async function findAuthUserByEmail(email: string): Promise<User | null> {
+  const users = await listAllAuthUsers();
+  return users.find((user) => user.email?.toLowerCase() === email) ?? null;
 }
 
 /**
