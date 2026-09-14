@@ -35,6 +35,13 @@ export default async function DevicesPage() {
           <p className="eyebrow text-chalk/35">{ctx.shop.name}</p>
           <h1 className="display mt-1 text-[1.75rem]">{t.admin.devices}</h1>
         </div>
+        <Link
+          href="/admin/usuarios"
+          prefetch={false}
+          className="ml-auto text-[0.8125rem] font-medium text-chalk/55 transition-colors hover:text-chalk"
+        >
+          {t.admin.usersNav}
+        </Link>
       </header>
 
       <DeviceManager t={t.admin} devices={devices} baseUrl={env.baseUrl} locale={locale} />
