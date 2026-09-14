@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { TrashIcon } from "@/components/ui/Icons";
+import { EyeIcon, EyeOffIcon, TrashIcon } from "@/components/ui/Icons";
 import { cn } from "@/lib/cn";
 import type { ShopMember, ShopMemberRole } from "@/lib/auth/userAdmin";
 import { fill, formatDateTime, type Dict, type Locale } from "@/lib/i18n";
@@ -190,6 +190,12 @@ function useUserActions(memberId: string, onChanged: () => void) {
     busy,
     error,
     resetPassword: () => call(`/api/admin/users/${memberId}/reset-password`, { method: "POST" }),
+    setPassword: (password: string) =>
+      call(`/api/admin/users/${memberId}/password`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ password }),
+      }),
     setBanned: (banned: boolean) =>
       call(`/api/admin/users/${memberId}/ban`, {
         method: "POST",
@@ -225,6 +231,93 @@ function RoleBadge({ t, role }: { t: AdminDict; role: ShopMemberRole }) {
   );
 }
 
+/** Formulario inline para fijar la contraseña a mano -mismas reglas y textos que ResetPasswordForm.tsx, en vez de duplicarlos-, compartido entre la tarjeta de móvil y la fila de tabla. */
+function PasswordForm({
+  t,
+  busy,
+  onSubmit,
+  onCancel,
+}: {
+  t: AdminDict;
+  busy: boolean;
+  onSubmit: (password: string) => void;
+  onCancel: () => void;
+}) {
+  const [password, setPassword] = useState("");
+  const [confirm, setConfirm] = useState("");
+  const [show, setShow] = useState(false);
+  const [localError, setLocalError] = useState<string | null>(null);
+
+  function submit(event: React.FormEvent) {
+    event.preventDefault();
+    if (password.length < 8) {
+      setLocalError(t.resetPasswordTooShort);
+      return;
+    }
+    if (password !== confirm) {
+      setLocalError(t.resetPasswordMismatch);
+      return;
+    }
+    setLocalError(null);
+    onSubmit(password);
+  }
+
+  return (
+    <form onSubmit={submit} className="mt-3 flex flex-col gap-2.5 rounded-xl bg-ink-2 p-4">
+      <div className="relative">
+        <input
+          type={show ? "text" : "password"}
+          value={password}
+          onChange={(event) => setPassword(event.target.value)}
+          placeholder={t.password}
+          aria-label={t.password}
+          autoComplete="new-password"
+          className="field pr-11"
+        />
+        <button
+          type="button"
+          onClick={() => setShow((value) => !value)}
+          aria-label={show ? t.hidePassword : t.showPassword}
+          aria-pressed={show}
+          className="absolute inset-y-0 right-1 flex items-center px-2 text-chalk/45 hover:text-chalk"
+        >
+          {show ? <EyeOffIcon className="size-4" /> : <EyeIcon className="size-4" />}
+        </button>
+      </div>
+      <input
+        type={show ? "text" : "password"}
+        value={confirm}
+        onChange={(event) => setConfirm(event.target.value)}
+        placeholder={t.resetPasswordConfirmLabel}
+        aria-label={t.resetPasswordConfirmLabel}
+        autoComplete="new-password"
+        className="field"
+      />
+      {localError ? (
+        <p role="alert" className="text-[0.8125rem] font-medium text-coral">
+          {localError}
+        </p>
+      ) : null}
+      <div className="flex gap-2">
+        <button
+          type="button"
+          onClick={onCancel}
+          className="btn bg-white/8 px-4 py-2.5 text-[0.8125rem] text-chalk"
+        >
+          {t.cancel}
+        </button>
+        <button
+          type="submit"
+          disabled={busy}
+          className="btn bg-lime px-4 py-2.5 text-[0.8125rem] text-ink disabled:opacity-40"
+        >
+          {t.resetPasswordSubmit}
+        </button>
+      </div>
+    </form>
+  );
+}
+
 function UserRow({
   t,
   member,
@@ -239,16 +332,26 @@ function UserRow({
   onChanged: () => void;
 }) {
   const isSelf = member.userId === currentUserId;
-  const { busy, error, resetPassword, setBanned, setRole, remove } = useUserActions(
+  const { busy, error, resetPassword, setPassword, setBanned, setRole, remove } = useUserActions(
     member.id,
     onChanged,
   );
   const [resetSent, setResetSent] = useState(false);
+  const [pwOpen, setPwOpen] = useState(false);
+  const [pwSaved, setPwSaved] = useState(false);
 
   async function handleResetPassword() {
     if (await resetPassword()) {
       setResetSent(true);
       window.setTimeout(() => setResetSent(false), 3000);
+    }
+  }
+
+  async function handleSetPassword(password: string) {
+    if (await setPassword(password)) {
+      setPwOpen(false);
+      setPwSaved(true);
+      window.setTimeout(() => setPwSaved(false), 3000);
     }
   }
 
@@ -268,7 +371,10 @@ function UserRow({
               </span>
             ) : null}
           </p>
-          <p className="mt-1 text-[0.8125rem] text-chalk/45">{lastLoginText(t, member, locale)}</p>
+          <p className="mt-1 text-[0.8125rem] text-chalk/45">
+            {lastLoginText(t, member, locale)}
+            {pwSaved ? ` · ${t.passwordSaved}` : ""}
+          </p>
         </div>
         <div className="flex shrink-0 flex-col items-end gap-1.5">
           <RoleBadge t={t} role={member.role} />
@@ -291,6 +397,14 @@ function UserRow({
           <option value="operator">{t.roleOperator}</option>
           <option value="owner">{t.roleOwner}</option>
         </select>
+        <button
+          type="button"
+          onClick={() => setPwOpen((value) => !value)}
+          disabled={busy}
+          className="btn bg-ink-2 px-4 py-3 text-[0.8125rem] text-chalk"
+        >
+          {t.setPasswordAction}
+        </button>
         <button
           type="button"
           onClick={() => void handleResetPassword()}
@@ -321,6 +435,15 @@ function UserRow({
         </button>
       </div>
 
+      {pwOpen ? (
+        <PasswordForm
+          t={t}
+          busy={busy}
+          onSubmit={(password) => void handleSetPassword(password)}
+          onCancel={() => setPwOpen(false)}
+        />
+      ) : null}
+
       {error ? (
         <p role="alert" className="mt-2.5 text-[0.8125rem] font-medium text-coral">
           {errorMessage(t, error)}
@@ -345,16 +468,26 @@ function UserTableRow({
   onChanged: () => void;
 }) {
   const isSelf = member.userId === currentUserId;
-  const { busy, error, resetPassword, setBanned, setRole, remove } = useUserActions(
+  const { busy, error, resetPassword, setPassword, setBanned, setRole, remove } = useUserActions(
     member.id,
     onChanged,
   );
   const [resetSent, setResetSent] = useState(false);
+  const [pwOpen, setPwOpen] = useState(false);
+  const [pwSaved, setPwSaved] = useState(false);
 
   async function handleResetPassword() {
     if (await resetPassword()) {
       setResetSent(true);
       window.setTimeout(() => setResetSent(false), 3000);
+    }
+  }
+
+  async function handleSetPassword(password: string) {
+    if (await setPassword(password)) {
+      setPwOpen(false);
+      setPwSaved(true);
+      window.setTimeout(() => setPwSaved(false), 3000);
     }
   }
 
@@ -390,9 +523,20 @@ function UserTableRow({
             <option value="owner">{t.roleOwner}</option>
           </select>
         </td>
-        <td className="px-3.5 py-3 text-chalk/60">{lastLoginText(t, member, locale)}</td>
+        <td className="px-3.5 py-3 text-chalk/60">
+          {lastLoginText(t, member, locale)}
+          {pwSaved ? ` · ${t.passwordSaved}` : ""}
+        </td>
         <td className="px-3.5 py-3 text-right">
-          <div className="flex justify-end gap-2">
+          <div className="flex flex-wrap justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => setPwOpen((value) => !value)}
+              disabled={busy}
+              className="btn bg-ink-2 px-3 py-2 text-[0.8125rem] text-chalk"
+            >
+              {t.setPasswordAction}
+            </button>
             <button
               type="button"
               onClick={() => void handleResetPassword()}
@@ -423,6 +567,19 @@ function UserTableRow({
           </div>
         </td>
       </tr>
+
+      {pwOpen ? (
+        <tr className="border-t border-white/8">
+          <td colSpan={4} className="p-4">
+            <PasswordForm
+              t={t}
+              busy={busy}
+              onSubmit={(password) => void handleSetPassword(password)}
+              onCancel={() => setPwOpen(false)}
+            />
+          </td>
+        </tr>
+      ) : null}
 
       {error ? (
         <tr className="border-t border-white/8">

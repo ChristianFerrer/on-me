@@ -419,6 +419,9 @@ export const es = {
     userErrorEmail: "revisa el email",
     userErrorNotFound: "no encontramos a ese usuario",
     userErrorGeneric: "algo ha fallado, inténtalo de nuevo",
+    setPasswordAction: "poner contraseña",
+    passwordSaved: "contraseña guardada",
+    cancel: "cancelar",
   },
 
   metrics: {
@@ -1070,6 +1073,9 @@ export const en: Dict = {
     userErrorEmail: "check that email",
     userErrorNotFound: "couldn't find that user",
     userErrorGeneric: "something failed, try again",
+    setPasswordAction: "set password",
+    passwordSaved: "password saved",
+    cancel: "cancel",
   },
 
   metrics: {
@@ -1714,6 +1720,9 @@ export const fr: Dict = {
     userErrorEmail: "vérifiez cet email",
     userErrorNotFound: "utilisateur introuvable",
     userErrorGeneric: "quelque chose a échoué, réessayez",
+    setPasswordAction: "définir un mot de passe",
+    passwordSaved: "mot de passe enregistré",
+    cancel: "annuler",
   },
 
   metrics: {
@@ -2358,6 +2367,9 @@ export const de: Dict = {
     userErrorEmail: "E-Mail überprüfen",
     userErrorNotFound: "dieser Benutzer wurde nicht gefunden",
     userErrorGeneric: "etwas ist fehlgeschlagen, versuch es noch mal",
+    setPasswordAction: "Passwort festlegen",
+    passwordSaved: "Passwort gespeichert",
+    cancel: "abbrechen",
   },
 
   metrics: {

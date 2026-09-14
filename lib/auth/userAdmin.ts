@@ -218,3 +218,22 @@ export async function resetShopMemberPassword(
   await sendPasswordReset(data.user.email);
   return { ok: true };
 }
+
+/** Fija la contraseña directamente -sin pasar por el email de recuperación-: para cuando el propio admin ya sabe qué contraseña quiere poner, la suya o la de otro. */
+export async function setShopMemberPassword(
+  shopId: string,
+  memberId: string,
+  password: string,
+): Promise<{ ok: true } | { error: UserAdminError }> {
+  const { data: member } = await db()
+    .from("shop_members")
+    .select("user_id")
+    .eq("id", memberId)
+    .eq("shop_id", shopId)
+    .maybeSingle();
+  if (!member) return { error: "not_found" };
+
+  const { error } = await db().auth.admin.updateUserById(member.user_id, { password });
+  if (error) return { error: "generic" };
+  return { ok: true };
+}
