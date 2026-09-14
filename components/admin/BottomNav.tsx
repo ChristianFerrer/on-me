@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   ChartIcon,
   HomeIcon,
@@ -34,13 +35,21 @@ export const ADMIN_SIDEBAR_WIDTH = "16rem";
  * cada punto de quiebre-, no dos componentes separados: así ambos
  * comparten la lista de items y no pueden desincronizarse.
  *
- * Los enlaces llevan el `prefetch` por defecto de `Link` a propósito -antes
- * iba a `false` en todos, sin ninguna razón escrita en ningún sitio-: son
- * cinco pantallas estables, sin token de un solo uso que un prefetch
- * pudiera gastar de más, así que no hay motivo para pagar el viaje entero
- * a Supabase justo al pulsar en vez de mientras el dedo -o el ratón- ya
- * está encima del enlace.
+ * Los enlaces van con `prefetch={false}`: el valor por defecto de `Link`
+ * precarga en cuanto el enlace entra en el viewport -no solo al pasar el
+ * ratón por encima-, y aquí las cinco entradas del panel están todas a la
+ * vista a la vez, así que ese "por defecto" dispara cinco páginas enteras
+ * -sesión + datos- de golpe nada más pintarse cualquiera de ellas. Los
+ * logs de Vercel lo confirmaron: un montón de peticiones simultáneas justo
+ * al entrar a cualquier pantalla del panel, no al pulsar. En su lugar,
+ * `prefetchOnIntent` de aquí abajo pide la precarga a mano, una sola ruta
+ * cada vez, solo cuando de verdad hay intención de ir -encima con el
+ * ratón, foco de teclado, o el dedo tocando en móvil-.
  */
+function prefetchOnIntent(router: ReturnType<typeof useRouter>, href: string) {
+  router.prefetch(href);
+}
+
 async function signOut() {
   await fetch("/api/admin/logout", { method: "POST" }).catch(() => {});
   // Recarga entera, no `router.push` -mismo patrón que LoginForm.tsx tras
@@ -61,6 +70,7 @@ export function BottomNav({
   /** Cuenta con la que se ha entrado -ver getAdminContext-, para que quede claro cuál es antes de tocar "cerrar sesión". */
   email?: string;
 }) {
+  const router = useRouter();
   const items: { key: AdminSection; href: string; label: string; icon: React.ReactNode }[] = [
     { key: "constelacion", href: "/admin/constelacion-sol", label: t.referralMap, icon: <OrbitIcon className="size-5" /> },
     { key: "metricas", href: "/admin/metricas", label: t.navMetrics, icon: <PulseIcon className="size-5" /> },
@@ -104,6 +114,10 @@ export function BottomNav({
               secciones del panel. */}
           <Link
             href="/inicio"
+            prefetch={false}
+            onMouseEnter={() => prefetchOnIntent(router, "/inicio")}
+            onFocus={() => prefetchOnIntent(router, "/inicio")}
+            onTouchStart={() => prefetchOnIntent(router, "/inicio")}
             className="flex min-w-0 flex-1 flex-col items-center gap-1 px-1 py-2.5 text-chalk/45 transition-colors hover:text-chalk/70"
           >
             <HomeIcon className="size-5" />
@@ -113,6 +127,10 @@ export function BottomNav({
             <Link
               key={item.key}
               href={item.href}
+              prefetch={false}
+              onMouseEnter={() => prefetchOnIntent(router, item.href)}
+              onFocus={() => prefetchOnIntent(router, item.href)}
+              onTouchStart={() => prefetchOnIntent(router, item.href)}
               className={cn(
                 "flex min-w-0 flex-1 flex-col items-center gap-1 px-1 py-2.5 transition-colors",
                 active === item.key ? "text-lime" : "text-chalk/45 hover:text-chalk/70",
@@ -131,13 +149,22 @@ export function BottomNav({
         style={{ width: ADMIN_SIDEBAR_WIDTH }}
         className="fixed inset-y-0 left-0 z-40 hidden flex-col gap-1 rounded-none border-y-0 border-l-0 border-r border-white/10 bg-black p-4 nav:flex"
       >
-        <Link href="/inicio" className="px-2 pb-6 pt-2">
+        <Link
+          href="/inicio"
+          prefetch={false}
+          onMouseEnter={() => prefetchOnIntent(router, "/inicio")}
+          onFocus={() => prefetchOnIntent(router, "/inicio")}
+          className="px-2 pb-6 pt-2"
+        >
           <Logo tone="chalk" />
         </Link>
         {items.map((item) => (
           <Link
             key={item.key}
             href={item.href}
+            prefetch={false}
+            onMouseEnter={() => prefetchOnIntent(router, item.href)}
+            onFocus={() => prefetchOnIntent(router, item.href)}
             className={cn(
               "flex items-center gap-3 rounded-xl px-3 py-2.5 text-[0.875rem] font-semibold transition-colors",
               active === item.key
