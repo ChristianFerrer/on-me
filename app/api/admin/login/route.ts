@@ -25,10 +25,11 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "credentials" }, { status: 400 });
   }
 
-  const userId = await verifyCredentials(parsed.data.email, parsed.data.password);
-  if (!userId) {
+  const verified = await verifyCredentials(parsed.data.email, parsed.data.password);
+  if (!verified) {
     return NextResponse.json({ error: "credentials" }, { status: 401 });
   }
+  const { userId, email } = verified;
 
   // Tener cuenta en Supabase no basta: hay que ser miembro de un local.
   const { data: member } = await db()
@@ -42,7 +43,7 @@ export async function POST(request: Request) {
   }
 
   const jar = await cookies();
-  jar.set(ADMIN_COOKIE, issueAdminSession(userId), {
+  jar.set(ADMIN_COOKIE, issueAdminSession(userId, email), {
     httpOnly: true,
     sameSite: "lax",
     secure: env.isProduction,

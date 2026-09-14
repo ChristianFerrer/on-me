@@ -26,25 +26,33 @@ function sign(payload: string): string {
   return createHmac("sha256", env.appSalt).update(payload).digest("hex");
 }
 
-export function issueAdminSession(userId: string): string {
+/**
+ * El email va incrustado en la propia cookie -codificado en base64url, para
+ * poder partir el payload por "." sin que los puntos del email lo rompan-,
+ * no solo el userId: así `getAdminContext()` no necesita una llamada aparte
+ * a la API de admin de Supabase (`getUserById`) en cada carga de página del
+ * panel, solo para enseñar "con qué cuenta has entrado" en BottomNav.
+ */
+export function issueAdminSession(userId: string, email: string): string {
   const expiresAt = Date.now() + SESSION_DAYS * 24 * 3_600_000;
-  const payload = `${userId}.${expiresAt}`;
+  const emailB64 = Buffer.from(email).toString("base64url");
+  const payload = `${userId}.${emailB64}.${expiresAt}`;
   return `${payload}.${sign(payload)}`;
 }
 
-function verifyAdminSession(value: string): string | null {
+function verifyAdminSession(value: string): { userId: string; email: string } | null {
   const parts = value.split(".");
-  if (parts.length !== 3) return null;
+  if (parts.length !== 4) return null;
 
-  const [userId, expiresAt, signature] = parts;
-  const expected = sign(`${userId}.${expiresAt}`);
+  const [userId, emailB64, expiresAt, signature] = parts;
+  const expected = sign(`${userId}.${emailB64}.${expiresAt}`);
 
   const a = Buffer.from(signature, "utf8");
   const b = Buffer.from(expected, "utf8");
   if (a.length !== b.length || !timingSafeEqual(a, b)) return null;
   if (Number(expiresAt) < Date.now()) return null;
 
-  return userId;
+  return { userId, email: Buffer.from(emailB64, "base64url").toString("utf8") };
 }
 
 export type AdminContext = { userId: string; email: string; shop: ShopRow; role: string };
@@ -54,8 +62,9 @@ export async function getAdminContext(): Promise<AdminContext | null> {
   const raw = jar.get(ADMIN_COOKIE)?.value;
   if (!raw) return null;
 
-  const userId = verifyAdminSession(raw);
-  if (!userId) return null;
+  const session = verifyAdminSession(raw);
+  if (!session) return null;
+  const { userId, email } = session;
 
   // La pertenencia se comprueba en cada petición, no se confía en la cookie.
   // Un error real aquí no es "no eres miembro": es "no puedo comprobarlo".
@@ -78,27 +87,19 @@ export async function getAdminContext(): Promise<AdminContext | null> {
   const membership = data?.[0];
   if (!membership?.shops) return null;
 
-  // Para enseñar "con qué cuenta has entrado" en el panel -BottomNav-, no
-  // porque el resto del contexto la necesite: de ahí que vaya al final, una
-  // llamada más a la API de admin, no a `shop_members`.
-  const { data: userData } = await db().auth.admin.getUserById(userId);
-
-  return {
-    userId,
-    email: userData.user?.email ?? "",
-    shop: membership.shops,
-    role: membership.role,
-  };
+  return { userId, email, shop: membership.shops, role: membership.role };
 }
 
 /**
  * Comprueba email y contraseña contra Supabase Auth desde el servidor.
- * Devuelve el id de usuario, o null si las credenciales no valen.
+ * Devuelve el id y el email -el de verdad, el que devuelve Supabase, no el
+ * que escribió quien intenta entrar- para poder incrustarlo en la cookie de
+ * sesión sin una llamada aparte, o null si las credenciales no valen.
  */
 export async function verifyCredentials(
   email: string,
   password: string,
-): Promise<string | null> {
+): Promise<{ userId: string; email: string } | null> {
   const anonKey = process.env.SUPABASE_ANON_KEY;
   if (!anonKey) {
     throw new Error(
@@ -125,7 +126,7 @@ export async function verifyCredentials(
   // La sesión de Supabase no se conserva: solo nos interesaba la verificación.
   await auth.auth.signOut();
 
-  return data.user.id;
+  return { userId: data.user.id, email: data.user.email ?? email };
 }
 
 /**

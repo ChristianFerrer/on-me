@@ -33,6 +33,13 @@ export const ADMIN_SIDEBAR_WIDTH = "16rem";
  * de cuatro secciones. Es el mismo componente, dos marcados -uno oculto en
  * cada punto de quiebre-, no dos componentes separados: así ambos
  * comparten la lista de items y no pueden desincronizarse.
+ *
+ * Los enlaces llevan el `prefetch` por defecto de `Link` a propósito -antes
+ * iba a `false` en todos, sin ninguna razón escrita en ningún sitio-: son
+ * cinco pantallas estables, sin token de un solo uso que un prefetch
+ * pudiera gastar de más, así que no hay motivo para pagar el viaje entero
+ * a Supabase justo al pulsar en vez de mientras el dedo -o el ratón- ya
+ * está encima del enlace.
  */
 async function signOut() {
   await fetch("/api/admin/logout", { method: "POST" }).catch(() => {});
@@ -97,7 +104,6 @@ export function BottomNav({
               secciones del panel. */}
           <Link
             href="/inicio"
-            prefetch={false}
             className="flex min-w-0 flex-1 flex-col items-center gap-1 px-1 py-2.5 text-chalk/45 transition-colors hover:text-chalk/70"
           >
             <HomeIcon className="size-5" />
@@ -107,7 +113,6 @@ export function BottomNav({
             <Link
               key={item.key}
               href={item.href}
-              prefetch={false}
               className={cn(
                 "flex min-w-0 flex-1 flex-col items-center gap-1 px-1 py-2.5 transition-colors",
                 active === item.key ? "text-lime" : "text-chalk/45 hover:text-chalk/70",
@@ -126,14 +131,13 @@ export function BottomNav({
         style={{ width: ADMIN_SIDEBAR_WIDTH }}
         className="fixed inset-y-0 left-0 z-40 hidden flex-col gap-1 rounded-none border-y-0 border-l-0 border-r border-white/10 bg-black p-4 nav:flex"
       >
-        <Link href="/inicio" prefetch={false} className="px-2 pb-6 pt-2">
+        <Link href="/inicio" className="px-2 pb-6 pt-2">
           <Logo tone="chalk" />
         </Link>
         {items.map((item) => (
           <Link
             key={item.key}
             href={item.href}
-            prefetch={false}
             className={cn(
               "flex items-center gap-3 rounded-xl px-3 py-2.5 text-[0.875rem] font-semibold transition-colors",
               active === item.key
