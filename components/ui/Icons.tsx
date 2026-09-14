@@ -310,3 +310,13 @@ export function TrashIcon(props: IconProps) {
     </svg>
   );
 }
+
+export function LogOutIcon(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M9.5 21h-4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+      <path d="M16 16.5 21 12l-5-4.5" />
+      <path d="M21 12H9.5" />
+    </svg>
+  );
+}

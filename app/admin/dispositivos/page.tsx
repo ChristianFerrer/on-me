@@ -46,7 +46,7 @@ export default async function DevicesPage() {
 
       <DeviceManager t={t.admin} devices={devices} baseUrl={env.baseUrl} locale={locale} />
 
-      <BottomNav t={t.admin} active="dispositivos" />
+      <BottomNav t={t.admin} active="dispositivos" email={ctx.email} />
     </Screen>
   );
 }

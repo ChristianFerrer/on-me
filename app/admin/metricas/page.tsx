@@ -528,7 +528,7 @@ export default async function MetricsPage({
         {t.admin.linksPrivacy}
       </Link>
 
-      <BottomNav t={t.admin} active="metricas" />
+      <BottomNav t={t.admin} active="metricas" email={ctx.email} />
     </Screen>
   );
 }

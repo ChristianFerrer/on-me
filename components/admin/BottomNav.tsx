@@ -4,6 +4,7 @@ import Link from "next/link";
 import {
   ChartIcon,
   HomeIcon,
+  LogOutIcon,
   OrbitIcon,
   PulseIcon,
   TabletIcon,
@@ -33,12 +34,25 @@ export const ADMIN_SIDEBAR_WIDTH = "16rem";
  * cada punto de quiebre-, no dos componentes separados: así ambos
  * comparten la lista de items y no pueden desincronizarse.
  */
+async function signOut() {
+  await fetch("/api/admin/logout", { method: "POST" }).catch(() => {});
+  // Recarga entera, no `router.push` -mismo patrón que LoginForm.tsx tras
+  // entrar-: con la cookie ya borrada, volver a pedir la página actual de
+  // cero basta -cada una de las cinco comprueba sesión en el propio
+  // servidor y manda sola al login si no la encuentra-, sin necesidad de
+  // fijar aquí a qué ruta exacta debe volver cada una.
+  window.location.reload();
+}
+
 export function BottomNav({
   t,
   active,
+  email,
 }: {
   t: AdminDict;
   active?: AdminSection;
+  /** Cuenta con la que se ha entrado -ver getAdminContext-, para que quede claro cuál es antes de tocar "cerrar sesión". */
+  email?: string;
 }) {
   const items: { key: AdminSection; href: string; label: string; icon: React.ReactNode }[] = [
     { key: "constelacion", href: "/admin/constelacion-sol", label: t.referralMap, icon: <OrbitIcon className="size-5" /> },
@@ -60,6 +74,19 @@ export function BottomNav({
   return (
     <>
       <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-white/8 bg-black nav:hidden">
+        {email ? (
+          <div className="mx-auto flex w-full max-w-[30rem] items-center justify-between gap-2 border-b border-white/8 px-4 py-1 sm:max-w-[34rem] lg:max-w-[38rem]">
+            <span className="truncate text-[0.625rem] text-chalk/40">{email}</span>
+            <button
+              type="button"
+              onClick={() => void signOut()}
+              className="flex shrink-0 items-center gap-1 text-[0.625rem] font-semibold text-chalk/55 transition-colors hover:text-chalk"
+            >
+              <LogOutIcon className="size-3" />
+              {t.signOut}
+            </button>
+          </div>
+        ) : null}
         <div className="mx-auto flex w-full max-w-[30rem] items-stretch justify-between px-1 pb-[env(safe-area-inset-bottom)] sm:max-w-[34rem] lg:max-w-[38rem]">
           {/* En escritorio el logo del sidebar ya hace de enlace a /inicio -ver
               más abajo-; en móvil no había forma de volver al portal salvo
@@ -118,6 +145,20 @@ export function BottomNav({
             {item.label}
           </Link>
         ))}
+
+        {email ? (
+          <div className="mt-auto flex flex-col gap-2 px-1 pt-4">
+            <p className="truncate px-2 text-[0.75rem] text-chalk/40">{email}</p>
+            <button
+              type="button"
+              onClick={() => void signOut()}
+              className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-left text-[0.875rem] font-semibold text-chalk/55 transition-colors hover:bg-white/6 hover:text-chalk"
+            >
+              <LogOutIcon className="size-5" />
+              {t.signOut}
+            </button>
+          </div>
+        ) : null}
       </nav>
     </>
   );

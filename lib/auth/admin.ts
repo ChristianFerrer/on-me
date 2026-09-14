@@ -47,7 +47,7 @@ function verifyAdminSession(value: string): string | null {
   return userId;
 }
 
-export type AdminContext = { userId: string; shop: ShopRow; role: string };
+export type AdminContext = { userId: string; email: string; shop: ShopRow; role: string };
 
 export async function getAdminContext(): Promise<AdminContext | null> {
   const jar = await cookies();
@@ -78,7 +78,17 @@ export async function getAdminContext(): Promise<AdminContext | null> {
   const membership = data?.[0];
   if (!membership?.shops) return null;
 
-  return { userId, shop: membership.shops, role: membership.role };
+  // Para enseñar "con qué cuenta has entrado" en el panel -BottomNav-, no
+  // porque el resto del contexto la necesite: de ahí que vaya al final, una
+  // llamada más a la API de admin, no a `shop_members`.
+  const { data: userData } = await db().auth.admin.getUserById(userId);
+
+  return {
+    userId,
+    email: userData.user?.email ?? "",
+    shop: membership.shops,
+    role: membership.role,
+  };
 }
 
 /**

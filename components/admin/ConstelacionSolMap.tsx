@@ -854,6 +854,7 @@ export function ConstelacionSolMap({
   locale,
   t,
   initialFocusId,
+  email,
 }: {
   graph: GiftGraph;
   shopName: string;
@@ -865,6 +866,8 @@ export function ConstelacionSolMap({
   /** Id de cliente a preseleccionar al entrar -ver ADM-19: el enlace "ver en
       la constelación" de cada fila de Visitas llega con `?focus=<id>`-. */
   initialFocusId?: string;
+  /** Cuenta con la que se ha entrado -ver getAdminContext-, para BottomNav. */
+  email: string;
 }) {
   // La página lo carga una vez en el servidor al entrar, pero esta es la
   // vista pensada para quedarse encendida en el local todo el día -no una
@@ -2904,7 +2907,7 @@ export function ConstelacionSolMap({
         ) : null}
       </footer>
 
-      <BottomNav t={t.admin} active="constelacion" />
+      <BottomNav t={t.admin} active="constelacion" email={email} />
     </div>
   );
 }

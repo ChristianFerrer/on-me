@@ -82,7 +82,7 @@ export default async function AttributionsPage() {
 
       <AttributionsList rows={items} t={t} locale={locale} />
 
-      <BottomNav t={t.admin} active="atribuciones" />
+      <BottomNav t={t.admin} active="atribuciones" email={ctx.email} />
     </Screen>
   );
 }

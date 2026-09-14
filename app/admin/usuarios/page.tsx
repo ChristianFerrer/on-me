@@ -54,7 +54,7 @@ export default async function UsersPage() {
       >
         {header}
         <p className="text-[0.9375rem] text-chalk/55">{t.admin.usersAccessDenied}</p>
-        <BottomNav t={t.admin} />
+        <BottomNav t={t.admin} email={ctx.email} />
       </Screen>
     );
   }
@@ -71,7 +71,7 @@ export default async function UsersPage() {
 
       <UserManager t={t.admin} members={members} currentUserId={ctx.userId} locale={locale} />
 
-      <BottomNav t={t.admin} />
+      <BottomNav t={t.admin} email={ctx.email} />
     </Screen>
   );
 }

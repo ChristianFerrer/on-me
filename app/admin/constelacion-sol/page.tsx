@@ -61,6 +61,7 @@ export default async function ConstelacionSolPage({
       locale={locale}
       t={t}
       initialFocusId={focus}
+      email={ctx.email}
     />
   );
 }
