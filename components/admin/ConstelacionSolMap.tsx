@@ -43,9 +43,12 @@ const TAP_MAX_DURATION_MS = 400;
  * el margen de siempre- pero sí hueco a la izquierda que respetar -de ahí
  * `nav:left-[calc(var(--admin-sidebar-width,16rem)+0.75rem)]` en la columna
  * de la leyenda, 0.75rem siendo el mismo hueco que ya usa `left-3`-. El
- * ancho del sidebar es un valor estático -`--admin-sidebar-width` en
- * globals.css-, no algo que BottomNav fije por JS: 16rem es tanto el valor
- * real como la reserva por si la variable no cargó a tiempo. */
+ * ancho del sidebar sí puede cambiar en caliente -colapsado/expandido, ver
+ * BottomNav.tsx-: `--admin-sidebar-width` en globals.css trae el valor
+ * colapsado (4.5rem) para el primer pintado, y BottomNav lo reescribe por
+ * JS al montar si el usuario lo había dejado expandido, o al pulsar el
+ * botón de plegar; 16rem aquí es solo la reserva por si la variable no
+ * cargó a tiempo. */
 
 /** Radianes por frame de la rotación de fondo, y cuánto tarda en reanudarse tras soltar. */
 const ROTATION_PER_FRAME = 0.00019;

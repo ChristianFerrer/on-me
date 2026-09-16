@@ -66,12 +66,15 @@
 @layer base {
   :root {
     color-scheme: light;
-    /* Ancho fijo del sidebar de escritorio del panel -leído por las 4
-       pantallas del panel para su propio padding izquierdo, ver
-       BottomNav.tsx-. Ya no cambia en tiempo de ejecución -el sidebar no
-       se pliega-, así que vive aquí como valor estático en vez de
-       fijarse por JS en cada carga. */
-    --admin-sidebar-width: 16rem;
+    /* Ancho del sidebar de escritorio del panel -leído por las pantallas
+       del panel para su propio padding izquierdo, ver BottomNav.tsx-.
+       El valor de aquí es el colapsado -el que se ve en el primer
+       pintado, antes de que BottomNav pueda leer localStorage y, si el
+       usuario lo había dejado expandido, ensancharlo por JS-: así el
+       caso por defecto -colapsado- no depende de JS ni sufre parpadeo,
+       y solo el caso menos frecuente -ya lo habían expandido antes- paga
+       ese único reajuste tras montar. */
+    --admin-sidebar-width: 4.5rem;
   }
 
   * {

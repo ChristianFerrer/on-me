@@ -247,11 +247,12 @@ export function ConstelacionSheet({
       // pantalla, no solo llevar más z-index. A partir de `md` BottomNav pasa
       // a sidebar izquierdo -ver BottomNav.tsx-, sin barra inferior que
       // despejar, así que el padding cae a `md:pb-[max(1rem,...)]`, el
-      // margen de siempre; `md:pl-[16rem]` -mismo ancho que
-      // ADMIN_SIDEBAR_WIDTH, repetido a mano porque Tailwind no puede leer esa
-      // constante JS en una clase- recentra la ficha en el hueco visible junto
-      // al sidebar, no en todo el ancho de la pantalla.
-      className="pointer-events-none fixed inset-x-0 bottom-0 z-30 flex justify-center px-3 pb-[calc(3.375rem+env(safe-area-inset-bottom)+1rem)] md:pb-[max(1rem,env(safe-area-inset-bottom))] md:pl-[16rem]"
+      // margen de siempre; `md:pl-[var(--admin-sidebar-width,16rem)]` -la
+      // misma variable CSS que leen las pantallas del panel, ver
+      // globals.css- recentra la ficha en el hueco visible junto al
+      // sidebar, no en todo el ancho de la pantalla -y sigue el ancho del
+      // sidebar cuando el usuario lo colapsa o lo expande-.
+      className="pointer-events-none fixed inset-x-0 bottom-0 z-30 flex justify-center px-3 pb-[calc(3.375rem+env(safe-area-inset-bottom)+1rem)] md:pb-[max(1rem,env(safe-area-inset-bottom))] md:pl-[var(--admin-sidebar-width,16rem)]"
       aria-hidden={!open}
     >
       {card}
