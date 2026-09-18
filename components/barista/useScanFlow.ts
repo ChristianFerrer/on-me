@@ -47,11 +47,7 @@ export function useScanFlow(options: {
         (result.kind === "redeem_reward" || result.kind === "redeem_invitation") &&
         result.pending;
 
-      buzz(
-        result.kind === "invalid" || result.kind === "duplicate"
-          ? [40, 60, 40]
-          : 30,
-      );
+      buzz(result.kind === "invalid" ? [40, 60, 40] : 30);
       setPhase({ step: "result", result });
 
       // Lo que regala producto se queda hasta que el barista actúa.

@@ -10,6 +10,8 @@ const Body = z.object({
   pin: z.string().regex(/^\d{4}$/).optional(),
   /** De apertura de cámara a resultado. Es el presupuesto de tiempo del piloto. */
   durationMs: z.number().int().min(0).max(120_000).optional(),
+  /** Cafés a sellar de una vez, del selector de cantidad en Scanner.tsx. */
+  quantity: z.number().int().min(1).max(10).optional(),
 });
 
 export async function POST(request: Request) {
@@ -23,8 +25,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "bad_request" }, { status: 400 });
   }
 
-  const { token, confirm, pin, durationMs } = parsed.data;
-  const outcome = await runScan(ctx, { token }, { confirm, pin, durationMs });
+  const { token, confirm, pin, durationMs, quantity } = parsed.data;
+  const outcome = await runScan(ctx, { token }, { confirm, pin, durationMs, quantity });
 
   // Sin await: la marca de actividad no debe entrar en el presupuesto de 3 s.
   void touchDeviceSession(ctx.sessionId);

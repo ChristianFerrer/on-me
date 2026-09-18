@@ -13,7 +13,6 @@ const SKIN: Record<ScanResponse["kind"], string> = {
   stamp: "verdict-lime",
   redeem_reward: "verdict-amber",
   redeem_invitation: "verdict-azure",
-  duplicate: "verdict-slate",
   invalid: "verdict-coral",
 };
 
@@ -105,6 +104,11 @@ function Body({ result, t }: { result: ScanResponse; t: BaristaDict }) {
               : fill(t.results.stampTitle, { n: result.stamps, goal: result.goal })}
           </h1>
           <Dots filled={result.stamps} goal={result.goal} />
+          {result.added > 1 ? (
+            <p className="numeral mt-3 text-[1.0625rem] font-bold opacity-80">
+              {fill(t.results.stampAdded, { n: result.added })}
+            </p>
+          ) : null}
           {result.cardCompleted ? (
             <p className={SUB}>{fill(t.results.rewardBody, { name: result.name })}</p>
           ) : result.stamps === result.goal - 1 ? (
@@ -132,16 +136,6 @@ function Body({ result, t }: { result: ScanResponse; t: BaristaDict }) {
               name: result.name,
               padrino: result.padrino,
             })}
-          </p>
-        </>
-      );
-
-    case "duplicate":
-      return (
-        <>
-          <h1 className={HEADLINE}>{t.results.duplicateTitle}</h1>
-          <p className={cn(SUB, "numeral")}>
-            {fill(t.results.duplicateBody, { n: Math.max(result.minutesAgo, 1) })}
           </p>
         </>
       );

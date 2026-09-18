@@ -2,15 +2,18 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { HomeIcon, QrIcon, SearchIcon } from "@/components/ui/Icons";
+import { CoffeeIcon, HomeIcon, QrIcon, SearchIcon } from "@/components/ui/Icons";
 import { cn } from "@/lib/cn";
-import type { Dict } from "@/lib/i18n";
+import { fill, type Dict } from "@/lib/i18n";
 import { PinPad } from "./PinPad";
 import { useQrScanner } from "./useQrScanner";
 import { useScanFlow } from "./useScanFlow";
 import { Verdict } from "./Verdict";
 
 type BaristaDict = Dict["barista"];
+
+/** Cuántos cafés de una vez se pueden pedir desde el selector, sin desplazarse. */
+const QUANTITIES = [1, 2, 3, 4, 5];
 
 export function Scanner({
   t,
@@ -28,6 +31,14 @@ export function Scanner({
   const [online, setOnline] = useState(true);
 
   /**
+   * Cafés a sellar en el próximo escaneo -normalmente 1-: cubre a quien
+   * llega y pide 3 de una vez, sin tener que reescanearlo tres veces.
+   * Vuelve a 1 en cuanto se cierra el veredicto: el caso raro no debe ser
+   * el que hay que recordar apagar para el siguiente cliente.
+   */
+  const [quantity, setQuantity] = useState(1);
+
+  /**
    * Instante en que la barra queda lista para el siguiente cliente. La
    * distancia entre esto y el resultado en pantalla es el número que decide
    * si el piloto es viable, así que se mide de verdad y se guarda en `scans`.
@@ -37,10 +48,16 @@ export function Scanner({
     readyAtRef.current = Date.now();
   }, []);
 
+  /** Como markReady, pero también para el mostrador: cada cliente nuevo empieza en 1 café. */
+  const resetForNextCustomer = useCallback(() => {
+    markReady();
+    setQuantity(1);
+  }, [markReady]);
+
   const { phase, submit, confirm, reset } = useScanFlow({
     endpoint: "/api/scan",
     pinRequired,
-    onReset: markReady,
+    onReset: resetForNextCustomer,
   });
 
   useEffect(() => {
@@ -58,7 +75,7 @@ export function Scanner({
   const { videoRef, status, retry } = useQrScanner({
     enabled: phase.step === "idle" && online,
     onDecode: (token) =>
-      void submit({ token, durationMs: Date.now() - readyAtRef.current }),
+      void submit({ token, durationMs: Date.now() - readyAtRef.current, quantity }),
   });
 
   const blocked = !online || status === "no_camera";
@@ -111,6 +128,33 @@ export function Scanner({
             </Link>
           </div>
         </header>
+
+        {phase.step === "idle" ? (
+          <div className="flex justify-center px-4 pt-2">
+            <div
+              role="group"
+              aria-label={t.quantityLabel}
+              className="glass-dark flex items-center gap-0.5 rounded-full p-1.5 text-chalk"
+            >
+              <CoffeeIcon className="mx-1.5 size-4 shrink-0 text-chalk/45" aria-hidden />
+              {QUANTITIES.map((n) => (
+                <button
+                  key={n}
+                  type="button"
+                  onClick={() => setQuantity(n)}
+                  aria-pressed={quantity === n}
+                  aria-label={fill(t.quantityOption, { n })}
+                  className={cn(
+                    "numeral flex size-8 items-center justify-center rounded-full text-[0.875rem] font-bold transition-colors",
+                    quantity === n ? "bg-lime text-ink" : "text-chalk/55 hover:text-chalk",
+                  )}
+                >
+                  {n}
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : null}
 
         <div className="flex flex-1 items-center justify-center px-10">
           <Target active={phase.step === "idle" && !blocked} />

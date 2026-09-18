@@ -4,16 +4,12 @@
  * se puede testear entera sin levantar nada.
  */
 
-/** Antirrebote: dos escaneos del mismo cliente dentro de esta ventana no suman. */
-export const DEBOUNCE_MINUTES = 5;
-
 export type InvalidReason = "device" | "other_shop" | "unknown_token" | "network";
 
 export type ScanAction =
   | { action: "stamp" }
   | { action: "redeem_invitation" }
-  | { action: "redeem_reward" }
-  | { action: "duplicate"; minutesAgo: number };
+  | { action: "redeem_reward" };
 
 /**
  * Lo que la barra recibe y pinta a pantalla completa.
@@ -27,48 +23,35 @@ export type ScanResponse =
       stamps: number;
       goal: number;
       cardCompleted: boolean;
+      /** Sellos añadidos en esta acción -normalmente 1, más si el barista pidió varios cafés de una vez-. */
+      added: number;
     }
   | { kind: "redeem_reward"; name: string; pending: boolean }
   | { kind: "redeem_invitation"; name: string; padrino: string; pending: boolean }
-  | { kind: "duplicate"; minutesAgo: number }
   | { kind: "invalid"; reason: InvalidReason };
 
 export type ScanContext = {
-  now: Date;
-  /** Último escaneo registrado de este cliente, o null si nunca vino. */
-  lastScanAt: Date | null;
   /** Tiene una invitación reclamada y todavía sin canjear. */
   hasClaimedInvitation: boolean;
   /** Completó tarjeta y aún no se ha llevado el café gratis. */
   rewardPending: boolean;
-  /**
-   * Segunda llamada, ya confirmada por el barista con PIN. Salta el
-   * antirrebote a propósito: es una acción humana explícita, no un rebote
-   * del lector de QR.
-   */
-  confirmed?: boolean;
 };
 
 /**
  * El orden importa y es deliberado:
  *
- *   1. antirrebote — protege del doble sellado por rebote del lector
- *   2. invitación  — un cliente nuevo canjea antes que nada
- *   3. recompensa  — tarjeta completa pendiente de café
- *   4. sello       — el caso normal, el 95% de los escaneos
+ *   1. invitación  — un cliente nuevo canjea antes que nada
+ *   2. recompensa  — tarjeta completa pendiente de café
+ *   3. sello       — el caso normal, el 95% de los escaneos
  *
- * El antirrebote va primero incluso por delante de la recompensa: si alguien
- * acaba de sellar hace un minuto, la respuesta correcta es "ya sellado" y que
- * el barista lo repita, no regalar un café por un rebote de cámara.
+ * Sin antirrebote por tiempo: un mismo cliente puede volver a escanearse
+ * segundos después del anterior sello -pide varios cafés y el barista
+ * escanea uno a uno, o se le olvidó pedir el segundo a la vez-, y eso tiene
+ * que sumar, no rebotar como "ya sellado". Ver también el selector de
+ * cantidad en Scanner.tsx, para el caso de pedir varios cafés en el mismo
+ * gesto en vez de reescanear.
  */
 export function decideScan(ctx: ScanContext): ScanAction {
-  if (!ctx.confirmed && ctx.lastScanAt) {
-    const minutesAgo = minutesBetween(ctx.lastScanAt, ctx.now);
-    if (minutesAgo < DEBOUNCE_MINUTES) {
-      return { action: "duplicate", minutesAgo };
-    }
-  }
-
   if (ctx.hasClaimedInvitation) return { action: "redeem_invitation" };
   if (ctx.rewardPending) return { action: "redeem_reward" };
   return { action: "stamp" };
@@ -139,10 +122,4 @@ export function applyBonus(pass: PassState, bonus: number, goal: number): PassSt
     next = applyStamp(next, goal).pass;
   }
   return next;
-}
-
-// ------------------------------------------------------------------ tiempo
-
-export function minutesBetween(from: Date, to: Date): number {
-  return Math.floor((to.getTime() - from.getTime()) / 60_000);
 }

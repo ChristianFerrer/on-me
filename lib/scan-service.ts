@@ -8,11 +8,9 @@ import {
   applyRewardRedeem,
   applyStamp,
   decideScan,
+  type PassState,
   type ScanResponse,
 } from "@/lib/scan";
-
-/** Escaneos que cuentan para el antirrebote: los que de verdad mutaron algo. */
-const MUTATING: ScanKind[] = ["stamp", "redeem_reward", "redeem_invitation"];
 
 export type ScanTarget = { token: string } | { customerId: string };
 
@@ -21,6 +19,8 @@ export type ScanOptions = {
   pin?: string;
   durationMs?: number;
   manual?: boolean;
+  /** Cafés a sellar de una vez -por defecto 1-, ver el selector en Scanner.tsx. */
+  quantity?: number;
 };
 
 export type ScanOutcome =
@@ -40,7 +40,6 @@ export async function runScan(
   options: ScanOptions = {},
 ): Promise<ScanOutcome> {
   const { shop, device } = ctx;
-  const now = new Date();
 
   const customer = await findCustomer(target);
 
@@ -58,45 +57,58 @@ export async function runScan(
 
   const pass = await ensurePass(customer.id);
   const invitation = await claimedInvitationFor(customer.id);
-  const lastScanAt = await lastMutatingScanAt(customer.id);
 
   const decision = decideScan({
-    now,
-    lastScanAt,
     hasClaimedInvitation: invitation !== null,
     rewardPending: pass.reward_pending,
-    confirmed: options.confirm,
   });
-
-  if (decision.action === "duplicate") {
-    await logScan(ctx, customer.id, "duplicate", options);
-    return {
-      status: "ok",
-      result: { kind: "duplicate", minutesAgo: decision.minutesAgo },
-    };
-  }
 
   // ------------------------------------------------------- sello inmediato
   if (decision.action === "stamp") {
-    const { pass: next, cardCompleted } = applyStamp(
-      {
-        stamps: pass.stamps,
-        cardsCompleted: pass.cards_completed,
-        rewardPending: pass.reward_pending,
-      },
-      shop.stamps_goal,
-    );
+    // Normalmente 1; el selector de cantidad en Scanner.tsx manda más
+    // cuando piden varios cafés de una vez. Si alguno de ellos completa la
+    // tarjeta, se para ahí -el resto de la cantidad pedida se queda sin
+    // aplicar-: lo que sigue a una tarjeta completa es canjear el premio,
+    // con su propia confirmación y PIN, no seguir sellando la siguiente
+    // tarjeta sin que nadie lo haya pedido.
+    const requested = Math.max(1, Math.floor(options.quantity ?? 1));
+
+    let current: PassState = {
+      stamps: pass.stamps,
+      cardsCompleted: pass.cards_completed,
+      rewardPending: pass.reward_pending,
+    };
+    let cardCompleted = false;
+    let applied = 0;
+
+    while (applied < requested) {
+      const outcome = applyStamp(current, shop.stamps_goal);
+      current = outcome.pass;
+      applied += 1;
+      // El tiempo de cámara a resultado es de un solo gesto: lo lleva
+      // solo el primer sello de la tanda. Los siguientes salen del mismo
+      // escaneo, sin abrir cámara de nuevo, así que no tienen un tiempo
+      // propio que sumar al promedio de `ops.scanTime`.
+      await logScan(
+        ctx,
+        customer.id,
+        "stamp",
+        applied === 1 ? options : { ...options, durationMs: undefined },
+      );
+      if (outcome.cardCompleted) {
+        cardCompleted = true;
+        break;
+      }
+    }
 
     await db()
       .from("passes")
       .update({
-        stamps: next.stamps,
-        cards_completed: next.cardsCompleted,
-        reward_pending: next.rewardPending,
+        stamps: current.stamps,
+        cards_completed: current.cardsCompleted,
+        reward_pending: current.rewardPending,
       })
       .eq("id", pass.id);
-
-    await logScan(ctx, customer.id, "stamp", options);
 
     if (cardCompleted) {
       // La invitación nace al completar tarjeta. Si el padrino ya tiene el
@@ -115,9 +127,10 @@ export async function runScan(
         name: firstName(customer.name),
         // Al cerrar tarjeta el contador vuelve a cero, pero en barra hay que
         // leer "sello 10 de 10", no "sello 0 de 10".
-        stamps: cardCompleted ? shop.stamps_goal : next.stamps,
+        stamps: cardCompleted ? shop.stamps_goal : current.stamps,
         goal: shop.stamps_goal,
         cardCompleted,
+        added: applied,
       },
     };
   }
@@ -247,19 +260,6 @@ async function ensurePass(customerId: string): Promise<PassRow> {
 
   if (error || !created) throw new Error("No se ha podido crear el pase");
   return created;
-}
-
-async function lastMutatingScanAt(customerId: string): Promise<Date | null> {
-  const { data } = await db()
-    .from("scans")
-    .select("created_at")
-    .eq("customer_id", customerId)
-    .in("kind", MUTATING)
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  return data ? new Date(data.created_at) : null;
 }
 
 async function logScan(
