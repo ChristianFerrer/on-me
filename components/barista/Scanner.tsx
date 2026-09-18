@@ -31,12 +31,14 @@ export function Scanner({
   const [online, setOnline] = useState(true);
 
   /**
-   * Cafés a sellar en el próximo escaneo -normalmente 1-: cubre a quien
-   * llega y pide 3 de una vez, sin tener que reescanearlo tres veces.
-   * Vuelve a 1 en cuanto se cierra el veredicto: el caso raro no debe ser
-   * el que hay que recordar apagar para el siguiente cliente.
+   * Cafés a sellar en el próximo escaneo. Empieza sin elegir -`null`, la
+   * taza del selector es lo que se ve resaltado- a propósito: el escáner
+   * no decodifica nada hasta que el barista dice cuántos cafés está
+   * cobrando, así que no hay sello por accidente antes de saberlo. Vuelve
+   * a `null` en cuanto se cierra el veredicto -cada cliente obliga a
+   * elegir de nuevo, no hay "recordar" cantidad de un cliente a otro-.
    */
-  const [quantity, setQuantity] = useState(1);
+  const [quantity, setQuantity] = useState<number | null>(null);
 
   /**
    * Instante en que la barra queda lista para el siguiente cliente. La
@@ -48,10 +50,10 @@ export function Scanner({
     readyAtRef.current = Date.now();
   }, []);
 
-  /** Como markReady, pero también para el mostrador: cada cliente nuevo empieza en 1 café. */
+  /** Como markReady, pero también para el mostrador: cada cliente nuevo vuelve a pedir cantidad. */
   const resetForNextCustomer = useCallback(() => {
     markReady();
-    setQuantity(1);
+    setQuantity(null);
   }, [markReady]);
 
   const { phase, submit, confirm, reset } = useScanFlow({
@@ -72,10 +74,12 @@ export function Scanner({
     };
   }, [markReady]);
 
+  const quantityChosen = quantity !== null;
+
   const { videoRef, status, retry } = useQrScanner({
-    enabled: phase.step === "idle" && online,
+    enabled: phase.step === "idle" && online && quantityChosen,
     onDecode: (token) =>
-      void submit({ token, durationMs: Date.now() - readyAtRef.current, quantity }),
+      void submit({ token, durationMs: Date.now() - readyAtRef.current, quantity: quantity ?? 1 }),
   });
 
   const blocked = !online || status === "no_camera";
@@ -136,7 +140,15 @@ export function Scanner({
               aria-label={t.quantityLabel}
               className="glass-dark flex items-center gap-0.5 rounded-full p-1.5 text-chalk"
             >
-              <CoffeeIcon className="mx-1.5 size-4 shrink-0 text-chalk/45" aria-hidden />
+              <span
+                aria-hidden
+                className={cn(
+                  "flex size-8 shrink-0 items-center justify-center rounded-full transition-colors",
+                  quantityChosen ? "text-chalk/45" : "anim-dot-pulse bg-lime text-ink",
+                )}
+              >
+                <CoffeeIcon className="size-4" />
+              </span>
               {QUANTITIES.map((n) => (
                 <button
                   key={n}
@@ -157,7 +169,7 @@ export function Scanner({
         ) : null}
 
         <div className="flex flex-1 items-center justify-center px-10">
-          <Target active={phase.step === "idle" && !blocked} />
+          <Target active={phase.step === "idle" && !blocked && quantityChosen} />
         </div>
 
         <footer className="px-5 pb-[max(1.75rem,env(safe-area-inset-bottom))]">
@@ -185,7 +197,9 @@ export function Scanner({
                 ? t.checking
                 : status === "booting"
                   ? t.opening
-                  : t.scanning}
+                  : !quantityChosen
+                    ? t.quantityPrompt
+                    : t.scanning}
             </p>
           )}
         </footer>

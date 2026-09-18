@@ -1,13 +1,13 @@
 "use client";
 
 import { cn } from "@/lib/cn";
-import { fill, type Dict } from "@/lib/i18n";
+import { fill, plural, type Dict } from "@/lib/i18n";
 import type { ScanResponse } from "@/lib/scan";
 
 type BaristaDict = Dict["barista"];
 
 /** Milisegundos que el resultado permanece en pantalla antes de cerrarse solo. */
-export const AUTOCLOSE_MS = 2000;
+export const AUTOCLOSE_MS = 5000;
 
 const SKIN: Record<ScanResponse["kind"], string> = {
   stamp: "verdict-lime",
@@ -70,11 +70,23 @@ export function Verdict({
           </button>
         </div>
       ) : (
-        <div className="h-0.5 w-full bg-current/15">
-          <div
-            className="drain h-full w-full bg-current/45"
-            style={{ ["--drain" as string]: `${AUTOCLOSE_MS}ms` }}
-          />
+        <div className="mx-auto flex w-full max-w-[26rem] flex-col gap-3 px-6 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
+          <button
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation();
+              onClose();
+            }}
+            className="btn w-full bg-ink px-6 py-6 text-[1.1875rem] text-chalk"
+          >
+            {t.backToScanner}
+          </button>
+          <div className="h-0.5 w-full bg-current/15">
+            <div
+              className="drain h-full w-full bg-current/45"
+              style={{ ["--drain" as string]: `${AUTOCLOSE_MS}ms` }}
+            />
+          </div>
         </div>
       )}
     </div>
@@ -104,11 +116,13 @@ function Body({ result, t }: { result: ScanResponse; t: BaristaDict }) {
               : fill(t.results.stampTitle, { n: result.stamps, goal: result.goal })}
           </h1>
           <Dots filled={result.stamps} goal={result.goal} />
-          {result.added > 1 ? (
-            <p className="numeral mt-3 text-[1.0625rem] font-bold opacity-80">
-              {fill(t.results.stampAdded, { n: result.added })}
-            </p>
-          ) : null}
+          <p className="numeral mt-3 text-[1.0625rem] font-bold opacity-80">
+            {plural(
+              result.added,
+              t.results.stampAddedOne,
+              fill(t.results.stampAddedMany, { n: result.added }),
+            )}
+          </p>
           {result.cardCompleted ? (
             <p className={SUB}>{fill(t.results.rewardBody, { name: result.name })}</p>
           ) : result.stamps === result.goal - 1 ? (
