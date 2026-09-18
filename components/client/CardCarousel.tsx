@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { CoffeeColdIcon, CoffeeIcon, EyeIcon, GiftIcon, QrIcon, SparkleIcon } from "@/components/ui/Icons";
+import { CoffeeColdIcon, CoffeeIcon, EyeIcon, GiftIcon, QrIcon, SparkleIcon, UserIcon } from "@/components/ui/Icons";
 import { ClientConstellation } from "@/components/client/ClientConstellation";
 import { cn } from "@/lib/cn";
 import { fill } from "@/lib/i18n";
@@ -14,7 +14,7 @@ const AUTO_BACK_MS = 150_000;
 /** Mismo valor que el `gap` real del track -spec §5-: hace falta en JS para calcular `step()`. */
 const TRACK_GAP_PX = 14;
 
-const SLIDE_IDS = ["code", "free", "gift", "oracle", "constellation"] as const;
+const SLIDE_IDS = ["code", "free", "gift", "oracle", "constellation", "profile"] as const;
 type SlideId = (typeof SLIDE_IDS)[number];
 
 type Status = {
@@ -34,6 +34,8 @@ function oracleStorageKey(customerId: string): string {
 export function CardCarousel({
   customerId,
   customerFirstName,
+  customerFullName,
+  phoneLast4,
   goal,
   bonusStamps,
   qr,
@@ -42,6 +44,8 @@ export function CardCarousel({
 }: {
   customerId: string;
   customerFirstName: string;
+  customerFullName: string;
+  phoneLast4: string;
   goal: number;
   bonusStamps: number;
   qr: React.ReactNode;
@@ -75,6 +79,8 @@ export function CardCarousel({
     constellationLoading: string;
     constellationEmptyTitle: string;
     constellationEmptyBody: string;
+    profileLabel: string;
+    profilePhoneHint: string;
   };
 }) {
   const [status, setStatus] = useState<Status>(initial);
@@ -264,6 +270,11 @@ export function CardCarousel({
       id: "constellation",
       icon: <SparkleIcon className="size-[62%]" />,
       label: labels.constellationLabel,
+    },
+    {
+      id: "profile",
+      icon: <UserIcon className="size-[62%]" />,
+      label: labels.profileLabel,
     },
   ];
 
@@ -481,6 +492,23 @@ export function CardCarousel({
                       emptyCtaDisabled={inviteCount === 0}
                     />
                   </div>
+                  {idx === i ? <TimerBar touching={touching} onDone={() => goTo(0)} /> : null}
+                </div>
+              ) : null}
+
+              {tab.id === "profile" ? (
+                <div className="card-scope flex size-full flex-col items-center justify-center gap-[clamp(7px,1.4vh,12px)] rounded-[clamp(18px,3.3vh,26px)] border border-lime/30 bg-[linear-gradient(158deg,rgba(214,243,76,.22),rgba(10,14,13,.82))] p-[clamp(17px,3vh,26px)] text-center text-chalk backdrop-blur-[18px]">
+                  <p className="eyebrow text-white/45">{tab.label}</p>
+                  <span className="flex size-[clamp(52px,9vh,68px)] items-center justify-center rounded-full border border-lime/30 bg-lime/[.13] text-lime">
+                    <UserIcon className="size-[52%]" />
+                  </span>
+                  <h2 className="break-words text-[clamp(18px,3.4vh,24px)] font-extrabold leading-[1.16] tracking-[-0.025em]">
+                    {customerFullName}
+                  </h2>
+                  <p className="numeral text-[clamp(13px,2.2vh,15px)] text-white/60">•••• {phoneLast4}</p>
+                  <p className="mt-1 text-[clamp(10.5px,1.75vh,12.5px)] leading-[1.45] text-white/40">
+                    {labels.profilePhoneHint}
+                  </p>
                   {idx === i ? <TimerBar touching={touching} onDone={() => goTo(0)} /> : null}
                 </div>
               ) : null}

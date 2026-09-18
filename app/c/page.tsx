@@ -91,6 +91,8 @@ export default async function CardPage() {
         <CardCarousel
           customerId={card.customer.id}
           customerFirstName={firstName(card.customer.name)}
+          customerFullName={card.customer.name}
+          phoneLast4={card.customer.phone_last4}
           goal={shop.stamps_goal}
           bonusStamps={shop.bonus_stamps}
           // El QR va renderizado desde aquí -componente async de servidor,
@@ -135,6 +137,8 @@ export default async function CardPage() {
             constellationLoading: t.card.constellationLoading,
             constellationEmptyTitle: t.card.constellationEmptyTitle,
             constellationEmptyBody: t.card.constellationEmptyBody,
+            profileLabel: t.card.profileLabel,
+            profilePhoneHint: t.join.phoneHint,
           }}
         />
       </main>

@@ -112,6 +112,7 @@ export const es = {
       "el oráculo funciona con cafeína: vuelve en el café {n}.",
     ],
     oracleFullHint: "el oráculo ha dicho todo lo que sabe... por ahora.",
+    profileLabel: "perfil",
   },
 
   invite: {
@@ -768,6 +769,7 @@ export const en: Dict = {
       "the oracle runs on caffeine: come back for coffee {n}.",
     ],
     oracleFullHint: "the oracle has said all it knows... for now.",
+    profileLabel: "profile",
   },
 
   invite: {
@@ -1417,6 +1419,7 @@ export const fr: Dict = {
       "l'oracle carbure à la caféine : reviens pour le café {n}.",
     ],
     oracleFullHint: "l'oracle a dit tout ce qu'il sait... pour l'instant.",
+    profileLabel: "profil",
   },
 
   invite: {
@@ -2066,6 +2069,7 @@ export const de: Dict = {
       "das Orakel läuft mit Koffein: komm zurück für Kaffee {n}.",
     ],
     oracleFullHint: "das Orakel hat alles gesagt, was es weiß... fürs Erste.",
+    profileLabel: "profil",
   },
 
   invite: {
