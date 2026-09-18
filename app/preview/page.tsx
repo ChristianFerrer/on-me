@@ -21,15 +21,19 @@ const t = es;
 const VERDICTS: { title: string; result: ScanResponse }[] = [
   {
     title: "sello",
-    result: { kind: "stamp", name: "Marta", stamps: 5, goal: 10, cardCompleted: false, added: 1 },
+    result: { kind: "stamp", name: "Marta", stamps: 5, goal: 10, rewardsEarned: 0, added: 1 },
   },
   {
     title: "varios cafés",
-    result: { kind: "stamp", name: "Marta", stamps: 8, goal: 10, cardCompleted: false, added: 3 },
+    result: { kind: "stamp", name: "Marta", stamps: 8, goal: 10, rewardsEarned: 0, added: 3 },
   },
   {
     title: "tarjeta completa",
-    result: { kind: "stamp", name: "Marta", stamps: 10, goal: 10, cardCompleted: true, added: 1 },
+    result: { kind: "stamp", name: "Marta", stamps: 0, goal: 10, rewardsEarned: 1, added: 1 },
+  },
+  {
+    title: "4 cafés cruzan tarjeta",
+    result: { kind: "stamp", name: "Marta", stamps: 2, goal: 10, rewardsEarned: 1, added: 4 },
   },
   { title: "café gratis", result: { kind: "redeem_reward", name: "Marta", pending: true } },
   {

@@ -67,10 +67,12 @@ export async function runScan(
   if (decision.action === "stamp") {
     // Normalmente 1; el selector de cantidad en Scanner.tsx manda más
     // cuando piden varios cafés de una vez. Si alguno de ellos completa la
-    // tarjeta, se para ahí -el resto de la cantidad pedida se queda sin
-    // aplicar-: lo que sigue a una tarjeta completa es canjear el premio,
-    // con su propia confirmación y PIN, no seguir sellando la siguiente
-    // tarjeta sin que nadie lo haya pedido.
+    // tarjeta, no se para ahí: quien pide 4 cafés con 8 ya puestos se lleva
+    // el premio de los 2 que la completan y los 2 que sobran arrancan la
+    // tarjeta siguiente, en la misma pasada -nadie vuelve a la barra solo
+    // para que le sigan sellando lo que ya pagó-. `applyStamp` deja
+    // `rewardPending` en `true` aunque se siga sellando después: el premio
+    // pendiente y el progreso de la tarjeta nueva conviven sin problema.
     const requested = Math.max(1, Math.floor(options.quantity ?? 1));
 
     let current: PassState = {
@@ -78,7 +80,7 @@ export async function runScan(
       cardsCompleted: pass.cards_completed,
       rewardPending: pass.reward_pending,
     };
-    let cardCompleted = false;
+    let rewardsEarned = 0;
     let applied = 0;
 
     while (applied < requested) {
@@ -95,10 +97,7 @@ export async function runScan(
         "stamp",
         applied === 1 ? options : { ...options, durationMs: undefined },
       );
-      if (outcome.cardCompleted) {
-        cardCompleted = true;
-        break;
-      }
+      if (outcome.cardCompleted) rewardsEarned += 1;
     }
 
     await db()
@@ -110,9 +109,12 @@ export async function runScan(
       })
       .eq("id", pass.id);
 
-    if (cardCompleted) {
-      // La invitación nace al completar tarjeta. Si el padrino ya tiene el
-      // cupo lleno, no se crea y no pasa nada: la recuperará más adelante.
+    // Una invitación por cada tarjeta completada en la tanda -normalmente
+    // una sola vuelta de este bucle, pero nada impide que una meta pequeña
+    // se complete más de una vez de golpe-. Si el padrino ya tiene el cupo
+    // lleno alguna se queda sin crear, y no pasa nada: la recuperará
+    // más adelante.
+    for (let i = 0; i < rewardsEarned; i++) {
       await createInvitation({
         shop,
         padrinoId: customer.id,
@@ -125,11 +127,9 @@ export async function runScan(
       result: {
         kind: "stamp",
         name: firstName(customer.name),
-        // Al cerrar tarjeta el contador vuelve a cero, pero en barra hay que
-        // leer "sello 10 de 10", no "sello 0 de 10".
-        stamps: cardCompleted ? shop.stamps_goal : current.stamps,
+        stamps: current.stamps,
         goal: shop.stamps_goal,
-        cardCompleted,
+        rewardsEarned,
         added: applied,
       },
     };

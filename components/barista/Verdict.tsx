@@ -104,18 +104,27 @@ const SUB = "mt-4 text-[1.1875rem] font-medium leading-snug opacity-70";
 
 function Body({ result, t }: { result: ScanResponse; t: BaristaDict }) {
   switch (result.kind) {
-    case "stamp":
+    case "stamp": {
+      // Con la meta llena y nada de sobra -0 en la tarjeta nueva-, la
+      // pantalla es solo "café gratis", igual que un sello suelto que
+      // completa tarjeta: es el caso normal. Si en la misma tanda sobraron
+      // cafés para la tarjeta siguiente, el titular vuelve a ser el
+      // progreso -"sello 2 de 10"- y el premio se cuenta aparte, para no
+      // esconder que ya hay sellos nuevos puestos.
+      const rewardOnly = result.rewardsEarned > 0 && result.stamps === 0;
+      const showRewardsNote = result.rewardsEarned > 0 && !(rewardOnly && result.rewardsEarned === 1);
+
       return (
         <>
           <p className="eyebrow opacity-55">
             {fill(t.results.stampFor, { name: result.name })}
           </p>
           <h1 className={cn(HEADLINE, "mt-4")}>
-            {result.cardCompleted
+            {rewardOnly
               ? t.results.rewardTitle
               : fill(t.results.stampTitle, { n: result.stamps, goal: result.goal })}
           </h1>
-          <Dots filled={result.stamps} goal={result.goal} />
+          <Dots filled={rewardOnly ? result.goal : result.stamps} goal={result.goal} />
           <p className="numeral mt-3 text-[1.0625rem] font-bold opacity-80">
             {plural(
               result.added,
@@ -123,13 +132,23 @@ function Body({ result, t }: { result: ScanResponse; t: BaristaDict }) {
               fill(t.results.stampAddedMany, { n: result.added }),
             )}
           </p>
-          {result.cardCompleted ? (
+          {showRewardsNote ? (
+            <p className="numeral mt-1 text-[1.0625rem] font-bold opacity-80">
+              {plural(
+                result.rewardsEarned,
+                t.results.rewardsEarnedOne,
+                fill(t.results.rewardsEarnedMany, { n: result.rewardsEarned }),
+              )}
+            </p>
+          ) : null}
+          {rewardOnly ? (
             <p className={SUB}>{fill(t.results.rewardBody, { name: result.name })}</p>
           ) : result.stamps === result.goal - 1 ? (
             <p className={SUB}>{t.results.lastOne}</p>
           ) : null}
         </>
       );
+    }
 
     // El titular es siempre la acción, nunca la frase larga: lo que hay que
     // reconocer a dos metros es "café gratis"; el nombre hace falta después.

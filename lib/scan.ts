@@ -20,9 +20,17 @@ export type ScanResponse =
   | {
       kind: "stamp";
       name: string;
+      /** Sellos de la tarjeta activa tras esta acción -la nueva, si alguna se completó y sobraron cafés-. */
       stamps: number;
       goal: number;
-      cardCompleted: boolean;
+      /**
+       * Tarjetas completadas en esta tanda -normalmente 0-. Con el selector
+       * de cantidad, pedir más cafés de los que le faltaban para el premio
+       * no se para en seco: el resto sigue sumando a la tarjeta siguiente,
+       * así que puede ser más de una si la cantidad pedida cruza más de un
+       * límite -raro, pero posible con una meta pequeña-.
+       */
+      rewardsEarned: number;
       /** Sellos añadidos en esta acción -normalmente 1, más si el barista pidió varios cafés de una vez-. */
       added: number;
     }

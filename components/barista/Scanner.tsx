@@ -169,7 +169,13 @@ export function Scanner({
         ) : null}
 
         <div className="flex flex-1 items-center justify-center px-10">
-          <Target active={phase.step === "idle" && !blocked && quantityChosen} />
+          {phase.step === "idle" && !blocked && !quantityChosen ? (
+            <p className="display-tight hyphens-auto break-words text-center text-[clamp(1.875rem,9vw,3.25rem)] leading-[1.1] text-chalk">
+              {t.quantityPrompt}
+            </p>
+          ) : (
+            <Target active={phase.step === "idle" && !blocked && quantityChosen} />
+          )}
         </div>
 
         <footer className="px-5 pb-[max(1.75rem,env(safe-area-inset-bottom))]">
@@ -191,17 +197,11 @@ export function Scanner({
                 </button>
               ) : null}
             </div>
-          ) : (
+          ) : quantityChosen ? (
             <p className="text-center text-[0.9375rem] font-medium text-chalk/70">
-              {phase.step === "sending"
-                ? t.checking
-                : status === "booting"
-                  ? t.opening
-                  : !quantityChosen
-                    ? t.quantityPrompt
-                    : t.scanning}
+              {phase.step === "sending" ? t.checking : status === "booting" ? t.opening : t.scanning}
             </p>
-          )}
+          ) : null}
         </footer>
       </div>
 
