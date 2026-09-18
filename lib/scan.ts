@@ -81,7 +81,13 @@ export function requiresConfirmation(action: ScanAction["action"]): boolean {
 export type PassState = {
   stamps: number;
   cardsCompleted: number;
-  rewardPending: boolean;
+  /**
+   * Cafés gratis completados y sin canjear -pueden ser más de uno-: el
+   * cliente elige cuándo se los lleva, no hay que canjear el primero para
+   * que el segundo empiece a contar. Ver applyStampBatch, que es lo que de
+   * verdad los hace crecer más allá de 0 o 1.
+   */
+  rewardsPending: number;
 };
 
 export type StampOutcome = {
@@ -92,7 +98,9 @@ export type StampOutcome = {
 
 /**
  * Suma un sello. Al llegar a la meta la tarjeta se cierra, el contador
- * vuelve a cero y queda un café pendiente de canjear.
+ * vuelve a cero y se suma un café gratis a los que ya tuviera pendientes
+ * -no los sustituye: completar una tarjeta nunca hace perder la anterior
+ * sin canjear-.
  */
 export function applyStamp(pass: PassState, goal: number): StampOutcome {
   const stamps = pass.stamps + 1;
@@ -102,7 +110,7 @@ export function applyStamp(pass: PassState, goal: number): StampOutcome {
       pass: {
         stamps: 0,
         cardsCompleted: pass.cardsCompleted + 1,
-        rewardPending: true,
+        rewardsPending: pass.rewardsPending + 1,
       },
       cardCompleted: true,
     };
@@ -114,13 +122,49 @@ export function applyStamp(pass: PassState, goal: number): StampOutcome {
   };
 }
 
+export type StampBatchOutcome = {
+  pass: PassState;
+  /** Sellos realmente aplicados -igual a la cantidad pedida: nunca se para a medias-. */
+  applied: number;
+  /** Tarjetas completadas dentro de la tanda -normalmente 0 ó 1-. */
+  rewardsEarned: number;
+};
+
+/**
+ * Aplica varios sellos de una tirada -selector de cantidad, o el flujo
+ * identificador-. A diferencia de llamar a `applyStamp` una vez, esto no
+ * se detiene si alguno completa la tarjeta: sigue hasta agotar la
+ * cantidad pedida, cruzando a la tarjeta siguiente con lo que sobre.
+ * Quien pide 4 cafés con 8 sellos puestos se lleva el premio de los 2 que
+ * completan la tarjeta, y los otros 2 arrancan la tarjeta nueva, en la
+ * misma pasada -nadie vuelve a la barra solo para que le sigan sellando
+ * lo que ya pagó-.
+ */
+export function applyStampBatch(pass: PassState, goal: number, quantity: number): StampBatchOutcome {
+  const requested = Math.max(1, Math.floor(quantity));
+
+  let current = pass;
+  let rewardsEarned = 0;
+  let applied = 0;
+
+  while (applied < requested) {
+    const outcome = applyStamp(current, goal);
+    current = outcome.pass;
+    applied += 1;
+    if (outcome.cardCompleted) rewardsEarned += 1;
+  }
+
+  return { pass: current, applied, rewardsEarned };
+}
+
 /** El café de invitación cuenta como primer sello de su primera tarjeta. */
 export function applyInvitationRedeem(pass: PassState): PassState {
   return { ...pass, stamps: 1 };
 }
 
-export function applyRewardRedeem(pass: PassState): PassState {
-  return { ...pass, rewardPending: false };
+/** Canjea `count` cafés gratis -por defecto 1-, sin bajar de cero. */
+export function applyRewardRedeem(pass: PassState, count = 1): PassState {
+  return { ...pass, rewardsPending: Math.max(0, pass.rewardsPending - count) };
 }
 
 /** Sellos de bonus al padrino cuando su invitado vuelve y paga. */

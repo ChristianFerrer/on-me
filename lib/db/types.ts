@@ -14,7 +14,9 @@ export type ScanKind =
   | "redeem_reward"
   | "redeem_invitation"
   | "duplicate"
-  | "invalid";
+  | "invalid"
+  /** Flujo identificador: solo consulta el perfil, no sella ni canjea nada. */
+  | "identify";
 
 export type AttributionState = "window" | "billable" | "discarded";
 
@@ -80,7 +82,8 @@ export type PassRow = {
   customer_id: string;
   stamps: number;
   cards_completed: number;
-  reward_pending: boolean;
+  /** Cafés gratis completados y sin canjear todavía -pueden acumularse más de uno-. */
+  reward_pending_count: number;
   created_at: string;
   updated_at: string;
 };

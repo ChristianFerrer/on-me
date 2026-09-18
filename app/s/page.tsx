@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Scanner } from "@/components/barista/Scanner";
+import { BaristaModeSwitch } from "@/components/barista/BaristaModeSwitch";
 import { HomeIcon } from "@/components/ui/Icons";
 import { Logo } from "@/components/ui/Logo";
 import { Screen, Slab } from "@/components/ui/Screen";
@@ -13,7 +13,7 @@ export default async function BaristaPage() {
   if (!ctx) return <NotEnrolled home={t.home.eyebrow} />;
 
   return (
-    <Scanner
+    <BaristaModeSwitch
       t={t.barista}
       shopName={ctx.shop.name}
       shopSlug={ctx.shop.slug}

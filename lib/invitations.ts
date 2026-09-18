@@ -62,3 +62,18 @@ export async function claimedInvitationFor(
 
   return data ?? null;
 }
+
+/**
+ * Cuántas invitaciones ha creado este cliente en total, sea cual sea su
+ * estado -caducada, canjeada, todavía en vuelo-. Es "a cuánta gente ha
+ * invitado", no "cuántas tiene activas ahora mismo" -eso ya lo calcula
+ * `loadCard` con `activeInvites`-, así que cuenta filas, no las carga.
+ */
+export async function countInvitationsSent(customerId: string): Promise<number> {
+  const { count } = await db()
+    .from("invitations")
+    .select("id", { count: "exact", head: true })
+    .eq("padrino_id", customerId);
+
+  return count ?? 0;
+}

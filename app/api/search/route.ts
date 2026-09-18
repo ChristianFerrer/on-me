@@ -12,7 +12,7 @@ type CustomerWithPass = {
   id: string;
   name: string;
   phone_last4: string;
-  passes: { stamps: number; reward_pending: boolean }[];
+  passes: { stamps: number; reward_pending_count: number }[];
 };
 
 export type SearchHit = {
@@ -59,7 +59,7 @@ export async function GET(request: Request) {
 
   const { data } = await db()
     .from("customers")
-    .select("id, name, phone_last4, passes(stamps, reward_pending)")
+    .select("id, name, phone_last4, passes(stamps, reward_pending_count)")
     .eq("shop_id", ctx.shop.id)
     .eq("phone_hash", normalized.hash)
     .order("created_at", { ascending: false })
@@ -72,7 +72,7 @@ export async function GET(request: Request) {
     last4: row.phone_last4,
     stamps: row.passes[0]?.stamps ?? 0,
     goal: ctx.shop.stamps_goal,
-    rewardPending: row.passes[0]?.reward_pending ?? false,
+    rewardPending: (row.passes[0]?.reward_pending_count ?? 0) > 0,
   }));
 
   return NextResponse.json({ hits });

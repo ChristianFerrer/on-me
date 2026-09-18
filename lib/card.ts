@@ -38,7 +38,7 @@ export async function loadCard(token: string): Promise<CardData | null> {
       db().from("shops").select("*").eq("id", customer.shop_id).maybeSingle(),
       db()
         .from("passes")
-        .select("stamps, cards_completed, reward_pending")
+        .select("stamps, cards_completed, reward_pending_count")
         .eq("customer_id", customer.id)
         .maybeSingle(),
       db()
@@ -70,7 +70,9 @@ export async function loadCard(token: string): Promise<CardData | null> {
     shop,
     stamps: passResult.data?.stamps ?? 0,
     cardsCompleted,
-    rewardPending: passResult.data?.reward_pending ?? false,
+    // La tarjeta del cliente solo necesita saber si hay algo esperando, no
+    // cuántos exactamente -eso es cosa del flujo identificador de barra-.
+    rewardPending: (passResult.data?.reward_pending_count ?? 0) > 0,
     activeInvites,
     pendingGrants,
     canCreateInvite: pendingGrants > 0,

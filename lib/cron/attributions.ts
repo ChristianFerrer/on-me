@@ -120,7 +120,7 @@ async function loadShops(ids: string[]): Promise<Map<string, ShopRow>> {
 async function payBonus(padrinoId: string, shop: ShopRow): Promise<boolean> {
   const { data: pass } = await db()
     .from("passes")
-    .select("id, stamps, cards_completed, reward_pending")
+    .select("id, stamps, cards_completed, reward_pending_count")
     .eq("customer_id", padrinoId)
     .maybeSingle();
 
@@ -130,7 +130,7 @@ async function payBonus(padrinoId: string, shop: ShopRow): Promise<boolean> {
     {
       stamps: pass.stamps,
       cardsCompleted: pass.cards_completed,
-      rewardPending: pass.reward_pending,
+      rewardsPending: pass.reward_pending_count,
     },
     shop.bonus_stamps,
     shop.stamps_goal,
@@ -141,7 +141,7 @@ async function payBonus(padrinoId: string, shop: ShopRow): Promise<boolean> {
     .update({
       stamps: next.stamps,
       cards_completed: next.cardsCompleted,
-      reward_pending: next.rewardPending,
+      reward_pending_count: next.rewardsPending,
     })
     .eq("id", pass.id);
 

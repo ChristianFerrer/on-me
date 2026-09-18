@@ -6,9 +6,8 @@ import { claimedInvitationFor, createInvitation } from "@/lib/invitations";
 import {
   applyInvitationRedeem,
   applyRewardRedeem,
-  applyStamp,
+  applyStampBatch,
   decideScan,
-  type PassState,
   type ScanResponse,
 } from "@/lib/scan";
 
@@ -60,61 +59,50 @@ export async function runScan(
 
   const decision = decideScan({
     hasClaimedInvitation: invitation !== null,
-    rewardPending: pass.reward_pending,
+    rewardPending: pass.reward_pending_count > 0,
   });
 
   // ------------------------------------------------------- sello inmediato
   if (decision.action === "stamp") {
     // Normalmente 1; el selector de cantidad en Scanner.tsx manda más
-    // cuando piden varios cafés de una vez. Si alguno de ellos completa la
-    // tarjeta, no se para ahí: quien pide 4 cafés con 8 ya puestos se lleva
-    // el premio de los 2 que la completan y los 2 que sobran arrancan la
-    // tarjeta siguiente, en la misma pasada -nadie vuelve a la barra solo
-    // para que le sigan sellando lo que ya pagó-. `applyStamp` deja
-    // `rewardPending` en `true` aunque se siga sellando después: el premio
-    // pendiente y el progreso de la tarjeta nueva conviven sin problema.
+    // cuando piden varios cafés de una vez. `applyStampBatch` no se para si
+    // alguno completa la tarjeta: quien pide 4 cafés con 8 ya puestos se
+    // lleva el premio de los 2 que la completan y los 2 que sobran arrancan
+    // la tarjeta siguiente, en la misma pasada -nadie vuelve a la barra
+    // solo para que le sigan sellando lo que ya pagó-.
     const requested = Math.max(1, Math.floor(options.quantity ?? 1));
+    const batch = applyStampBatch(
+      {
+        stamps: pass.stamps,
+        cardsCompleted: pass.cards_completed,
+        rewardsPending: pass.reward_pending_count,
+      },
+      shop.stamps_goal,
+      requested,
+    );
 
-    let current: PassState = {
-      stamps: pass.stamps,
-      cardsCompleted: pass.cards_completed,
-      rewardPending: pass.reward_pending,
-    };
-    let rewardsEarned = 0;
-    let applied = 0;
-
-    while (applied < requested) {
-      const outcome = applyStamp(current, shop.stamps_goal);
-      current = outcome.pass;
-      applied += 1;
-      // El tiempo de cámara a resultado es de un solo gesto: lo lleva
-      // solo el primer sello de la tanda. Los siguientes salen del mismo
-      // escaneo, sin abrir cámara de nuevo, así que no tienen un tiempo
-      // propio que sumar al promedio de `ops.scanTime`.
-      await logScan(
-        ctx,
-        customer.id,
-        "stamp",
-        applied === 1 ? options : { ...options, durationMs: undefined },
-      );
-      if (outcome.cardCompleted) rewardsEarned += 1;
+    // El tiempo de cámara a resultado es de un solo gesto: lo lleva solo
+    // el primer sello de la tanda. Los siguientes salen del mismo escaneo,
+    // sin abrir cámara de nuevo, así que no tienen un tiempo propio que
+    // sumar al promedio de `ops.scanTime`.
+    for (let i = 0; i < batch.applied; i++) {
+      await logScan(ctx, customer.id, "stamp", i === 0 ? options : { ...options, durationMs: undefined });
     }
 
     await db()
       .from("passes")
       .update({
-        stamps: current.stamps,
-        cards_completed: current.cardsCompleted,
-        reward_pending: current.rewardPending,
+        stamps: batch.pass.stamps,
+        cards_completed: batch.pass.cardsCompleted,
+        reward_pending_count: batch.pass.rewardsPending,
       })
       .eq("id", pass.id);
 
     // Una invitación por cada tarjeta completada en la tanda -normalmente
-    // una sola vuelta de este bucle, pero nada impide que una meta pequeña
-    // se complete más de una vez de golpe-. Si el padrino ya tiene el cupo
-    // lleno alguna se queda sin crear, y no pasa nada: la recuperará
-    // más adelante.
-    for (let i = 0; i < rewardsEarned; i++) {
+    // una sola vuelta, pero nada impide que una meta pequeña se complete
+    // más de una vez de golpe-. Si el padrino ya tiene el cupo lleno
+    // alguna se queda sin crear, y no pasa nada: la recuperará más adelante.
+    for (let i = 0; i < batch.rewardsEarned; i++) {
       await createInvitation({
         shop,
         padrinoId: customer.id,
@@ -127,10 +115,10 @@ export async function runScan(
       result: {
         kind: "stamp",
         name: firstName(customer.name),
-        stamps: current.stamps,
+        stamps: batch.pass.stamps,
         goal: shop.stamps_goal,
-        rewardsEarned,
-        added: applied,
+        rewardsEarned: batch.rewardsEarned,
+        added: batch.applied,
       },
     };
   }
@@ -191,7 +179,7 @@ export async function runScan(
     const next = applyInvitationRedeem({
       stamps: pass.stamps,
       cardsCompleted: pass.cards_completed,
-      rewardPending: pass.reward_pending,
+      rewardsPending: pass.reward_pending_count,
     });
     await db().from("passes").update({ stamps: next.stamps }).eq("id", pass.id);
 
@@ -207,15 +195,18 @@ export async function runScan(
   }
 
   // ------------------------------------------------------ canje del premio
+  // Este flujo canjea de uno en uno -si hubiera más de un café gratis
+  // acumulado, decideScan lo volverá a pedir en el próximo escaneo-. El
+  // flujo identificador es el que deja elegir cuántos de golpe.
   const next = applyRewardRedeem({
     stamps: pass.stamps,
     cardsCompleted: pass.cards_completed,
-    rewardPending: pass.reward_pending,
+    rewardsPending: pass.reward_pending_count,
   });
 
   await db()
     .from("passes")
-    .update({ reward_pending: next.rewardPending })
+    .update({ reward_pending_count: next.rewardsPending })
     .eq("id", pass.id);
 
   await logScan(ctx, customer.id, "redeem_reward", options);
@@ -231,8 +222,13 @@ export async function runScan(
 }
 
 // ----------------------------------------------------------------- helpers
+//
+// findCustomer/ensurePass/logScan se exportan porque lib/identify-service.ts
+// -el flujo identificador, ver Scanner.tsx/IdentifyScanner.tsx- necesita
+// exactamente las mismas consultas: resolver al cliente, garantizar su pase
+// y dejar rastro en `scans`. Duplicarlas ahí sería la misma query dos veces.
 
-async function findCustomer(target: ScanTarget): Promise<CustomerRow | null> {
+export async function findCustomer(target: ScanTarget): Promise<CustomerRow | null> {
   const query = db().from("customers").select("*");
   const { data } =
     "token" in target
@@ -243,7 +239,7 @@ async function findCustomer(target: ScanTarget): Promise<CustomerRow | null> {
 }
 
 /** Todo cliente tiene pase; si faltara por una alta a medias, se crea. */
-async function ensurePass(customerId: string): Promise<PassRow> {
+export async function ensurePass(customerId: string): Promise<PassRow> {
   const { data } = await db()
     .from("passes")
     .select("*")
@@ -262,7 +258,7 @@ async function ensurePass(customerId: string): Promise<PassRow> {
   return created;
 }
 
-async function logScan(
+export async function logScan(
   ctx: DeviceContext,
   customerId: string | null,
   kind: ScanKind,

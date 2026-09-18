@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { CoffeeIcon, HomeIcon, QrIcon, SearchIcon } from "@/components/ui/Icons";
+import { CoffeeIcon, HomeIcon, QrIcon, SearchIcon, UserIcon } from "@/components/ui/Icons";
 import { cn } from "@/lib/cn";
 import { fill, type Dict } from "@/lib/i18n";
 import { PinPad } from "./PinPad";
@@ -21,12 +21,19 @@ export function Scanner({
   shopSlug,
   deviceName,
   pinRequired,
+  onSwitchMode,
 }: {
   t: BaristaDict;
   shopName: string;
   shopSlug: string;
   deviceName: string;
   pinRequired: boolean;
+  /**
+   * Botón para pasar al flujo identificador -ver BaristaModeSwitch.tsx-.
+   * Opcional a propósito: este componente no depende de que exista ese
+   * flujo, solo enseña el botón cuando alguien se lo pasa.
+   */
+  onSwitchMode?: () => void;
 }) {
   const [online, setOnline] = useState(true);
 
@@ -130,6 +137,17 @@ export function Scanner({
               <SearchIcon className="size-4" />
               {t.search}
             </Link>
+            {onSwitchMode ? (
+              <button
+                type="button"
+                onClick={onSwitchMode}
+                aria-label={t.switchToIdentifyMode}
+                title={t.switchToIdentifyMode}
+                className="btn glass-dark size-11 rounded-full text-chalk"
+              >
+                <UserIcon className="size-5" />
+              </button>
+            ) : null}
           </div>
         </header>
 

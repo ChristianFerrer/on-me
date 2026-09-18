@@ -18,7 +18,7 @@ type CustomerDetail = {
   phone_last4: string;
   token: string;
   shop_id: string;
-  passes: { stamps: number; reward_pending: boolean }[];
+  passes: { stamps: number; reward_pending_count: number }[];
 };
 
 export default async function CustomerPage({
@@ -34,7 +34,7 @@ export default async function CustomerPage({
 
   const { data: customer } = await db()
     .from("customers")
-    .select("id, name, phone_last4, token, shop_id, passes(stamps, reward_pending)")
+    .select("id, name, phone_last4, token, shop_id, passes(stamps, reward_pending_count)")
     .eq("id", id)
     .maybeSingle()
     .returns<CustomerDetail>();
@@ -43,7 +43,9 @@ export default async function CustomerPage({
   if (!customer || customer.shop_id !== ctx.shop.id) notFound();
 
   const stamps = customer.passes[0]?.stamps ?? 0;
-  const rewardPending = customer.passes[0]?.reward_pending ?? false;
+  // Esta ficha canjea de uno en uno -igual que el escáner clásico-, así que
+  // le basta con saber si hay algo pendiente, no cuántos exactamente.
+  const rewardPending = (customer.passes[0]?.reward_pending_count ?? 0) > 0;
   const invitationPending = !rewardPending && Boolean(await claimedInvitationFor(customer.id));
 
   return (
