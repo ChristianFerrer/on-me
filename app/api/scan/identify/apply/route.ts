@@ -5,7 +5,10 @@ import { applyIdentifiedVisit } from "@/lib/identify-service";
 
 const Body = z.object({
   customerId: z.string().uuid(),
-  addStamps: z.number().int().min(0).max(5),
+  // El tope de verdad -el que se ve en pantalla- es shops.max_stamps_per_scan,
+  // configurable por local y aplicado en applyIdentifiedVisit(); 20 aquí es
+  // solo el techo absoluto del propio input, igual que redeemCount.
+  addStamps: z.number().int().min(0).max(20),
   redeemCount: z.number().int().min(0).max(20),
   pin: z.string().regex(/^\d{4}$/).optional(),
 });

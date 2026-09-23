@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { Dict } from "@/lib/i18n";
+import type { Dict, Locale } from "@/lib/i18n";
 import { IdentifyScanner } from "./IdentifyScanner";
 import { Scanner } from "./Scanner";
 
@@ -23,12 +23,14 @@ const STORAGE_KEY = "onme_barista_mode";
  */
 export function BaristaModeSwitch({
   t,
+  locale,
   shopName,
   shopSlug,
   deviceName,
   pinRequired,
 }: {
   t: BaristaDict;
+  locale: Locale;
   shopName: string;
   shopSlug: string;
   deviceName: string;
@@ -66,6 +68,7 @@ export function BaristaModeSwitch({
     return (
       <IdentifyScanner
         t={t}
+        locale={locale}
         shopName={shopName}
         shopSlug={shopSlug}
         deviceName={deviceName}

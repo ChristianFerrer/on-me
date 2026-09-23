@@ -42,6 +42,13 @@ export default async function DevicesPage() {
         >
           {t.admin.usersNav}
         </Link>
+        <Link
+          href="/admin/ajustes"
+          prefetch={false}
+          className="text-[0.8125rem] font-medium text-chalk/55 transition-colors hover:text-chalk"
+        >
+          {t.admin.settingsNav}
+        </Link>
       </header>
 
       <DeviceManager t={t.admin} devices={devices} baseUrl={env.baseUrl} locale={locale} />

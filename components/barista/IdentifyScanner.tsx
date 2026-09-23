@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { HomeIcon, QrIcon, ScanIcon, SearchIcon } from "@/components/ui/Icons";
 import { cn } from "@/lib/cn";
-import type { Dict } from "@/lib/i18n";
+import type { Dict, Locale } from "@/lib/i18n";
 import { CustomerProfilePanel } from "./CustomerProfilePanel";
 import { IdentifyResult } from "./IdentifyResult";
 import { PinPad } from "./PinPad";
@@ -22,6 +22,7 @@ type BaristaDict = Dict["barista"];
  */
 export function IdentifyScanner({
   t,
+  locale,
   shopName,
   shopSlug,
   deviceName,
@@ -29,6 +30,7 @@ export function IdentifyScanner({
   onSwitchMode,
 }: {
   t: BaristaDict;
+  locale: Locale;
   shopName: string;
   shopSlug: string;
   deviceName: string;
@@ -150,6 +152,7 @@ export function IdentifyScanner({
       {phase.step === "profile" || phase.step === "applying" ? (
         <CustomerProfilePanel
           t={t}
+          locale={locale}
           profile={phase.profile}
           busy={phase.step === "applying"}
           onCancel={reset}

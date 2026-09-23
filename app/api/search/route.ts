@@ -8,6 +8,9 @@ import { firstName } from "@/lib/scan-service";
 
 const Query = z.object({ phone: z.string().trim().min(3).max(32) });
 
+/** Menos dígitos que esto no vale la pena preguntarle a Supabase -mismo umbral que ManualSearch.tsx-. */
+const MIN_SEARCH_DIGITS = 6;
+
 type CustomerWithPass = {
   id: string;
   name: string;
@@ -27,9 +30,16 @@ export type SearchHit = {
 /**
  * Búsqueda por el móvil completo, el plan B de la barra.
  *
- * El teléfono nunca se guarda en claro, así que se normaliza igual que en el
- * alta y se compara por hash: una coincidencia exacta, no un patrón sobre
- * cuatro dígitos que podían tocarle a varios clientes a la vez.
+ * Dos vías a la vez, por si acaso:
+ *   1. Por hash exacto -normalizado igual que en el alta-, la única vía que
+ *      existía antes de guardar el teléfono en claro (migración 0003): sigue
+ *      haciendo falta para los clientes dados de alta antes de ese cambio,
+ *      cuyo número completo no se puede recuperar.
+ *   2. Por coincidencia de los dígitos escritos al final de `phone`, para
+ *      los clientes dados de alta después: no exige acertar con el `+` ni
+ *      con el prefijo de país -la ambigüedad real que hacía fallar la
+ *      búsqueda con números extranjeros-, así que basta con teclear el
+ *      número tal cual se lee.
  *
  * Nunca devuelve el token del cliente: es su identidad al portador y no tiene
  * por qué acabar en el localStorage de un iPad compartido. Para sellar basta
@@ -52,8 +62,16 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "bad_request" }, { status: 400 });
   }
 
+  const digits = parsed.data.phone.replace(/\D/g, "");
   const normalized = normalizePhone(parsed.data.phone, ctx.shop.default_country_code);
-  if (!normalized) {
+
+  const filters: string[] = [];
+  if (normalized) filters.push(`phone_hash.eq.${normalized.hash}`);
+  // Los dígitos ya vienen limpios de `replace(/\D/g, "")`: no hay comas ni
+  // comodines que puedan colarse en el propio filtro `.or()`.
+  if (digits.length >= MIN_SEARCH_DIGITS) filters.push(`phone.ilike.%${digits}`);
+
+  if (filters.length === 0) {
     return NextResponse.json({ hits: [] });
   }
 
@@ -61,7 +79,7 @@ export async function GET(request: Request) {
     .from("customers")
     .select("id, name, phone_last4, passes(stamps, reward_pending_count)")
     .eq("shop_id", ctx.shop.id)
-    .eq("phone_hash", normalized.hash)
+    .or(filters.join(","))
     .order("created_at", { ascending: false })
     .limit(5)
     .returns<CustomerWithPass[]>();

@@ -34,6 +34,8 @@ export type ShopRow = {
   default_country_code: string;
   default_locale: Locale;
   timezone: string;
+  /** Tope de cafés que el flujo identificador deja dar de una vez, ver /admin/ajustes. */
+  max_stamps_per_scan: number;
   created_at: string;
 };
 
@@ -71,6 +73,12 @@ export type CustomerRow = {
   name: string;
   phone_hash: string;
   phone_last4: string;
+  /**
+   * E.164 completo, en claro -desde la migración 0003-. `null` en los
+   * clientes dados de alta antes de ese cambio: su hash no se puede
+   * deshacer, así que su número completo no se puede recuperar.
+   */
+  phone: string | null;
   token: string;
   source: "qr" | "invitation";
   locale: Locale;

@@ -7,7 +7,7 @@ import { getDeviceContext, pinRequired } from "@/lib/auth/device";
 import { getI18n } from "@/lib/i18n/server";
 
 export default async function BaristaPage() {
-  const { t } = await getI18n();
+  const { locale, t } = await getI18n();
   const ctx = await getDeviceContext();
 
   if (!ctx) return <NotEnrolled home={t.home.eyebrow} />;
@@ -15,6 +15,7 @@ export default async function BaristaPage() {
   return (
     <BaristaModeSwitch
       t={t.barista}
+      locale={locale}
       shopName={ctx.shop.name}
       shopSlug={ctx.shop.slug}
       deviceName={ctx.device.name}

@@ -1,7 +1,7 @@
 import { db } from "@/lib/db/client";
 import type { DeviceContext } from "@/lib/auth/device";
 import { checkPin } from "@/lib/auth/device";
-import { countInvitationsSent, createInvitation } from "@/lib/invitations";
+import { countClaimedFromInvites, countInvitationsSent, createInvitation } from "@/lib/invitations";
 import { applyRewardRedeem, applyStampBatch, type InvalidReason, type PassState } from "@/lib/scan";
 import { ensurePass, findCustomer, firstName, logScan } from "@/lib/scan-service";
 
@@ -27,8 +27,21 @@ export type IdentifyResult =
       goal: number;
       /** Cafés gratis completados y sin canjear, acumulados. */
       rewardsPending: number;
+      /** Tarjetas completadas en toda su historia -no solo la activa-. */
+      cardsCompleted: number;
+      /** Cafés gratis ya reclamados en toda su historia -cardsCompleted menos los que aún quedan pendientes-. */
+      rewardsClaimed: number;
       /** Cuánta gente ha invitado en total, sea cual sea el estado de esas invitaciones. */
       invitedCount: number;
+      /** Clientes nuevos que se dieron de alta con una invitación suya. */
+      newCustomersFromInvites: number;
+      /** ISO, fecha de alta. */
+      createdAt: string;
+      phoneLast4: string;
+      /** E.164 completo, o `null` si se dio de alta antes de guardarlo -migración 0003-. */
+      phone: string | null;
+      /** Tope de sellos que el selector de esta pantalla deja pedir de una vez, ver /admin/ajustes. */
+      maxStamps: number;
     }
   | { kind: "invalid"; reason: InvalidReason };
 
@@ -50,9 +63,10 @@ export async function identifyCustomer(
     return { kind: "invalid", reason: "other_shop" };
   }
 
-  const [pass, invitedCount] = await Promise.all([
+  const [pass, invitedCount, newCustomersFromInvites] = await Promise.all([
     ensurePass(customer.id),
     countInvitationsSent(customer.id),
+    countClaimedFromInvites(customer.id),
   ]);
 
   await logScan(ctx, customer.id, "identify", {});
@@ -64,7 +78,14 @@ export async function identifyCustomer(
     stamps: pass.stamps,
     goal: shop.stamps_goal,
     rewardsPending: pass.reward_pending_count,
+    cardsCompleted: pass.cards_completed,
+    rewardsClaimed: pass.cards_completed - pass.reward_pending_count,
     invitedCount,
+    newCustomersFromInvites,
+    createdAt: customer.created_at,
+    phoneLast4: customer.phone_last4,
+    phone: customer.phone,
+    maxStamps: shop.max_stamps_per_scan,
   };
 }
 
@@ -107,7 +128,9 @@ export async function applyIdentifiedVisit(
   options: IdentifyApplyOptions,
 ): Promise<IdentifyApplyOutcome> {
   const { shop, device } = ctx;
-  const addStamps = Math.max(0, Math.floor(options.addStamps));
+  // Nunca más del tope del local, ni aunque llegue un valor viejo desde un
+  // cliente que todavía no ha recargado tras un cambio en /admin/ajustes.
+  const addStamps = Math.min(shop.max_stamps_per_scan, Math.max(0, Math.floor(options.addStamps)));
   const redeemRequested = Math.max(0, Math.floor(options.redeemCount));
 
   const customer = await findCustomer({ customerId });

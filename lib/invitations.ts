@@ -77,3 +77,20 @@ export async function countInvitationsSent(customerId: string): Promise<number> 
 
   return count ?? 0;
 }
+
+/**
+ * Clientes nuevos que llegaron por una invitación suya -se dieron de alta
+ * con el código, sea cual sea el estado de la invitación después-.
+ * `claimed_by` se fija una sola vez, al aceptar el café, y ya no se borra
+ * aunque la invitación siga avanzando (a 'redeemed') o caduque de adorno,
+ * así que contar filas con ese campo relleno basta.
+ */
+export async function countClaimedFromInvites(customerId: string): Promise<number> {
+  const { count } = await db()
+    .from("invitations")
+    .select("id", { count: "exact", head: true })
+    .eq("padrino_id", customerId)
+    .not("claimed_by", "is", null);
+
+  return count ?? 0;
+}

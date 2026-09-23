@@ -70,6 +70,7 @@ export async function POST(request: Request) {
       name,
       phone_hash: normalized.hash,
       phone_last4: normalized.last4,
+      phone: normalized.e164,
       token,
       source: "qr",
       locale: locale ?? shop.default_locale,
@@ -84,7 +85,8 @@ export async function POST(request: Request) {
   await db().from("passes").insert({ customer_id: customer.id });
   await writeCustomerCookie(token);
 
-  // El teléfono en claro muere aquí: no se devuelve, no se registra y no se
-  // guarda. En la base solo quedan el hash y los cuatro últimos dígitos.
+  // El teléfono en claro no viaja de vuelta al navegador -no hace falta,
+  // el token ya identifica al cliente-, pero sí queda guardado: ver la
+  // nota en NormalizedPhone (lib/crypto.ts) sobre por qué.
   return NextResponse.json({ token, existing: false });
 }

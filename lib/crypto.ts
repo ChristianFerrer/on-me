@@ -62,7 +62,13 @@ export function safeEqual(a: string, b: string): boolean {
 // ---------------------------------------------------------------- teléfono
 
 export type NormalizedPhone = {
-  /** E.164 completo. Solo vive en memoria, jamás se persiste ni se registra. */
+  /**
+   * E.164 completo. Se guarda en claro en `customers.phone` -desde la
+   * migración 0003- para poder usarlo como identificador real en la
+   * búsqueda de barra. `hash` se sigue calculando y guardando igual que
+   * antes: es la llave única por local, y lo único que tienen los clientes
+   * dados de alta antes de ese cambio.
+   */
   e164: string;
   hash: string;
   last4: string;

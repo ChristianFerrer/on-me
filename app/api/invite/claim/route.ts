@@ -107,6 +107,7 @@ export async function POST(request: Request) {
       name,
       phone_hash: normalized.hash,
       phone_last4: normalized.last4,
+      phone: normalized.e164,
       token,
       source: "invitation",
       locale: locale ?? shop.default_locale,
