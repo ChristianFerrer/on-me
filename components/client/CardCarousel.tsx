@@ -2,8 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { CoffeeColdIcon, CoffeeIcon, EyeIcon, GiftIcon, QrIcon, SparkleIcon, UserIcon } from "@/components/ui/Icons";
-import { ClientConstellation } from "@/components/client/ClientConstellation";
+import { CoffeeColdIcon, CoffeeIcon, GiftIcon, QrIcon, UserIcon } from "@/components/ui/Icons";
 import { cn } from "@/lib/cn";
 import { fill } from "@/lib/i18n";
 
@@ -14,7 +13,7 @@ const AUTO_BACK_MS = 150_000;
 /** Mismo valor que el `gap` real del track -spec §5-: hace falta en JS para calcular `step()`. */
 const TRACK_GAP_PX = 14;
 
-const SLIDE_IDS = ["code", "free", "gift", "oracle", "constellation", "profile"] as const;
+const SLIDE_IDS = ["code", "free", "gift", "profile"] as const;
 type SlideId = (typeof SLIDE_IDS)[number];
 
 type Status = {
@@ -25,15 +24,7 @@ type Status = {
   returnedGuests: number;
 };
 
-type StoredOracle = { stamps: number; message: string; hint: string };
-
-function oracleStorageKey(customerId: string): string {
-  return `onme:oracle:${customerId}`;
-}
-
 export function CardCarousel({
-  customerId,
-  customerFirstName,
   customerFullName,
   phoneLast4,
   goal,
@@ -42,8 +33,6 @@ export function CardCarousel({
   initial,
   labels,
 }: {
-  customerId: string;
-  customerFirstName: string;
   customerFullName: string;
   phoneLast4: string;
   goal: number;
@@ -70,25 +59,14 @@ export function CardCarousel({
     giftChoose: string;
     guestReturned: string;
     guestReturnedBody: string;
-    oracleLabel: string;
-    oracleCta: string;
-    oracleMessages: string[];
-    oracleUnlockHints: string[];
-    oracleFullHint: string;
-    constellationLabel: string;
-    constellationLoading: string;
-    constellationEmptyTitle: string;
-    constellationEmptyBody: string;
     profileLabel: string;
     profilePhoneHint: string;
+    eyebrow: string;
   };
 }) {
   const [status, setStatus] = useState<Status>(initial);
   const [idx, setIdx] = useState(0);
   const [touching, setTouching] = useState(false);
-  const [oracleOpened, setOracleOpened] = useState(false);
-  const [oracleMessage, setOracleMessage] = useState<string | null>(null);
-  const [oracleHint, setOracleHint] = useState<string | null>(null);
 
   const trackRef = useRef<HTMLDivElement>(null);
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
@@ -124,71 +102,6 @@ export function CardCarousel({
 
   const { stamps, rewardPending, cardsCompleted, inviteCount, returnedGuests } = status;
   const remaining = goal - stamps;
-
-  // El oráculo -galleta de la suerte, no chiste por sello-: un sello nuevo
-  // desbloquea una frase nueva, elegida al azar y recordada en
-  // localStorage mientras el conteo de sellos no cambie -misma lógica que
-  // ya teníamos, la spec pedía una baraja fija por sello con "vista"
-  // marcada en servidor, pero no hay ni el campo ni las barajas para eso
-  // todavía-. Entrar en su tarjeta del carrusel es la propia revelación:
-  // no hace falta un botón aparte dentro de una tarjeta a la que ya se
-  // llegó a propósito.
-  useEffect(() => {
-    function readStoredState() {
-      let stored: StoredOracle | null = null;
-      try {
-        const raw = window.localStorage.getItem(oracleStorageKey(customerId));
-        stored = raw ? JSON.parse(raw) : null;
-      } catch {
-        stored = null;
-      }
-      if (stored && stored.stamps === stamps) {
-        setOracleOpened(true);
-        setOracleMessage(stored.message);
-        setOracleHint(stored.hint);
-      } else {
-        setOracleOpened(false);
-        setOracleMessage(null);
-        setOracleHint(null);
-      }
-    }
-
-    readStoredState();
-  }, [customerId, stamps]);
-
-  useEffect(() => {
-    function revealOnArrival() {
-      if (idx !== 3 || oracleOpened) return;
-      const picked = labels.oracleMessages[Math.floor(Math.random() * labels.oracleMessages.length)];
-      // La pista de "vuelve con el siguiente café" es tan de broma como el
-      // mensaje: se sortea de la misma bolsa de frases -no una sola fija-,
-      // pero todas dicen lo mismo en el fondo -qué café desbloquea la
-      // siguiente-, así que da igual cuál toque, nunca miente.
-      const nextStamp = Math.min(stamps + 1, goal);
-      const pickedHint =
-        stamps >= goal
-          ? labels.oracleFullHint
-          : fill(
-              labels.oracleUnlockHints[Math.floor(Math.random() * labels.oracleUnlockHints.length)],
-              { n: nextStamp },
-            );
-      setOracleMessage(picked);
-      setOracleHint(pickedHint);
-      setOracleOpened(true);
-      try {
-        window.localStorage.setItem(
-          oracleStorageKey(customerId),
-          JSON.stringify({ stamps, message: picked, hint: pickedHint } satisfies StoredOracle),
-        );
-      } catch {
-        // Sin localStorage: el oráculo sigue funcionando, solo "olvida" el
-        // estado al recargar.
-      }
-    }
-
-    revealOnArrival();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [idx]);
 
   function step(): number {
     const first = trackRef.current?.querySelector<HTMLElement>("[data-slide]");
@@ -232,10 +145,9 @@ export function CardCarousel({
     }
   }
 
-  const oracleUnseen = !oracleOpened;
   const inviteHref = "/c/invitar";
 
-  // Los cinco iconos siempre se pueden tocar -son los que enseñan el
+  // Los cuatro iconos siempre se pueden tocar -son los que enseñan el
   // detalle de cada tarjeta, incluida la que está en 0-: lo que se
   // desactiva es la acción de dentro de cada tarjeta que no tiene nada que
   // hacer todavía (mostrar código, elegir a quién), no el acceso a verla.
@@ -258,18 +170,6 @@ export function CardCarousel({
       icon: <GiftIcon className="size-[62%]" />,
       label: labels.giftLabel,
       badge: inviteCount,
-    },
-    {
-      id: "oracle",
-      icon: <EyeIcon className="size-[62%]" />,
-      label: labels.oracleLabel,
-      ariaLabel: labels.oracleCta,
-      badge: oracleUnseen ? 1 : 0,
-    },
-    {
-      id: "constellation",
-      icon: <SparkleIcon className="size-[62%]" />,
-      label: labels.constellationLabel,
     },
     {
       id: "profile",
@@ -319,7 +219,7 @@ export function CardCarousel({
 
       <div
         role="tablist"
-        aria-label={labels.constellationLabel}
+        aria-label={labels.eyebrow}
         onKeyDown={onTabsKeyDown}
         className="flex flex-none justify-between px-4 py-1"
       >
@@ -459,38 +359,6 @@ export function CardCarousel({
                         {labels.giftChoose}
                       </span>
                     )}
-                  </div>
-                  {idx === i ? <TimerBar touching={touching} onDone={() => goTo(0)} /> : null}
-                </div>
-              ) : null}
-
-              {tab.id === "oracle" ? (
-                <div className="card-scope flex size-full flex-col items-center justify-center gap-[clamp(7px,1.4vh,12px)] rounded-[clamp(18px,3.3vh,26px)] border border-lime/30 bg-[linear-gradient(158deg,rgba(214,243,76,.22),rgba(10,14,13,.82))] p-[clamp(17px,3vh,26px)] text-center text-chalk backdrop-blur-[18px]">
-                  <p className="eyebrow text-white/45">{tab.label}</p>
-                  <p className="text-[clamp(15px,3.1vh,22px)] italic leading-[1.4] text-white/94">
-                    {oracleMessage ? `“${oracleMessage}”` : ""}
-                  </p>
-                  {oracleHint ? (
-                    <p className="mt-[clamp(6px,1.2vh,11px)] border-t border-white/[.09] pt-[clamp(6px,1.2vh,11px)] text-[clamp(10px,1.6vh,11.5px)] leading-[1.4] text-white/40">
-                      {oracleHint}
-                    </p>
-                  ) : null}
-                  {idx === i ? <TimerBar touching={touching} onDone={() => goTo(0)} /> : null}
-                </div>
-              ) : null}
-
-              {tab.id === "constellation" ? (
-                <div className="card-scope relative flex size-full flex-col rounded-[clamp(18px,3.3vh,26px)] border border-lime/30 bg-[linear-gradient(158deg,rgba(214,243,76,.22),rgba(10,14,13,.82))] text-chalk backdrop-blur-[18px]">
-                  <p className="eyebrow flex-none pt-[clamp(14px,2.6vh,20px)] text-center text-white/45">{tab.label}</p>
-                  <div className="min-h-0 flex-1">
-                    <ClientConstellation
-                      customerName={customerFirstName}
-                      loadingLabel={labels.constellationLoading}
-                      emptyTitle={labels.constellationEmptyTitle}
-                      emptyBody={labels.constellationEmptyBody}
-                      emptyCta={labels.giftChoose}
-                      emptyCtaDisabled={inviteCount === 0}
-                    />
                   </div>
                   {idx === i ? <TimerBar touching={touching} onDone={() => goTo(0)} /> : null}
                 </div>

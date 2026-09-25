@@ -1,6 +1,8 @@
 import { db } from "@/lib/db/client";
 import type { DeviceContext } from "@/lib/auth/device";
 import { checkPin } from "@/lib/auth/device";
+import { normalizePhone } from "@/lib/crypto";
+import type { CustomerRow } from "@/lib/db/types";
 import { countClaimedFromInvites, countInvitationsSent, createInvitation } from "@/lib/invitations";
 import { applyRewardRedeem, applyStampBatch, type InvalidReason, type PassState } from "@/lib/scan";
 import { ensurePass, findCustomer, firstName, logScan } from "@/lib/scan-service";
@@ -23,6 +25,8 @@ export type IdentifyResult =
       kind: "profile";
       customerId: string;
       name: string;
+      /** Nombre completo, sin abreviar -para prellenar el formulario de edición-. */
+      fullName: string;
       stamps: number;
       goal: number;
       /** Cafés gratis completados y sin canjear, acumulados. */
@@ -45,6 +49,37 @@ export type IdentifyResult =
     }
   | { kind: "invalid"; reason: InvalidReason };
 
+/** Perfil completo del cliente -lo que enseña el panel-, sin tocar `scans`: lo comparten identifyCustomer y updateIdentifiedCustomer. */
+async function buildProfile(
+  ctx: DeviceContext,
+  customer: CustomerRow,
+): Promise<Extract<IdentifyResult, { kind: "profile" }>> {
+  const { shop } = ctx;
+  const [pass, invitedCount, newCustomersFromInvites] = await Promise.all([
+    ensurePass(customer.id),
+    countInvitationsSent(customer.id),
+    countClaimedFromInvites(customer.id),
+  ]);
+
+  return {
+    kind: "profile",
+    customerId: customer.id,
+    name: firstName(customer.name),
+    fullName: customer.name,
+    stamps: pass.stamps,
+    goal: shop.stamps_goal,
+    rewardsPending: pass.reward_pending_count,
+    cardsCompleted: pass.cards_completed,
+    rewardsClaimed: pass.cards_completed - pass.reward_pending_count,
+    invitedCount,
+    newCustomersFromInvites,
+    createdAt: customer.created_at,
+    phoneLast4: customer.phone_last4,
+    phone: customer.phone,
+    maxStamps: shop.max_stamps_per_scan,
+  };
+}
+
 /** Resuelve al cliente y deja rastro -kind 'identify'- sin sellar ni canjear nada. */
 export async function identifyCustomer(
   ctx: DeviceContext,
@@ -63,30 +98,65 @@ export async function identifyCustomer(
     return { kind: "invalid", reason: "other_shop" };
   }
 
-  const [pass, invitedCount, newCustomersFromInvites] = await Promise.all([
-    ensurePass(customer.id),
-    countInvitationsSent(customer.id),
-    countClaimedFromInvites(customer.id),
-  ]);
-
   await logScan(ctx, customer.id, "identify", {});
 
-  return {
-    kind: "profile",
-    customerId: customer.id,
-    name: firstName(customer.name),
-    stamps: pass.stamps,
-    goal: shop.stamps_goal,
-    rewardsPending: pass.reward_pending_count,
-    cardsCompleted: pass.cards_completed,
-    rewardsClaimed: pass.cards_completed - pass.reward_pending_count,
-    invitedCount,
-    newCustomersFromInvites,
-    createdAt: customer.created_at,
-    phoneLast4: customer.phone_last4,
-    phone: customer.phone,
-    maxStamps: shop.max_stamps_per_scan,
-  };
+  return buildProfile(ctx, customer);
+}
+
+export type IdentifyUpdateResult =
+  | { status: "ok"; profile: Extract<IdentifyResult, { kind: "profile" }> }
+  | { status: "error"; reason: "not_found" | "other_shop" | "invalid_phone" | "phone_taken" };
+
+/**
+ * Corrige nombre y teléfono desde el propio panel del perfil -dato mal
+ * escrito al alta, cambio de móvil-. El teléfono se vuelve a normalizar
+ * entero: cambia el hash y el last4 a la vez, nunca uno sin el otro, o la
+ * búsqueda por sufijo (ver app/api/search/route.ts) y el hash exacto
+ * dejarían de apuntar al mismo número.
+ */
+export async function updateIdentifiedCustomer(
+  ctx: DeviceContext,
+  customerId: string,
+  input: { name: string; phone: string },
+): Promise<IdentifyUpdateResult> {
+  const { shop } = ctx;
+  const customer = await findCustomer({ customerId });
+  if (!customer) return { status: "error", reason: "not_found" };
+  if (customer.shop_id !== shop.id) return { status: "error", reason: "other_shop" };
+
+  const normalized = normalizePhone(input.phone, shop.default_country_code);
+  if (!normalized) return { status: "error", reason: "invalid_phone" };
+
+  if (normalized.hash !== customer.phone_hash) {
+    // Mismo índice único que protege el alta (shop_id, phone_hash): sin
+    // este chequeo, dos clientes del mismo local podrían acabar con el
+    // mismo teléfono y la UPDATE de abajo reventaría con un 500 en vez de
+    // un error legible.
+    const { data: clash } = await db()
+      .from("customers")
+      .select("id")
+      .eq("shop_id", shop.id)
+      .eq("phone_hash", normalized.hash)
+      .neq("id", customerId)
+      .maybeSingle();
+    if (clash) return { status: "error", reason: "phone_taken" };
+  }
+
+  const { data: updated, error } = await db()
+    .from("customers")
+    .update({
+      name: input.name,
+      phone: normalized.e164,
+      phone_hash: normalized.hash,
+      phone_last4: normalized.last4,
+    })
+    .eq("id", customerId)
+    .select("*")
+    .single();
+
+  if (error || !updated) return { status: "error", reason: "not_found" };
+
+  return { status: "ok", profile: await buildProfile(ctx, updated) };
 }
 
 export type IdentifyApplyOptions = {

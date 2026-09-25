@@ -156,5 +156,35 @@ export function useIdentifyFlow(pinRequired: boolean) {
     [postApply],
   );
 
-  return { phase, identify, apply, confirmPin, reset };
+  /**
+   * Corrige nombre/teléfono desde el propio panel del perfil, sin cerrar la
+   * pantalla ni perder la elección de sellos/canje que el barista ya tenía
+   * hecha: solo sustituye el perfil dentro de la fase actual.
+   */
+  const updateProfile = useCallback(
+    async (customerId: string, name: string, phone: string): Promise<{ ok: true } | { ok: false; error: string }> => {
+      try {
+        const response = await fetch("/api/scan/identify/update", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ customerId, name, phone }),
+        });
+
+        if (!response.ok) {
+          const data: unknown = await response.json().catch(() => null);
+          const error = (data as { error?: string } | null)?.error ?? "generic";
+          return { ok: false, error };
+        }
+
+        const profile = (await response.json()) as IdentifyProfile;
+        setPhase((current) => (current.step === "profile" ? { ...current, profile } : current));
+        return { ok: true };
+      } catch {
+        return { ok: false, error: "network" };
+      }
+    },
+    [],
+  );
+
+  return { phase, identify, apply, confirmPin, updateProfile, reset };
 }

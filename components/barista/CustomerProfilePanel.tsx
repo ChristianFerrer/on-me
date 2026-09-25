@@ -4,6 +4,7 @@ import { useState } from "react";
 import {
   CheckIcon,
   CoffeeIcon,
+  EditIcon,
   EyeIcon,
   EyeOffIcon,
   GiftIcon,
@@ -36,6 +37,7 @@ export function CustomerProfilePanel({
   busy,
   onCancel,
   onConfirm,
+  onUpdateProfile,
 }: {
   t: BaristaDict;
   locale: Locale;
@@ -43,14 +45,49 @@ export function CustomerProfilePanel({
   busy: boolean;
   onCancel: () => void;
   onConfirm: (addStamps: number, redeemCount: number) => void;
+  onUpdateProfile: (name: string, phone: string) => Promise<{ ok: true } | { ok: false; error: string }>;
 }) {
   const [addStamps, setAddStamps] = useState(Math.min(1, profile.maxStamps));
   const [redeemCount, setRedeemCount] = useState(0);
   const [phoneRevealed, setPhoneRevealed] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [editName, setEditName] = useState(profile.fullName);
+  const [editPhone, setEditPhone] = useState(profile.phone ?? "");
+  const [editBusy, setEditBusy] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
 
   const redeemCap = Math.min(profile.rewardsPending, MAX_REDEEM_OPTIONS);
   const redeemOptions = Array.from({ length: redeemCap + 1 }, (_, i) => i);
   const canConfirm = addStamps > 0 || redeemCount > 0;
+
+  function openEdit() {
+    setEditName(profile.fullName);
+    setEditPhone(profile.phone ?? "");
+    setEditError(null);
+    setEditing(true);
+  }
+
+  async function saveEdit(event: React.FormEvent) {
+    event.preventDefault();
+    if (editBusy) return;
+
+    setEditBusy(true);
+    setEditError(null);
+    const result = await onUpdateProfile(editName.trim(), editPhone.trim());
+    setEditBusy(false);
+
+    if (result.ok) {
+      setEditing(false);
+    } else {
+      setEditError(
+        result.error === "invalid_phone"
+          ? t.identifyEditPhoneInvalid
+          : result.error === "phone_taken"
+            ? t.identifyEditPhoneTaken
+            : t.identifyEditError,
+      );
+    }
+  }
 
   return (
     <div className="fixed inset-0 z-[60] flex flex-col overflow-y-auto aurora-night text-chalk">
@@ -67,7 +104,63 @@ export function CustomerProfilePanel({
       </header>
 
       <div className="flex flex-1 flex-col gap-6 px-5 py-6">
-        <h1 className="display break-words text-[2.25rem]">{profile.name}</h1>
+        {editing ? (
+          <form onSubmit={(event) => void saveEdit(event)} className="glass-dark flex flex-col gap-3 p-5">
+            <div>
+              <label htmlFor="edit-name" className="text-[0.8125rem] font-medium text-chalk/50">
+                {t.identifyEditNameLabel}
+              </label>
+              <input
+                id="edit-name"
+                value={editName}
+                onChange={(event) => setEditName(event.target.value)}
+                className="field mt-1.5 w-full"
+              />
+            </div>
+            <div>
+              <label htmlFor="edit-phone" className="text-[0.8125rem] font-medium text-chalk/50">
+                {t.identifyEditPhoneLabel}
+              </label>
+              <input
+                id="edit-phone"
+                type="tel"
+                value={editPhone}
+                onChange={(event) => setEditPhone(event.target.value)}
+                className="numeral field mt-1.5 w-full"
+              />
+            </div>
+            {editError ? <p className="text-[0.8125rem] text-coral">{editError}</p> : null}
+            <div className="mt-1 flex gap-2.5">
+              <button
+                type="button"
+                onClick={() => setEditing(false)}
+                className="btn flex-1 glass-dark py-3 text-[0.9375rem] font-semibold text-chalk"
+              >
+                {t.cancel}
+              </button>
+              <button
+                type="submit"
+                disabled={editBusy || !editName.trim() || !editPhone.trim()}
+                className="btn flex-1 bg-lime py-3 text-[0.9375rem] font-bold text-ink disabled:opacity-40"
+              >
+                {editBusy ? t.identifyEditSaving : t.identifyEditSave}
+              </button>
+            </div>
+          </form>
+        ) : (
+          <div className="flex items-center gap-3">
+            <h1 className="display min-w-0 flex-1 break-words text-[2.25rem]">{profile.name}</h1>
+            <button
+              type="button"
+              onClick={openEdit}
+              disabled={busy}
+              aria-label={t.identifyEditCta}
+              className="btn glass-dark size-10 shrink-0 rounded-full text-chalk disabled:opacity-40"
+            >
+              <EditIcon className="size-4" />
+            </button>
+          </div>
+        )}
 
         {/* -------------------------------------------------- sección 1 */}
         <section>

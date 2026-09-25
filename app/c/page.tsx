@@ -9,7 +9,6 @@ import { Screen, Slab } from "@/components/ui/Screen";
 import { TopBar } from "@/components/ui/TopBar";
 import { cn } from "@/lib/cn";
 import { loadCard } from "@/lib/card";
-import { firstName } from "@/lib/scan-service";
 import { getI18n } from "@/lib/i18n/server";
 import { readCustomerToken } from "@/lib/session";
 
@@ -89,8 +88,6 @@ export default async function CardPage() {
 
       <main className="flex min-h-0 flex-1 flex-col gap-[clamp(8px,1.8vh,14px)] py-[clamp(8px,1.8vh,14px)] pb-3">
         <CardCarousel
-          customerId={card.customer.id}
-          customerFirstName={firstName(card.customer.name)}
           customerFullName={card.customer.name}
           phoneLast4={card.customer.phone_last4}
           goal={shop.stamps_goal}
@@ -128,17 +125,9 @@ export default async function CardPage() {
             giftChoose: t.card.giftChoose,
             guestReturned: t.card.guestReturned,
             guestReturnedBody: t.card.guestReturnedBody,
-            oracleLabel: t.card.oracleLabel,
-            oracleCta: t.card.oracleCta,
-            oracleMessages: t.card.oracleMessages,
-            oracleUnlockHints: t.card.oracleUnlockHints,
-            oracleFullHint: t.card.oracleFullHint,
-            constellationLabel: t.card.constellationLabel,
-            constellationLoading: t.card.constellationLoading,
-            constellationEmptyTitle: t.card.constellationEmptyTitle,
-            constellationEmptyBody: t.card.constellationEmptyBody,
             profileLabel: t.card.profileLabel,
             profilePhoneHint: t.join.phoneHint,
+            eyebrow: t.card.eyebrow,
           }}
         />
       </main>

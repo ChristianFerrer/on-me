@@ -38,7 +38,7 @@ export function IdentifyScanner({
   onSwitchMode: () => void;
 }) {
   const [online, setOnline] = useState(true);
-  const { phase, identify, apply, confirmPin, reset } = useIdentifyFlow(pinRequired);
+  const { phase, identify, apply, confirmPin, updateProfile, reset } = useIdentifyFlow(pinRequired);
 
   useEffect(() => {
     const update = () => setOnline(navigator.onLine);
@@ -157,6 +157,7 @@ export function IdentifyScanner({
           busy={phase.step === "applying"}
           onCancel={reset}
           onConfirm={(addStamps, redeemCount) => apply(phase.profile, addStamps, redeemCount)}
+          onUpdateProfile={(name, phone) => updateProfile(phase.profile.customerId, name, phone)}
         />
       ) : null}
 

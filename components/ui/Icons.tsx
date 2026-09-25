@@ -303,6 +303,15 @@ export function InfoIcon(props: IconProps) {
   );
 }
 
+export function EditIcon(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M4 20h4.2L18.5 9.7a2 2 0 0 0 0-2.8l-1.4-1.4a2 2 0 0 0-2.8 0L4 15.8V20Z" />
+      <path d="M13.5 6.5l4 4" />
+    </svg>
+  );
+}
+
 export function TrashIcon(props: IconProps) {
   return (
     <svg {...base(props)}>
