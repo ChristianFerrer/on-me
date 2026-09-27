@@ -75,6 +75,44 @@ export function formatDate(date: Date | string, locale: Locale): string {
   }).format(d);
 }
 
+/** "julio 2026": para "cliente desde", donde el día exacto no aporta nada. */
+export function formatMonthYear(date: Date | string, locale: Locale): string {
+  const d = typeof date === "string" ? new Date(date) : date;
+  return new Intl.DateTimeFormat(INTL_LOCALE[locale], {
+    month: "long",
+    year: "numeric",
+    timeZone: "Europe/Madrid",
+  }).format(d);
+}
+
+/**
+ * "hace 3 días" / "ahora": para la última transacción del panel de barra.
+ * Menos de 30 segundos se trata como "ahora" a mano -`Intl.RelativeTimeFormat`
+ * no tiene una unidad "instante", y "hace 0 segundos" lee peor que el texto
+ * fijo que ya trae cada diccionario en `justNowLabel`-.
+ */
+export function formatRelativeTime(
+  date: Date | string,
+  locale: Locale,
+  justNowLabel: string,
+  now: Date = new Date(),
+): string {
+  const d = typeof date === "string" ? new Date(date) : date;
+  const diffSec = Math.round((d.getTime() - now.getTime()) / 1000);
+  if (Math.abs(diffSec) < 30) return justNowLabel;
+
+  const rtf = new Intl.RelativeTimeFormat(INTL_LOCALE[locale], { numeric: "auto" });
+  const diffMin = Math.round(diffSec / 60);
+  if (Math.abs(diffMin) < 60) return rtf.format(diffMin, "minute");
+  const diffHour = Math.round(diffMin / 60);
+  if (Math.abs(diffHour) < 24) return rtf.format(diffHour, "hour");
+  const diffDay = Math.round(diffHour / 24);
+  if (Math.abs(diffDay) < 30) return rtf.format(diffDay, "day");
+  const diffMonth = Math.round(diffDay / 30);
+  if (Math.abs(diffMonth) < 12) return rtf.format(diffMonth, "month");
+  return rtf.format(Math.round(diffMonth / 12), "year");
+}
+
 export function formatDateTime(date: Date | string, locale: Locale): string {
   const d = typeof date === "string" ? new Date(date) : date;
   return new Intl.DateTimeFormat(INTL_LOCALE[locale], {

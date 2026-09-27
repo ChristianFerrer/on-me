@@ -1,20 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import {
-  CheckIcon,
-  CoffeeIcon,
-  EditIcon,
-  EyeIcon,
-  EyeOffIcon,
-  GiftIcon,
-  OrbitIcon,
-  UserIcon,
-  XIcon,
-} from "@/components/ui/Icons";
-import { StampCard } from "@/components/ui/StampCard";
+import { EditIcon, XIcon } from "@/components/ui/Icons";
 import { cn } from "@/lib/cn";
-import { formatDate, type Dict, type Locale } from "@/lib/i18n";
+import { fill, formatMonthYear, formatRelativeTime, plural, type Dict, type Locale } from "@/lib/i18n";
+import { TierBadge } from "./TierBadge";
 import type { IdentifyProfile } from "./useIdentifyFlow";
 
 type BaristaDict = Dict["barista"];
@@ -23,12 +13,12 @@ type BaristaDict = Dict["barista"];
 const MAX_REDEEM_OPTIONS = 5;
 
 /**
- * El perfil del cliente tras identificarlo, en dos secciones bien
- * separadas: cuántos sellos darle -un contador con menos/más, no una fila
- * de botones- y todo lo que hay que saber de él antes de decidir. A
- * diferencia del escáner clásico, aquí completar una tarjeta no obliga a
- * resolver el premio en el momento: se ve acumulado y se canjea cuando el
- * cliente lo pida.
+ * El perfil del cliente tras identificarlo: dos columnas, una acción cada
+ * una -sellar arriba de una, canjear arriba de la otra-, nunca un único
+ * botón que mezcle las dos cosas. Son dos momentos distintos en la vida
+ * real -paga un café, o se lleva uno gratis que ya tenía acumulado- y cada
+ * uno cierra su propio resumen (ver IdentifyResult.tsx), así que cada uno
+ * tiene su propio botón.
  */
 export function CustomerProfilePanel({
   t,
@@ -49,7 +39,6 @@ export function CustomerProfilePanel({
 }) {
   const [addStamps, setAddStamps] = useState(Math.min(1, profile.maxStamps));
   const [redeemCount, setRedeemCount] = useState(0);
-  const [phoneRevealed, setPhoneRevealed] = useState(false);
   const [editing, setEditing] = useState(false);
   const [editName, setEditName] = useState(profile.fullName);
   const [editPhone, setEditPhone] = useState(profile.phone ?? "");
@@ -57,8 +46,15 @@ export function CustomerProfilePanel({
   const [editError, setEditError] = useState<string | null>(null);
 
   const redeemCap = Math.min(profile.rewardsPending, MAX_REDEEM_OPTIONS);
-  const redeemOptions = Array.from({ length: redeemCap + 1 }, (_, i) => i);
-  const canConfirm = addStamps > 0 || redeemCount > 0;
+  const redeemOptions = Array.from({ length: redeemCap }, (_, i) => i + 1);
+
+  const memberSince = fill(t.identifyMemberSince, { date: formatMonthYear(profile.createdAt, locale) });
+  const lastVisit = fill(t.identifyLastVisit, {
+    when: profile.lastVisitAt
+      ? formatRelativeTime(profile.lastVisitAt, locale, t.identifyJustNow)
+      : t.identifyFirstVisit,
+  });
+  const currentCard = fill(t.identifyCurrentCard, { stamps: profile.stamps, goal: profile.goal });
 
   function openEdit() {
     setEditName(profile.fullName);
@@ -148,36 +144,43 @@ export function CustomerProfilePanel({
             </div>
           </form>
         ) : (
-          <div className="flex items-center gap-3">
-            <h1 className="display min-w-0 flex-1 break-words text-[2.25rem]">{profile.name}</h1>
-            <button
-              type="button"
-              onClick={openEdit}
-              disabled={busy}
-              aria-label={t.identifyEditCta}
-              className="btn glass-dark size-10 shrink-0 rounded-full text-chalk disabled:opacity-40"
-            >
-              <EditIcon className="size-4" />
-            </button>
+          <div className="flex flex-col gap-1.5">
+            <div className="flex items-center gap-2.5">
+              <h1 className="display min-w-0 flex-1 break-words text-[2.25rem]">{profile.name}</h1>
+              <TierBadge t={t} tier={profile.tier} position={profile.rankPosition} />
+              <button
+                type="button"
+                onClick={openEdit}
+                disabled={busy}
+                aria-label={t.identifyEditCta}
+                className="btn glass-dark size-10 shrink-0 rounded-full text-chalk disabled:opacity-40"
+              >
+                <EditIcon className="size-4" />
+              </button>
+            </div>
+            <p className="text-[0.8125rem] text-chalk/45">{memberSince}</p>
+            <div className="flex items-center justify-between text-[0.8125rem] text-chalk/45">
+              <span>{lastVisit}</span>
+              <span>{currentCard}</span>
+            </div>
           </div>
         )}
 
-        {/* -------------------------------------------------- sección 1 */}
-        <section>
-          <p className="eyebrow text-chalk/45">{t.identifyStampsSectionTitle}</p>
-          <div className="glass-dark mt-2.5 flex flex-col items-center gap-3 p-6">
-            <p className="text-[0.8125rem] font-medium text-chalk/50">{t.identifyAddStampsLabel}</p>
-            <div className="flex items-center justify-center gap-5">
+        <div className="grid grid-cols-2 gap-3">
+          {/* ------------------------------------------------- sellos */}
+          <section className="glass-dark flex flex-col items-center gap-4 p-5">
+            <p className="text-center text-[1.0625rem] font-bold">{t.identifyAddStampsLabel}</p>
+            <div className="flex items-center justify-center gap-3">
               <button
                 type="button"
                 onClick={() => setAddStamps((n) => Math.max(0, n - 1))}
                 disabled={addStamps <= 0}
                 aria-label={t.identifyStampsMinus}
-                className="btn glass-dark size-14 shrink-0 rounded-full text-[1.75rem] font-bold leading-none text-chalk disabled:opacity-30"
+                className="btn glass-dark size-11 shrink-0 rounded-full text-[1.5rem] font-bold leading-none text-chalk disabled:opacity-30"
               >
                 −
               </button>
-              <span className="numeral w-16 text-center text-[3rem] font-bold leading-none text-lime">
+              <span className="numeral w-12 text-center text-[2.5rem] font-bold leading-none text-lime">
                 {addStamps}
               </span>
               <button
@@ -185,25 +188,41 @@ export function CustomerProfilePanel({
                 onClick={() => setAddStamps((n) => Math.min(profile.maxStamps, n + 1))}
                 disabled={addStamps >= profile.maxStamps}
                 aria-label={t.identifyStampsPlus}
-                className="btn glass-dark size-14 shrink-0 rounded-full text-[1.75rem] font-bold leading-none text-chalk disabled:opacity-30"
+                className="btn glass-dark size-11 shrink-0 rounded-full text-[1.5rem] font-bold leading-none text-chalk disabled:opacity-30"
               >
                 +
               </button>
             </div>
-          </div>
+            <button
+              type="button"
+              disabled={addStamps <= 0 || busy}
+              onClick={() => onConfirm(addStamps, 0)}
+              className="btn mt-auto w-full bg-lime px-4 py-3.5 text-[1rem] font-bold text-ink disabled:opacity-40"
+            >
+              {busy ? t.checking : t.identifySellCta}
+            </button>
+          </section>
 
-          {profile.rewardsPending > 0 ? (
-            <div className="mt-4">
-              <p className="eyebrow text-chalk/45">{t.identifyRedeemLabel}</p>
-              <div className="mt-2 flex flex-wrap gap-2">
+          {/* --------------------------------------------- café gratis */}
+          <section className="glass-dark flex flex-col items-center gap-3 p-5 text-center">
+            <p className="text-[1.0625rem] font-bold">{t.identifyFreeCoffeeSectionTitle}</p>
+            <p className="text-[0.8125rem] text-chalk/50">
+              {plural(
+                profile.rewardsPending,
+                t.identifyAvailableOne,
+                fill(t.identifyAvailableMany, { n: profile.rewardsPending }),
+              )}
+            </p>
+            {redeemCap > 0 ? (
+              <div className="flex flex-wrap items-center justify-center gap-2">
                 {redeemOptions.map((n) => (
                   <button
                     key={n}
                     type="button"
-                    onClick={() => setRedeemCount(n)}
+                    onClick={() => setRedeemCount((current) => (current === n ? 0 : n))}
                     aria-pressed={redeemCount === n}
                     className={cn(
-                      "numeral flex size-11 items-center justify-center rounded-full text-[0.9375rem] font-bold transition-colors",
+                      "numeral flex size-9 items-center justify-center rounded-full text-[0.875rem] font-bold transition-colors",
                       redeemCount === n ? "bg-amber text-ink" : "glass-dark text-chalk/60 hover:text-chalk",
                     )}
                   >
@@ -211,79 +230,18 @@ export function CustomerProfilePanel({
                   </button>
                 ))}
               </div>
-            </div>
-          ) : null}
-        </section>
-
-        {/* -------------------------------------------------- sección 2 */}
-        <section>
-          <p className="eyebrow text-chalk/45">{t.identifyInfoSectionTitle}</p>
-
-          <div className="glass-dark mt-2.5 p-5">
-            <span className="numeral text-[1.5rem] font-semibold">
-              {profile.stamps}
-              <span className="text-chalk/30">/{profile.goal}</span>
-            </span>
-            <p className="mt-0.5 text-[0.75rem] text-chalk/50">{t.identifyCurrentStampsLabel}</p>
-            <StampCard stamps={profile.stamps} goal={profile.goal} tone="dark" className="mt-4" />
-          </div>
-
-          <div className="mt-3 grid grid-cols-2 gap-3">
-            <StatTile icon={<GiftIcon className="size-5 text-lime" />} value={profile.rewardsPending} label={t.identifyRewardsPendingLabel} />
-            <StatTile icon={<CheckIcon className="size-5 text-mint" />} value={profile.cardsCompleted} label={t.identifyCardsCompletedLabel} />
-            <StatTile icon={<CoffeeIcon className="size-5 text-amber" />} value={profile.rewardsClaimed} label={t.identifyRewardsClaimedLabel} />
-            <StatTile icon={<OrbitIcon className="size-5 text-azure" />} value={profile.invitedCount} label={t.identifyInvitedLabel} />
-            <StatTile icon={<UserIcon className="size-5 text-coral" />} value={profile.newCustomersFromInvites} label={t.identifyNewCustomersLabel} />
-          </div>
-
-          <div className="glass-dark mt-3 flex items-center justify-between p-4">
-            <span className="text-[0.8125rem] text-chalk/50">{t.identifySignupDateLabel}</span>
-            <span className="numeral text-[0.9375rem] font-semibold">{formatDate(profile.createdAt, locale)}</span>
-          </div>
-
-          <div className="glass-dark mt-3 flex items-center justify-between p-4">
-            <span className="text-[0.8125rem] text-chalk/50">{t.identifyPhoneLabel}</span>
-            <div className="flex items-center gap-2.5">
-              <span className="numeral text-[0.9375rem] font-semibold">
-                {phoneRevealed && profile.phone ? profile.phone : `··${profile.phoneLast4}`}
-              </span>
-              {profile.phone ? (
-                <button
-                  type="button"
-                  onClick={() => setPhoneRevealed((v) => !v)}
-                  aria-label={phoneRevealed ? t.identifyHidePhone : t.identifyShowPhone}
-                  className="btn glass-dark size-8 shrink-0 rounded-full text-chalk"
-                >
-                  {phoneRevealed ? <EyeOffIcon className="size-4" /> : <EyeIcon className="size-4" />}
-                </button>
-              ) : (
-                <span className="text-[0.6875rem] text-chalk/35">{t.identifyPhoneUnavailable}</span>
-              )}
-            </div>
-          </div>
-        </section>
+            ) : null}
+            <button
+              type="button"
+              disabled={redeemCount <= 0 || busy}
+              onClick={() => onConfirm(0, redeemCount)}
+              className="btn mt-auto w-full bg-amber px-4 py-3.5 text-[1rem] font-bold text-ink disabled:opacity-40"
+            >
+              {busy ? t.checking : t.identifyRedeemCta}
+            </button>
+          </section>
+        </div>
       </div>
-
-      <div className="px-5 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
-        <button
-          type="button"
-          disabled={!canConfirm || busy}
-          onClick={() => onConfirm(addStamps, redeemCount)}
-          className="btn w-full bg-lime px-6 py-6 text-[1.1875rem] font-bold text-ink disabled:opacity-40"
-        >
-          {busy ? t.checking : t.identifyConfirm}
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function StatTile({ icon, value, label }: { icon: React.ReactNode; value: number; label: string }) {
-  return (
-    <div className="glass-dark flex flex-col items-center gap-1 p-4 text-center">
-      {icon}
-      <span className="numeral text-[1.375rem] font-semibold">{value}</span>
-      <span className="text-[0.75rem] text-chalk/50">{label}</span>
     </div>
   );
 }

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import type { SearchHit } from "@/app/api/search/route";
-import { PhoneIcon } from "@/components/ui/Icons";
+import { SearchIcon } from "@/components/ui/Icons";
 import { cn } from "@/lib/cn";
 import type { Dict } from "@/lib/i18n";
 
@@ -13,18 +13,20 @@ type BaristaDict = Dict["barista"];
 const DEBOUNCE_MS = 400;
 /** Menos dígitos que esto no es un móvil real todavía; no vale la pena preguntarle a Supabase. */
 const MIN_DIGITS = 6;
+/** Menos letras que esto da demasiados falsos positivos como nombre -mismo umbral que /api/search/route.ts-. */
+const MIN_NAME_CHARS = 2;
 
 /**
  * Plan B de la barra: el cliente se dejó el móvil, la pantalla está rota o
- * no hay luz para la cámara. Se busca por el móvil completo —el mismo que
- * se normaliza y se hashea en el alta— para encontrar exactamente a esa
- * persona, no a cualquiera que comparta los últimos cuatro dígitos.
+ * no hay luz para la cámara. Un único campo busca por nombre o por el móvil
+ * completo —el mismo que se normaliza y se hashea en el alta—, así no hace
+ * falta que el barista sepa de antemano cuál de los dos recuerda.
  *
  * Si esta vía supera el 15% de los sellos, el escáner no funciona y eso es
  * lo primero que hay que arreglar — el panel lo vigila.
  */
 export function ManualSearch({ t }: { t: BaristaDict }) {
-  const [phone, setPhone] = useState("");
+  const [query, setQuery] = useState("");
   /**
    * El resultado se guarda junto a la búsqueda que lo produjo, así se
    * descarta solo al teclear: no hace falta limpiarlo desde el efecto ni
@@ -34,18 +36,20 @@ export function ManualSearch({ t }: { t: BaristaDict }) {
     null,
   );
 
-  const digits = phone.replace(/\D/g, "").length;
+  const digits = query.replace(/\D/g, "").length;
+  const trimmed = query.trim();
+  const searchable = digits >= MIN_DIGITS || trimmed.length >= MIN_NAME_CHARS;
 
   useEffect(() => {
-    if (digits < MIN_DIGITS) return;
+    if (!searchable) return;
 
     const controller = new AbortController();
     const timer = setTimeout(() => {
-      fetch(`/api/search?phone=${encodeURIComponent(phone)}`, {
+      fetch(`/api/search?q=${encodeURIComponent(query)}`, {
         signal: controller.signal,
       })
         .then((response) => (response.ok ? response.json() : { hits: [] }))
-        .then((data: { hits: SearchHit[] }) => setResult({ query: phone, hits: data.hits }))
+        .then((data: { hits: SearchHit[] }) => setResult({ query, hits: data.hits }))
         .catch(() => undefined);
     }, DEBOUNCE_MS);
 
@@ -53,33 +57,32 @@ export function ManualSearch({ t }: { t: BaristaDict }) {
       clearTimeout(timer);
       controller.abort();
     };
-  }, [phone, digits]);
+  }, [query, searchable]);
 
-  const hits = result?.query === phone ? result.hits : null;
-  const loading = digits >= MIN_DIGITS && hits === null;
+  const hits = result?.query === query ? result.hits : null;
+  const loading = searchable && hits === null;
 
   return (
     <div className="flex flex-1 flex-col gap-7">
       <div>
-        <label htmlFor="phone" className="eyebrow text-chalk/45">
+        <label htmlFor="query" className="eyebrow text-chalk/45">
           {t.searchTitle}
         </label>
         <div className="relative mt-3">
-          <PhoneIcon className="pointer-events-none absolute left-4 top-1/2 size-5 -translate-y-1/2 text-chalk/35" />
+          <SearchIcon className="pointer-events-none absolute left-4 top-1/2 size-5 -translate-y-1/2 text-chalk/35" />
           <input
-            id="phone"
-            value={phone}
-            onChange={(event) => setPhone(event.target.value)}
-            type="tel"
-            inputMode="tel"
+            id="query"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            type="text"
             autoComplete="off"
             autoFocus
             placeholder={t.searchPlaceholder}
-            aria-describedby="phone-hint"
-            className="numeral field pl-12 text-[1.375rem] font-semibold"
+            aria-describedby="query-hint"
+            className="field pl-12 text-[1.375rem] font-semibold"
           />
         </div>
-        <p id="phone-hint" className="mt-2.5 text-[0.875rem] text-chalk/40">
+        <p id="query-hint" className="mt-2.5 text-[0.875rem] text-chalk/40">
           {t.searchHint}
         </p>
       </div>

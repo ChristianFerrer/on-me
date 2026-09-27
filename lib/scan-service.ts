@@ -280,6 +280,45 @@ export async function logScan(
   return data?.id ?? null;
 }
 
+export type VisitStats = {
+  /** ISO de la última transacción real -sella o canjea-, o `null` si nunca ha tenido una. */
+  lastVisitAt: string | null;
+  /** "Consumo" = sello real puesto, no una simple identificación ni un canje -eso ya no es lo que trae, es lo que se lleva-. */
+  consumptionThisMonth: number;
+  consumptionTotal: number;
+};
+
+/** Estadísticas de visita para el panel del flujo identificador -ver lib/identify-service.ts-. */
+export async function getVisitStats(customerId: string): Promise<VisitStats> {
+  const startOfMonth = new Date();
+  startOfMonth.setUTCDate(1);
+  startOfMonth.setUTCHours(0, 0, 0, 0);
+
+  const [{ count: total }, { count: month }, { data: last }] = await Promise.all([
+    db().from("scans").select("id", { count: "exact", head: true }).eq("customer_id", customerId).eq("kind", "stamp"),
+    db()
+      .from("scans")
+      .select("id", { count: "exact", head: true })
+      .eq("customer_id", customerId)
+      .eq("kind", "stamp")
+      .gte("created_at", startOfMonth.toISOString()),
+    db()
+      .from("scans")
+      .select("created_at")
+      .eq("customer_id", customerId)
+      .in("kind", ["stamp", "redeem_reward", "redeem_invitation"])
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+  ]);
+
+  return {
+    lastVisitAt: last?.created_at ?? null,
+    consumptionThisMonth: month ?? 0,
+    consumptionTotal: total ?? 0,
+  };
+}
+
 async function padrinoName(padrinoId: string): Promise<string> {
   const { data } = await db()
     .from("customers")

@@ -78,6 +78,28 @@ export async function countInvitationsSent(customerId: string): Promise<number> 
   return count ?? 0;
 }
 
+/** Invitaciones suyas que todavía no ha reclamado nadie -en su poder, listas para dar-. */
+export async function countActiveInvitations(customerId: string): Promise<number> {
+  const { count } = await db()
+    .from("invitations")
+    .select("id", { count: "exact", head: true })
+    .eq("padrino_id", customerId)
+    .in("state", ACTIVE_STATES);
+
+  return count ?? 0;
+}
+
+/** De esas activas, cuántas ya ha compartido de verdad -no se quedaron solo creadas-. */
+export async function countSentInvitations(customerId: string): Promise<number> {
+  const { count } = await db()
+    .from("invitations")
+    .select("id", { count: "exact", head: true })
+    .eq("padrino_id", customerId)
+    .in("state", ["sent", "opened"]);
+
+  return count ?? 0;
+}
+
 /**
  * Clientes nuevos que llegaron por una invitación suya -se dieron de alta
  * con el código, sea cual sea el estado de la invitación después-.

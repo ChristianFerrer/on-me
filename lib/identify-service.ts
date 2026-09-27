@@ -3,9 +3,15 @@ import type { DeviceContext } from "@/lib/auth/device";
 import { checkPin } from "@/lib/auth/device";
 import { normalizePhone } from "@/lib/crypto";
 import type { CustomerRow } from "@/lib/db/types";
-import { countClaimedFromInvites, countInvitationsSent, createInvitation } from "@/lib/invitations";
+import {
+  countActiveInvitations,
+  countClaimedFromInvites,
+  countSentInvitations,
+  createInvitation,
+} from "@/lib/invitations";
+import { type CustomerTier, getCustomerRanking } from "@/lib/ranking";
 import { applyRewardRedeem, applyStampBatch, type InvalidReason, type PassState } from "@/lib/scan";
-import { ensurePass, findCustomer, firstName, logScan } from "@/lib/scan-service";
+import { ensurePass, findCustomer, firstName, getVisitStats, logScan } from "@/lib/scan-service";
 
 /**
  * Flujo identificador: escanear resuelve quién es el cliente -y solo eso-,
@@ -35,12 +41,22 @@ export type IdentifyResult =
       cardsCompleted: number;
       /** Cafés gratis ya reclamados en toda su historia -cardsCompleted menos los que aún quedan pendientes-. */
       rewardsClaimed: number;
-      /** Cuánta gente ha invitado en total, sea cual sea el estado de esas invitaciones. */
-      invitedCount: number;
-      /** Clientes nuevos que se dieron de alta con una invitación suya. */
+      /** Clientes nuevos que se dieron de alta con una invitación suya -"activada" en el resumen-. */
       newCustomersFromInvites: number;
+      /** Invitaciones suyas todavía sin reclamar -en su poder-. */
+      invitesAvailable: number;
+      /** De esas, cuántas ya ha compartido de verdad. */
+      invitesSent: number;
       /** ISO, fecha de alta. */
       createdAt: string;
+      /** ISO de su última visita real -sello o canje-, o `null` si aún no ha vuelto. */
+      lastVisitAt: string | null;
+      consumptionThisMonth: number;
+      consumptionTotal: number;
+      /** Ver lib/ranking.ts: por consumo total y clientes referidos, recalculado en cada vista. */
+      tier: CustomerTier;
+      rankPosition: number;
+      totalCustomers: number;
       phoneLast4: string;
       /** E.164 completo, o `null` si se dio de alta antes de guardarlo -migración 0003-. */
       phone: string | null;
@@ -49,17 +65,21 @@ export type IdentifyResult =
     }
   | { kind: "invalid"; reason: InvalidReason };
 
-/** Perfil completo del cliente -lo que enseña el panel-, sin tocar `scans`: lo comparten identifyCustomer y updateIdentifiedCustomer. */
+/** Perfil completo del cliente -lo que enseñan el panel y el resumen de cierre-, sin tocar `scans`: lo comparten identifyCustomer, updateIdentifiedCustomer y applyIdentifiedVisit. */
 async function buildProfile(
   ctx: DeviceContext,
   customer: CustomerRow,
 ): Promise<Extract<IdentifyResult, { kind: "profile" }>> {
   const { shop } = ctx;
-  const [pass, invitedCount, newCustomersFromInvites] = await Promise.all([
-    ensurePass(customer.id),
-    countInvitationsSent(customer.id),
-    countClaimedFromInvites(customer.id),
-  ]);
+  const [pass, newCustomersFromInvites, invitesAvailable, invitesSent, visitStats, ranking] =
+    await Promise.all([
+      ensurePass(customer.id),
+      countClaimedFromInvites(customer.id),
+      countActiveInvitations(customer.id),
+      countSentInvitations(customer.id),
+      getVisitStats(customer.id),
+      getCustomerRanking(shop.id, customer.id),
+    ]);
 
   return {
     kind: "profile",
@@ -71,9 +91,16 @@ async function buildProfile(
     rewardsPending: pass.reward_pending_count,
     cardsCompleted: pass.cards_completed,
     rewardsClaimed: pass.cards_completed - pass.reward_pending_count,
-    invitedCount,
     newCustomersFromInvites,
+    invitesAvailable,
+    invitesSent,
     createdAt: customer.created_at,
+    lastVisitAt: visitStats.lastVisitAt,
+    consumptionThisMonth: visitStats.consumptionThisMonth,
+    consumptionTotal: visitStats.consumptionTotal,
+    tier: ranking?.tier ?? "bronze",
+    rankPosition: ranking?.position ?? 0,
+    totalCustomers: ranking?.totalCustomers ?? 0,
     phoneLast4: customer.phone_last4,
     phone: customer.phone,
     maxStamps: shop.max_stamps_per_scan,
@@ -99,6 +126,21 @@ export async function identifyCustomer(
   }
 
   await logScan(ctx, customer.id, "identify", {});
+
+  return buildProfile(ctx, customer);
+}
+
+/**
+ * Perfil de un cliente ya conocido -p.ej. tras encontrarlo en /s/buscar-,
+ * sin pasar por su QR. No deja rastro en `scans`: verlo no es "identificarlo"
+ * -eso ya quedó registrado en la propia búsqueda-, es solo abrir su ficha.
+ */
+export async function getCustomerProfile(ctx: DeviceContext, customerId: string): Promise<IdentifyResult> {
+  const { shop } = ctx;
+  const customer = await findCustomer({ customerId });
+
+  if (!customer) return { kind: "invalid", reason: "unknown_token" };
+  if (customer.shop_id !== shop.id) return { kind: "invalid", reason: "other_shop" };
 
   return buildProfile(ctx, customer);
 }
@@ -170,14 +212,11 @@ export type IdentifyApplyOptions = {
 export type IdentifyApplyResult =
   | {
       kind: "applied";
-      name: string;
-      stamps: number;
-      goal: number;
+      /** Perfil recién recalculado -sellos, ranking, consumos, todo ya al día tras esta visita-, para la pantalla de cierre. */
+      profile: Extract<IdentifyResult, { kind: "profile" }>;
       added: number;
       rewardsEarned: number;
       redeemed: number;
-      /** Cafés gratis que le siguen quedando pendientes tras este canje. */
-      rewardsRemaining: number;
     }
   | { kind: "invalid"; reason: InvalidReason };
 
@@ -256,17 +295,19 @@ export async function applyIdentifiedVisit(
     await createInvitation({ shop, padrinoId: customer.id, locale: customer.locale });
   }
 
+  // Perfil recalculado entero -no un parche a mano sobre `after`-: así el
+  // resumen de cierre lee el mismo dato que vería un segundo escaneo
+  // inmediato después, ranking y consumos del mes incluidos.
+  const profile = await buildProfile(ctx, customer);
+
   return {
     status: "ok",
     result: {
       kind: "applied",
-      name: firstName(customer.name),
-      stamps: after.stamps,
-      goal: shop.stamps_goal,
+      profile,
       added: batch.applied,
       rewardsEarned: batch.rewardsEarned,
       redeemed,
-      rewardsRemaining: after.rewardsPending,
     },
   };
 }

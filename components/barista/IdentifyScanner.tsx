@@ -172,7 +172,7 @@ export function IdentifyScanner({
       ) : null}
 
       {phase.step === "result" ? (
-        <IdentifyResult result={phase.result} t={t} onClose={reset} />
+        <IdentifyResult result={phase.result} t={t} locale={locale} shopName={shopName} onClose={reset} />
       ) : null}
     </div>
   );

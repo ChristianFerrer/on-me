@@ -6,10 +6,13 @@ import { db } from "@/lib/db/client";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
 import { firstName } from "@/lib/scan-service";
 
-const Query = z.object({ phone: z.string().trim().min(3).max(32) });
+const Query = z.object({ q: z.string().trim().min(1).max(80) });
 
 /** Menos dígitos que esto no vale la pena preguntarle a Supabase -mismo umbral que ManualSearch.tsx-. */
 const MIN_SEARCH_DIGITS = 6;
+/** Menos letras que esto da demasiados falsos positivos -"Ana" ya vale, "A" no-. */
+const MIN_NAME_CHARS = 2;
+const MAX_HITS = 5;
 
 type CustomerWithPass = {
   id: string;
@@ -27,10 +30,29 @@ export type SearchHit = {
   rewardPending: boolean;
 };
 
+/** Escapa `%`/`_` -comodines de ILIKE- y `\` para que un nombre real nunca se interprete como patrón. */
+function escapeIlike(value: string): string {
+  return value.replace(/[\\%_]/g, (match) => `\\${match}`);
+}
+
+function toHits(rows: CustomerWithPass[], goal: number): SearchHit[] {
+  return rows.map((row) => ({
+    id: row.id,
+    name: firstName(row.name),
+    last4: row.phone_last4,
+    stamps: row.passes[0]?.stamps ?? 0,
+    goal,
+    rewardPending: (row.passes[0]?.reward_pending_count ?? 0) > 0,
+  }));
+}
+
 /**
- * Búsqueda por el móvil completo, el plan B de la barra.
+ * Plan B de la barra: buscar al cliente por su nombre o por su móvil
+ * completo, sin cámara. Tres vías, cada una en su propia consulta -mezclarlas
+ * en un solo `.or()` obligaría a meter el nombre tal cual lo escribió el
+ * barista dentro de esa cadena, y un nombre real puede traer comas o
+ * paréntesis que rompan el propio filtro-:
  *
- * Dos vías a la vez, por si acaso:
  *   1. Por hash exacto -normalizado igual que en el alta-, la única vía que
  *      existía antes de guardar el teléfono en claro (migración 0003): sigue
  *      haciendo falta para los clientes dados de alta antes de ese cambio,
@@ -40,6 +62,9 @@ export type SearchHit = {
  *      con el prefijo de país -la ambigüedad real que hacía fallar la
  *      búsqueda con números extranjeros-, así que basta con teclear el
  *      número tal cual se lee.
+ *   3. Por nombre -contiene, sin distinguir mayúsculas ni acentos según la
+ *      configuración de collation de Postgres-: "Ricardo" encuentra a
+ *      "Ricardo Gómez" igual que a "María Ricardo".
  *
  * Nunca devuelve el token del cliente: es su identidad al portador y no tiene
  * por qué acabar en el localStorage de un iPad compartido. Para sellar basta
@@ -57,41 +82,54 @@ export async function GET(request: Request) {
   }
 
   const url = new URL(request.url);
-  const parsed = Query.safeParse({ phone: url.searchParams.get("phone") ?? "" });
+  const parsed = Query.safeParse({ q: url.searchParams.get("q") ?? "" });
   if (!parsed.success) {
     return NextResponse.json({ error: "bad_request" }, { status: 400 });
   }
 
-  const digits = parsed.data.phone.replace(/\D/g, "");
-  const normalized = normalizePhone(parsed.data.phone, ctx.shop.default_country_code);
+  const query = parsed.data.q;
+  const digits = query.replace(/\D/g, "");
+  const normalized = normalizePhone(query, ctx.shop.default_country_code);
 
-  const filters: string[] = [];
-  if (normalized) filters.push(`phone_hash.eq.${normalized.hash}`);
+  const phoneFilters: string[] = [];
+  if (normalized) phoneFilters.push(`phone_hash.eq.${normalized.hash}`);
   // Los dígitos ya vienen limpios de `replace(/\D/g, "")`: no hay comas ni
   // comodines que puedan colarse en el propio filtro `.or()`.
-  if (digits.length >= MIN_SEARCH_DIGITS) filters.push(`phone.ilike.%${digits}`);
+  if (digits.length >= MIN_SEARCH_DIGITS) phoneFilters.push(`phone.ilike.%${digits}`);
 
-  if (filters.length === 0) {
-    return NextResponse.json({ hits: [] });
+  const nameQuery = query.trim();
+  const selectCols = "id, name, phone_last4, passes(stamps, reward_pending_count)";
+
+  const [byPhone, byName] = await Promise.all([
+    phoneFilters.length > 0
+      ? db()
+          .from("customers")
+          .select(selectCols)
+          .eq("shop_id", ctx.shop.id)
+          .or(phoneFilters.join(","))
+          .order("created_at", { ascending: false })
+          .limit(MAX_HITS)
+          .returns<CustomerWithPass[]>()
+      : Promise.resolve({ data: [] as CustomerWithPass[] }),
+    nameQuery.length >= MIN_NAME_CHARS
+      ? db()
+          .from("customers")
+          .select(selectCols)
+          .eq("shop_id", ctx.shop.id)
+          .ilike("name", `%${escapeIlike(nameQuery)}%`)
+          .order("created_at", { ascending: false })
+          .limit(MAX_HITS)
+          .returns<CustomerWithPass[]>()
+      : Promise.resolve({ data: [] as CustomerWithPass[] }),
+  ]);
+
+  const seen = new Set<string>();
+  const rows: CustomerWithPass[] = [];
+  for (const row of [...(byPhone.data ?? []), ...(byName.data ?? [])]) {
+    if (seen.has(row.id)) continue;
+    seen.add(row.id);
+    rows.push(row);
   }
 
-  const { data } = await db()
-    .from("customers")
-    .select("id, name, phone_last4, passes(stamps, reward_pending_count)")
-    .eq("shop_id", ctx.shop.id)
-    .or(filters.join(","))
-    .order("created_at", { ascending: false })
-    .limit(5)
-    .returns<CustomerWithPass[]>();
-
-  const hits: SearchHit[] = (data ?? []).map((row) => ({
-    id: row.id,
-    name: firstName(row.name),
-    last4: row.phone_last4,
-    stamps: row.passes[0]?.stamps ?? 0,
-    goal: ctx.shop.stamps_goal,
-    rewardPending: (row.passes[0]?.reward_pending_count ?? 0) > 0,
-  }));
-
-  return NextResponse.json({ hits });
+  return NextResponse.json({ hits: toHits(rows.slice(0, MAX_HITS), ctx.shop.stamps_goal) });
 }

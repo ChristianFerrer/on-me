@@ -2,9 +2,17 @@
 
 import { useCallback, useRef, useState } from "react";
 import type { IdentifyApplyResult, IdentifyResult } from "@/lib/identify-service";
-import { AUTOCLOSE_MS } from "./Verdict";
 
 export type IdentifyProfile = Extract<IdentifyResult, { kind: "profile" }>;
+
+/**
+ * Cierre automático propio -no `AUTOCLOSE_MS` de Verdict.tsx-: el resumen
+ * de cierre de este flujo trae bastante más que leer -sellos, invitaciones,
+ * consumos-, así que necesita más que los 5s de un flash de "sello 5/10".
+ * Un error de identificación, en cambio, es una frase corta: se queda en 5s.
+ */
+const APPLIED_AUTOCLOSE_MS = 15_000;
+const INVALID_AUTOCLOSE_MS = 5_000;
 
 export type IdentifyPhase =
   | { step: "scanning" }
@@ -25,8 +33,10 @@ export type IdentifyPhase =
  * (lib/scan.ts, lib/scan-service.ts), pero no este hook: así un cambio
  * pensado para este flujo no puede arrastrar al otro.
  */
-export function useIdentifyFlow(pinRequired: boolean) {
-  const [phase, setPhase] = useState<IdentifyPhase>({ step: "scanning" });
+export function useIdentifyFlow(pinRequired: boolean, initialProfile?: IdentifyProfile) {
+  const [phase, setPhase] = useState<IdentifyPhase>(
+    initialProfile ? { step: "profile", profile: initialProfile } : { step: "scanning" },
+  );
   const applyPayloadRef = useRef<{
     customerId: string;
     addStamps: number;
@@ -50,7 +60,7 @@ export function useIdentifyFlow(pinRequired: boolean) {
   const showResult = useCallback(
     (result: IdentifyApplyResult) => {
       setPhase({ step: "result", result });
-      window.setTimeout(reset, AUTOCLOSE_MS);
+      window.setTimeout(reset, result.kind === "applied" ? APPLIED_AUTOCLOSE_MS : INVALID_AUTOCLOSE_MS);
     },
     [reset],
   );

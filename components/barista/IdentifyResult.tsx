@@ -1,62 +1,66 @@
 "use client";
 
 import { cn } from "@/lib/cn";
-import { fill, plural, type Dict } from "@/lib/i18n";
+import { fill, formatMonthYear, formatRelativeTime, plural, type Dict, type Locale } from "@/lib/i18n";
 import type { IdentifyApplyResult } from "@/lib/identify-service";
-import { AUTOCLOSE_MS } from "./Verdict";
+import { XIcon } from "@/components/ui/Icons";
+import { TierBadge } from "./TierBadge";
 
 type BaristaDict = Dict["barista"];
 
-const SKIN: Record<IdentifyApplyResult["kind"], string> = {
-  applied: "verdict-lime",
-  invalid: "verdict-coral",
-};
-
-const HEADLINE = "display-tight hyphens-auto break-words text-[clamp(2.5rem,14cqw,4.75rem)]";
-const SUB = "mt-4 text-[1.1875rem] font-medium leading-snug opacity-70";
+const AUTOCLOSE_MS = 15_000;
+const INVALID_AUTOCLOSE_MS = 5_000;
 
 /**
- * Pantalla final del flujo identificador -mismo lenguaje visual que
- * Verdict.tsx, un color a pantalla completa reconocible a dos metros-,
- * pero su propio componente: lo que aquí se cuenta -sellos, canje, cuántos
- * quedan pendientes- no existe en el flujo clásico. El cierre automático
- * ya lo programa useIdentifyFlow.ts, aquí solo se pinta.
+ * Resumen de cierre del flujo identificador: no es un flash de un segundo
+ * como Verdict.tsx -aquí hay una ficha entera de fidelización que leer-,
+ * así que se queda en pantalla más tiempo y dice desde el principio cómo
+ * se cierra sola. `onClose` puede llegar antes -el barista pulsa la X-, no
+ * hay que esperar a que se agote el tiempo.
  */
 export function IdentifyResult({
   result,
   t,
+  locale,
+  shopName,
   onClose,
 }: {
   result: IdentifyApplyResult;
   t: BaristaDict;
+  locale: Locale;
+  shopName: string;
   onClose: () => void;
 }) {
-  return (
-    <div
-      className={cn("verdict anim-flood select-none-hard", SKIN[result.kind])}
-      role="alert"
-      aria-live="assertive"
-      onClick={onClose}
-    >
-      <div className="flex flex-1 flex-col justify-center px-8 pb-10 pt-[max(2.5rem,env(safe-area-inset-top))]">
-        <Body result={result} t={t} />
-      </div>
+  const autocloseMs = result.kind === "applied" ? AUTOCLOSE_MS : INVALID_AUTOCLOSE_MS;
 
-      <div className="mx-auto flex w-full max-w-[26rem] flex-col gap-3 px-6 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
+  return (
+    <div className="fixed inset-0 z-[60] flex flex-col overflow-y-auto aurora-night text-chalk">
+      <header className="flex items-center justify-between px-5 pt-[max(1.25rem,env(safe-area-inset-top))]">
+        <p className="truncate text-[0.9375rem] font-semibold">{shopName}</p>
         <button
           type="button"
-          onClick={(event) => {
-            event.stopPropagation();
-            onClose();
-          }}
-          className="btn w-full bg-ink px-6 py-6 text-[1.1875rem] text-chalk"
+          onClick={onClose}
+          aria-label={t.identifyClose}
+          className="btn glass-dark size-10 shrink-0 rounded-full text-chalk"
         >
-          {t.backToScanner}
+          <XIcon className="size-4" />
         </button>
-        <div className="h-0.5 w-full bg-current/15">
+      </header>
+
+      <div className="flex flex-1 flex-col gap-6 px-5 py-6">
+        {result.kind === "applied" ? (
+          <Applied result={result} t={t} locale={locale} />
+        ) : (
+          <Invalid result={result} t={t} />
+        )}
+      </div>
+
+      <div className="px-5 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
+        <p className="text-center text-[0.75rem] text-chalk/40">{t.identifyClosingAutoCloseHint}</p>
+        <div className="mt-2.5 h-0.5 w-full bg-chalk/10">
           <div
-            className="drain h-full w-full bg-current/45"
-            style={{ ["--drain" as string]: `${AUTOCLOSE_MS}ms` }}
+            className="drain h-full w-full bg-chalk/45"
+            style={{ ["--drain" as string]: `${autocloseMs}ms` }}
           />
         </div>
       </div>
@@ -64,79 +68,162 @@ export function IdentifyResult({
   );
 }
 
-function Body({ result, t }: { result: IdentifyApplyResult; t: BaristaDict }) {
-  switch (result.kind) {
-    case "applied":
-      return (
-        <>
-          <p className="eyebrow opacity-55">
-            {fill(t.results.stampFor, { name: result.name })}
-          </p>
-          <h1 className={cn(HEADLINE, "mt-4")}>
-            {fill(t.results.stampTitle, { n: result.stamps, goal: result.goal })}
-          </h1>
-          <Dots filled={result.stamps} goal={result.goal} />
-          {result.added > 0 ? (
-            <p className="numeral mt-3 text-[1.0625rem] font-bold opacity-80">
-              {plural(
-                result.added,
-                t.results.stampAddedOne,
-                fill(t.results.stampAddedMany, { n: result.added }),
-              )}
-            </p>
-          ) : null}
-          {result.redeemed > 0 ? (
-            <p className="numeral mt-1 text-[1.0625rem] font-bold opacity-80">
-              {plural(
-                result.redeemed,
-                t.identifyRedeemedOne,
-                fill(t.identifyRedeemedMany, { n: result.redeemed }),
-              )}
-            </p>
-          ) : null}
-          {result.rewardsRemaining > 0 ? (
-            <p className={SUB}>
-              {plural(
-                result.rewardsRemaining,
-                t.identifyRewardsRemainingOne,
-                fill(t.identifyRewardsRemainingMany, { n: result.rewardsRemaining }),
-              )}
-            </p>
-          ) : null}
-        </>
-      );
+function Applied({
+  result,
+  t,
+  locale,
+}: {
+  result: Extract<IdentifyApplyResult, { kind: "applied" }>;
+  t: BaristaDict;
+  locale: Locale;
+}) {
+  const { profile } = result;
 
-    case "invalid":
-      return (
-        <>
-          <h1 className={HEADLINE}>{t.results.invalidTitle}</h1>
-          <p className={SUB}>
-            {result.reason === "other_shop"
-              ? t.results.invalidOtherShop
-              : result.reason === "network"
-                ? t.results.invalidNetwork
-                : result.reason === "device"
-                  ? t.results.invalidDevice
-                  : t.results.invalidUnknown}
-          </p>
-        </>
-      );
-  }
+  const memberSince = fill(t.identifyMemberSince, { date: formatMonthYear(profile.createdAt, locale) });
+  const lastVisit = fill(t.identifyLastVisit, {
+    when: profile.lastVisitAt
+      ? formatRelativeTime(profile.lastVisitAt, locale, t.identifyJustNow)
+      : t.identifyJustNow,
+  });
+
+  return (
+    <>
+      <div className="flex flex-col gap-1.5">
+        <div className="flex items-center gap-2.5">
+          <h1 className="display min-w-0 flex-1 break-words text-[2.25rem]">{profile.name}</h1>
+          <TierBadge t={t} tier={profile.tier} position={profile.rankPosition} />
+        </div>
+        <p className="text-[0.8125rem] text-chalk/45">{memberSince}</p>
+        <p className="text-[0.8125rem] text-chalk/45">{lastVisit}</p>
+      </div>
+
+      <section className="glass-dark p-5">
+        <p className="eyebrow text-center text-chalk/45">{t.identifyLoyaltySectionTitle}</p>
+
+        <FidelizationRow label={t.identifyStampsSectionTitle}>
+          <div className="flex flex-wrap justify-end gap-1.5">
+            {Array.from({ length: profile.goal }, (_, i) => (
+              <span
+                key={i}
+                className={cn(
+                  "numeral flex size-7 items-center justify-center rounded-[6px] text-[0.6875rem] font-bold",
+                  i < profile.stamps ? "bg-lime text-ink" : "border border-chalk/20 text-chalk/30",
+                )}
+              >
+                {i + 1}
+              </span>
+            ))}
+          </div>
+        </FidelizationRow>
+
+        <FidelizationRow label={t.identifyClosingRewardsLabel}>
+          <div className="flex flex-col items-end gap-1 text-right">
+            <Pill tone="lime">
+              {plural(
+                profile.rewardsClaimed,
+                t.identifyRewardsClaimedChipOne,
+                fill(t.identifyRewardsClaimedChipMany, { n: profile.rewardsClaimed }),
+              )}
+            </Pill>
+            {profile.rewardsPending > 0 ? (
+              <Pill tone="amber">
+                {plural(
+                  profile.rewardsPending,
+                  t.identifyRewardsPendingChipOne,
+                  fill(t.identifyRewardsPendingChipMany, { n: profile.rewardsPending }),
+                )}
+              </Pill>
+            ) : null}
+          </div>
+        </FidelizationRow>
+
+        <FidelizationRow label={t.identifyClosingInvitesLabel}>
+          <div className="flex flex-col items-end gap-1 text-right">
+            <Pill>
+              {plural(
+                profile.invitesAvailable,
+                t.identifyAvailableOne,
+                fill(t.identifyAvailableMany, { n: profile.invitesAvailable }),
+              )}
+            </Pill>
+            <Pill>
+              {plural(
+                profile.invitesSent,
+                t.identifyInvitesSentOne,
+                fill(t.identifyInvitesSentMany, { n: profile.invitesSent }),
+              )}
+            </Pill>
+            <Pill tone="mint">
+              {plural(
+                profile.newCustomersFromInvites,
+                t.identifyInvitesActivatedOne,
+                fill(t.identifyInvitesActivatedMany, { n: profile.newCustomersFromInvites }),
+              )}
+            </Pill>
+          </div>
+        </FidelizationRow>
+
+        <FidelizationRow label={t.identifyClosingConsumptionLabel} last>
+          <div className="flex flex-col items-end gap-1 text-right">
+            <Pill>{fill(t.identifyConsumptionMonth, { n: profile.consumptionThisMonth })}</Pill>
+            <Pill>{fill(t.identifyConsumptionTotal, { n: profile.consumptionTotal })}</Pill>
+          </div>
+        </FidelizationRow>
+      </section>
+    </>
+  );
 }
 
-/** Los sellos, sin detalle: a dos metros solo se ven bultos. Copia deliberada de la de Verdict.tsx -no compartida-. */
-function Dots({ filled, goal }: { filled: number; goal: number }) {
+function FidelizationRow({
+  label,
+  children,
+  last,
+}: {
+  label: string;
+  children: React.ReactNode;
+  last?: boolean;
+}) {
   return (
-    <ul className="mt-8 flex items-center gap-2">
-      {Array.from({ length: goal }, (_, i) => (
-        <li
-          key={i}
-          className={cn(
-            "aspect-square min-w-0 flex-1 rounded-full",
-            i < filled ? "bg-current" : "border border-current/30",
-          )}
-        />
-      ))}
-    </ul>
+    <div
+      className={cn(
+        "flex items-start justify-between gap-3 py-3.5",
+        !last && "border-b border-chalk/10",
+      )}
+    >
+      <span className="pt-1 text-[0.8125rem] font-semibold text-chalk/60">{label}</span>
+      {children}
+    </div>
+  );
+}
+
+const PILL_TONE = {
+  default: "bg-chalk/10 text-chalk/80",
+  lime: "bg-lime/20 text-lime",
+  amber: "bg-amber/20 text-amber",
+  mint: "bg-mint/20 text-mint",
+} as const;
+
+function Pill({ tone = "default", children }: { tone?: keyof typeof PILL_TONE; children: React.ReactNode }) {
+  return (
+    <span className={cn("rounded-full px-3 py-1 text-[0.8125rem] font-semibold", PILL_TONE[tone])}>
+      {children}
+    </span>
+  );
+}
+
+function Invalid({ result, t }: { result: Extract<IdentifyApplyResult, { kind: "invalid" }>; t: BaristaDict }) {
+  return (
+    <div className="flex flex-1 flex-col items-center justify-center gap-3 text-center">
+      <h1 className="display text-[2rem] text-coral">{t.results.invalidTitle}</h1>
+      <p className="text-[1.0625rem] font-medium text-chalk/70">
+        {result.reason === "other_shop"
+          ? t.results.invalidOtherShop
+          : result.reason === "network"
+            ? t.results.invalidNetwork
+            : result.reason === "device"
+              ? t.results.invalidDevice
+              : t.results.invalidUnknown}
+      </p>
+    </div>
   );
 }
