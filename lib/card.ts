@@ -7,7 +7,13 @@ export type CardData = {
   shop: ShopRow;
   stamps: number;
   cardsCompleted: number;
-  rewardPending: boolean;
+  /**
+   * Cafés gratis de verdad disponibles para canjear ahora -`passes.reward_pending_count`-.
+   * No es lo mismo que `cardsCompleted`: ese es el total de tarjetas completadas
+   * en toda la vida del cliente, sube y no baja ni cuando canjea. Esto es lo
+   * único que debe enseñarle la tarjeta como "cafés gratis esperándote".
+   */
+  rewardsPendingCount: number;
   /** Invitaciones creadas y todavía sin usar. */
   activeInvites: InvitationRow[];
   /**
@@ -70,9 +76,7 @@ export async function loadCard(token: string): Promise<CardData | null> {
     shop,
     stamps: passResult.data?.stamps ?? 0,
     cardsCompleted,
-    // La tarjeta del cliente solo necesita saber si hay algo esperando, no
-    // cuántos exactamente -eso es cosa del flujo identificador de barra-.
-    rewardPending: (passResult.data?.reward_pending_count ?? 0) > 0,
+    rewardsPendingCount: passResult.data?.reward_pending_count ?? 0,
     activeInvites,
     pendingGrants,
     canCreateInvite: pendingGrants > 0,

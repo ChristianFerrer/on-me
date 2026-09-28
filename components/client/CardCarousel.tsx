@@ -18,8 +18,8 @@ type SlideId = (typeof SLIDE_IDS)[number];
 
 type Status = {
   stamps: number;
-  rewardPending: boolean;
-  cardsCompleted: number;
+  /** Cafés gratis de verdad disponibles para canjear ahora -no el total de tarjetas completadas en toda la vida, ver lib/card.ts-. */
+  rewardsPendingCount: number;
   inviteCount: number;
   returnedGuests: number;
 };
@@ -100,7 +100,7 @@ export function CardCarousel({
     };
   }, []);
 
-  const { stamps, rewardPending, cardsCompleted, inviteCount, returnedGuests } = status;
+  const { stamps, rewardsPendingCount, inviteCount, returnedGuests } = status;
   const remaining = goal - stamps;
 
   function step(): number {
@@ -163,7 +163,7 @@ export function CardCarousel({
       id: "free",
       icon: <CoffeeIcon className="size-[62%]" />,
       label: labels.freeCoffeeLabel,
-      badge: cardsCompleted,
+      badge: rewardsPendingCount,
     },
     {
       id: "gift",
@@ -191,7 +191,11 @@ export function CardCarousel({
             </em>
           </div>
           <div className="ml-auto text-right text-[clamp(10.5px,1.75vh,12.5px)] leading-[1.25] text-chalk/55">
-            {rewardPending ? labels.readyHint : remaining === 1 ? labels.oneToGo : fill(labels.nToGo, { n: remaining })}
+            {rewardsPendingCount > 0
+              ? labels.readyHint
+              : remaining === 1
+                ? labels.oneToGo
+                : fill(labels.nToGo, { n: remaining })}
           </div>
         </div>
         <div className="mt-[clamp(10px,1.8vh,14px)] grid grid-cols-10 gap-[clamp(4px,1.1vw,7px)]">
@@ -298,19 +302,21 @@ export function CardCarousel({
                 <div className="card-scope flex size-full flex-col items-center justify-center gap-[clamp(7px,1.4vh,12px)] rounded-[clamp(18px,3.3vh,26px)] border border-lime/30 bg-[linear-gradient(158deg,rgba(214,243,76,.22),rgba(10,14,13,.82))] p-[clamp(17px,3vh,26px)] text-center text-chalk backdrop-blur-[18px]">
                   <p className="eyebrow text-white/45">{tab.label}</p>
                   <p className="numeral text-[clamp(36px,8.8vh,56px)] font-medium leading-none tracking-[-0.05em] text-lime">
-                    {cardsCompleted}
+                    {rewardsPendingCount}
                   </p>
                   <h2 className="text-[clamp(16px,3vh,21px)] font-extrabold leading-[1.16] tracking-[-0.025em]">
-                    {cardsCompleted === 1 ? labels.freeCoffeeTitleOne : fill(labels.freeCoffeeTitleMany, { n: cardsCompleted })}
+                    {rewardsPendingCount === 1
+                      ? labels.freeCoffeeTitleOne
+                      : fill(labels.freeCoffeeTitleMany, { n: rewardsPendingCount })}
                   </h2>
                   <p className="text-[clamp(11.5px,1.95vh,13.5px)] leading-[1.45] text-white/72">{labels.freeCoffeeBody}</p>
                   <button
                     type="button"
-                    disabled={cardsCompleted === 0}
+                    disabled={rewardsPendingCount === 0}
                     onClick={() => goTo(0)}
                     className={cn(
                       "mt-1 rounded-full px-[18px] py-[clamp(10px,1.9vh,14px)] text-[clamp(12.5px,2vh,15px)] font-bold transition-[filter]",
-                      cardsCompleted === 0
+                      rewardsPendingCount === 0
                         ? "cursor-not-allowed bg-white/10 text-chalk/30"
                         : "bg-lime text-ink hover:brightness-110 active:scale-[0.97]",
                     )}

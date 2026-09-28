@@ -100,8 +100,7 @@ export default async function CardPage() {
           }
           initial={{
             stamps: card.stamps,
-            rewardPending: card.rewardPending,
-            cardsCompleted: card.cardsCompleted,
+            rewardsPendingCount: card.rewardsPendingCount,
             inviteCount: card.activeInvites.length + card.pendingGrants,
             returnedGuests: card.returnedGuests,
           }}

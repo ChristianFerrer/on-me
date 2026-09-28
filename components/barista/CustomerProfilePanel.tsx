@@ -2,15 +2,11 @@
 
 import { useState } from "react";
 import { EditIcon, XIcon } from "@/components/ui/Icons";
-import { cn } from "@/lib/cn";
 import { fill, formatMonthYear, formatRelativeTime, plural, type Dict, type Locale } from "@/lib/i18n";
 import { TierBadge } from "./TierBadge";
 import type { IdentifyProfile } from "./useIdentifyFlow";
 
 type BaristaDict = Dict["barista"];
-
-/** Tope del selector de canje: si acumuló más de 5, se canjean en dos pasadas. */
-const MAX_REDEEM_OPTIONS = 5;
 
 /**
  * El perfil del cliente tras identificarlo: dos columnas, una acción cada
@@ -38,15 +34,13 @@ export function CustomerProfilePanel({
   onUpdateProfile: (name: string, phone: string) => Promise<{ ok: true } | { ok: false; error: string }>;
 }) {
   const [addStamps, setAddStamps] = useState(Math.min(1, profile.maxStamps));
-  const [redeemCount, setRedeemCount] = useState(0);
+  const [adjustingRedeem, setAdjustingRedeem] = useState(false);
+  const [customRedeem, setCustomRedeem] = useState(profile.rewardsPending);
   const [editing, setEditing] = useState(false);
   const [editName, setEditName] = useState(profile.fullName);
   const [editPhone, setEditPhone] = useState(profile.phone ?? "");
   const [editBusy, setEditBusy] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
-
-  const redeemCap = Math.min(profile.rewardsPending, MAX_REDEEM_OPTIONS);
-  const redeemOptions = Array.from({ length: redeemCap }, (_, i) => i + 1);
 
   const memberSince = fill(t.identifyMemberSince, { date: formatMonthYear(profile.createdAt, locale) });
   const lastVisit = fill(t.identifyLastVisit, {
@@ -55,6 +49,11 @@ export function CustomerProfilePanel({
       : t.identifyFirstVisit,
   });
   const currentCard = fill(t.identifyCurrentCard, { stamps: profile.stamps, goal: profile.goal });
+
+  function startAdjustingRedeem() {
+    setCustomRedeem(profile.rewardsPending);
+    setAdjustingRedeem(true);
+  }
 
   function openEdit() {
     setEditName(profile.fullName);
@@ -213,32 +212,65 @@ export function CustomerProfilePanel({
                 fill(t.identifyAvailableMany, { n: profile.rewardsPending }),
               )}
             </p>
-            {redeemCap > 0 ? (
-              <div className="flex flex-wrap items-center justify-center gap-2">
-                {redeemOptions.map((n) => (
+
+            {profile.rewardsPending > 0 ? (
+              adjustingRedeem ? (
+                <>
+                  <div className="flex items-center justify-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setCustomRedeem((n) => Math.max(1, n - 1))}
+                      disabled={customRedeem <= 1}
+                      aria-label={t.identifyRedeemMinus}
+                      className="btn glass-dark size-11 shrink-0 rounded-full text-[1.5rem] font-bold leading-none text-chalk disabled:opacity-30"
+                    >
+                      −
+                    </button>
+                    <span className="numeral w-12 text-center text-[2.5rem] font-bold leading-none text-amber">
+                      {customRedeem}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setCustomRedeem((n) => Math.min(profile.rewardsPending, n + 1))}
+                      disabled={customRedeem >= profile.rewardsPending}
+                      aria-label={t.identifyRedeemPlus}
+                      className="btn glass-dark size-11 shrink-0 rounded-full text-[1.5rem] font-bold leading-none text-chalk disabled:opacity-30"
+                    >
+                      +
+                    </button>
+                  </div>
                   <button
-                    key={n}
                     type="button"
-                    onClick={() => setRedeemCount((current) => (current === n ? 0 : n))}
-                    aria-pressed={redeemCount === n}
-                    className={cn(
-                      "numeral flex size-9 items-center justify-center rounded-full text-[0.875rem] font-bold transition-colors",
-                      redeemCount === n ? "bg-amber text-ink" : "glass-dark text-chalk/60 hover:text-chalk",
-                    )}
+                    disabled={busy}
+                    onClick={() => onConfirm(0, customRedeem)}
+                    className="btn mt-auto w-full bg-amber px-4 py-3.5 text-[1rem] font-bold text-ink disabled:opacity-40"
                   >
-                    {n}
+                    {busy ? t.checking : fill(t.identifyRedeemAmountCta, { n: customRedeem })}
                   </button>
-                ))}
-              </div>
+                </>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => onConfirm(0, profile.rewardsPending)}
+                    className="btn mt-auto w-full bg-amber px-4 py-3.5 text-[1rem] font-bold text-ink disabled:opacity-40"
+                  >
+                    {busy ? t.checking : fill(t.identifyRedeemAmountCta, { n: profile.rewardsPending })}
+                  </button>
+                  {profile.rewardsPending > 1 ? (
+                    <button
+                      type="button"
+                      onClick={startAdjustingRedeem}
+                      disabled={busy}
+                      className="text-[0.75rem] font-semibold text-chalk/40 underline disabled:opacity-40"
+                    >
+                      {t.identifyRedeemAdjustCta}
+                    </button>
+                  ) : null}
+                </>
+              )
             ) : null}
-            <button
-              type="button"
-              disabled={redeemCount <= 0 || busy}
-              onClick={() => onConfirm(0, redeemCount)}
-              className="btn mt-auto w-full bg-amber px-4 py-3.5 text-[1rem] font-bold text-ink disabled:opacity-40"
-            >
-              {busy ? t.checking : t.identifyRedeemCta}
-            </button>
           </section>
         </div>
       </div>
