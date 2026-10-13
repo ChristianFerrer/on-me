@@ -116,7 +116,7 @@ export function UserManager({
       ) : null}
 
       {members.length === 0 ? (
-        <p className="text-[0.9375rem] text-chalk/45">{t.noUsers}</p>
+        <p className="text-[0.9375rem] text-on-surface/45">{t.noUsers}</p>
       ) : (
         <>
           {/* Tarjetas: solo móvil. */}
@@ -137,7 +137,7 @@ export function UserManager({
           <div className="glass-dark hidden overflow-x-auto rounded-xl md:block">
             <table className="w-full text-left text-[0.8125rem]">
               <thead>
-                <tr className="text-chalk/40">
+                <tr className="text-on-surface/40">
                   <th className="px-3.5 py-2.5 font-medium">{t.email}</th>
                   <th className="px-3.5 py-2.5 font-medium">{t.roleLabel}</th>
                   <th className="px-3.5 py-2.5 font-medium">{t.usersLastLoginHeader}</th>
@@ -223,7 +223,7 @@ function RoleBadge({ t, role }: { t: AdminDict; role: ShopMemberRole }) {
     <span
       className={cn(
         "eyebrow shrink-0 rounded-full px-2.5 py-1",
-        role === "owner" ? "bg-lime/15 text-lime" : "bg-white/8 text-chalk/50",
+        role === "owner" ? "bg-lime/15 text-lime" : "bg-[rgba(var(--on-surface-rgb),.08)] text-on-surface/50",
       )}
     >
       {role === "owner" ? t.roleOwner : t.roleOperator}
@@ -263,7 +263,7 @@ function PasswordForm({
   }
 
   return (
-    <form onSubmit={submit} className="mt-3 flex flex-col gap-2.5 rounded-xl bg-ink-2 p-4">
+    <form onSubmit={submit} className="mt-3 flex flex-col gap-2.5 rounded-xl bg-surface-2 p-4">
       <div className="relative">
         <input
           type={show ? "text" : "password"}
@@ -279,7 +279,7 @@ function PasswordForm({
           onClick={() => setShow((value) => !value)}
           aria-label={show ? t.hidePassword : t.showPassword}
           aria-pressed={show}
-          className="absolute inset-y-0 right-1 flex items-center px-2 text-chalk/45 hover:text-chalk"
+          className="absolute inset-y-0 right-1 flex items-center px-2 text-on-surface/45 hover:text-on-surface"
         >
           {show ? <EyeOffIcon className="size-4" /> : <EyeIcon className="size-4" />}
         </button>
@@ -302,7 +302,7 @@ function PasswordForm({
         <button
           type="button"
           onClick={onCancel}
-          className="btn bg-white/8 px-4 py-2.5 text-[0.8125rem] text-chalk"
+          className="btn bg-[rgba(var(--on-surface-rgb),.08)] px-4 py-2.5 text-[0.8125rem] text-on-surface"
         >
           {t.cancel}
         </button>
@@ -366,12 +366,12 @@ function UserRow({
           <p className="truncate text-[1.0625rem] font-semibold">
             {member.email}
             {isSelf ? (
-              <span className="ml-1.5 text-[0.8125rem] font-normal text-chalk/40">
+              <span className="ml-1.5 text-[0.8125rem] font-normal text-on-surface/40">
                 {t.userYou}
               </span>
             ) : null}
           </p>
-          <p className="mt-1 text-[0.8125rem] text-chalk/45">
+          <p className="mt-1 text-[0.8125rem] text-on-surface/45">
             {lastLoginText(t, member, locale)}
             {pwSaved ? ` · ${t.passwordSaved}` : ""}
           </p>
@@ -401,7 +401,7 @@ function UserRow({
           type="button"
           onClick={() => setPwOpen((value) => !value)}
           disabled={busy}
-          className="btn bg-ink-2 px-4 py-3 text-[0.8125rem] text-chalk"
+          className="btn bg-surface-2 px-4 py-3 text-[0.8125rem] text-on-surface"
         >
           {t.setPasswordAction}
         </button>
@@ -409,7 +409,7 @@ function UserRow({
           type="button"
           onClick={() => void handleResetPassword()}
           disabled={busy}
-          className="btn bg-ink-2 px-4 py-3 text-[0.8125rem] text-chalk"
+          className="btn bg-surface-2 px-4 py-3 text-[0.8125rem] text-on-surface"
         >
           {resetSent ? t.userResetPasswordSent : t.userResetPassword}
         </button>
@@ -497,12 +497,12 @@ function UserTableRow({
 
   return (
     <>
-      <tr className="border-t border-white/8">
+      <tr className="border-t border-[rgba(var(--on-surface-rgb),.08)]">
         <td className="max-w-56 px-3.5 py-3 font-semibold">
           <div className="flex items-center gap-1.5">
             <span className="truncate">{member.email}</span>
             {isSelf ? (
-              <span className="shrink-0 font-normal text-chalk/40">{t.userYou}</span>
+              <span className="shrink-0 font-normal text-on-surface/40">{t.userYou}</span>
             ) : null}
             {member.banned ? (
               <span className="eyebrow shrink-0 rounded-full bg-coral/15 px-2 py-0.5 text-coral">
@@ -523,7 +523,7 @@ function UserTableRow({
             <option value="owner">{t.roleOwner}</option>
           </select>
         </td>
-        <td className="px-3.5 py-3 text-chalk/60">
+        <td className="px-3.5 py-3 text-on-surface/60">
           {lastLoginText(t, member, locale)}
           {pwSaved ? ` · ${t.passwordSaved}` : ""}
         </td>
@@ -533,7 +533,7 @@ function UserTableRow({
               type="button"
               onClick={() => setPwOpen((value) => !value)}
               disabled={busy}
-              className="btn bg-ink-2 px-3 py-2 text-[0.8125rem] text-chalk"
+              className="btn bg-surface-2 px-3 py-2 text-[0.8125rem] text-on-surface"
             >
               {t.setPasswordAction}
             </button>
@@ -541,7 +541,7 @@ function UserTableRow({
               type="button"
               onClick={() => void handleResetPassword()}
               disabled={busy}
-              className="btn bg-ink-2 px-3 py-2 text-[0.8125rem] text-chalk"
+              className="btn bg-surface-2 px-3 py-2 text-[0.8125rem] text-on-surface"
             >
               {resetSent ? t.userResetPasswordSent : t.userResetPassword}
             </button>
@@ -569,7 +569,7 @@ function UserTableRow({
       </tr>
 
       {pwOpen ? (
-        <tr className="border-t border-white/8">
+        <tr className="border-t border-[rgba(var(--on-surface-rgb),.08)]">
           <td colSpan={4} className="p-4">
             <PasswordForm
               t={t}
@@ -582,7 +582,7 @@ function UserTableRow({
       ) : null}
 
       {error ? (
-        <tr className="border-t border-white/8">
+        <tr className="border-t border-[rgba(var(--on-surface-rgb),.08)]">
           <td colSpan={4} className="px-3.5 py-2.5 text-[0.8125rem] font-medium text-coral">
             {errorMessage(t, error)}
           </td>

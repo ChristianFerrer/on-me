@@ -85,14 +85,14 @@ export function CustomerProfilePanel({
   }
 
   return (
-    <div className="fixed inset-0 z-[60] flex flex-col overflow-y-auto aurora-night text-chalk">
+    <div className="fixed inset-0 z-[60] flex flex-col overflow-y-auto aurora-night text-on-surface">
       <header className="flex items-center justify-between px-5 pt-[max(1.25rem,env(safe-area-inset-top))]">
-        <p className="eyebrow text-chalk/45">{t.identifyProfileTitle}</p>
+        <p className="eyebrow text-on-surface/45">{t.identifyProfileTitle}</p>
         <button
           type="button"
           onClick={onCancel}
           aria-label={t.cancel}
-          className="btn glass-dark size-10 rounded-full text-chalk"
+          className="btn glass-dark size-10 rounded-full text-on-surface"
         >
           <XIcon className="size-4" />
         </button>
@@ -102,7 +102,7 @@ export function CustomerProfilePanel({
         {editing ? (
           <form onSubmit={(event) => void saveEdit(event)} className="glass-dark flex flex-col gap-3 p-5">
             <div>
-              <label htmlFor="edit-name" className="text-[0.8125rem] font-medium text-chalk/50">
+              <label htmlFor="edit-name" className="text-[0.8125rem] font-medium text-on-surface/50">
                 {t.identifyEditNameLabel}
               </label>
               <input
@@ -113,7 +113,7 @@ export function CustomerProfilePanel({
               />
             </div>
             <div>
-              <label htmlFor="edit-phone" className="text-[0.8125rem] font-medium text-chalk/50">
+              <label htmlFor="edit-phone" className="text-[0.8125rem] font-medium text-on-surface/50">
                 {t.identifyEditPhoneLabel}
               </label>
               <input
@@ -129,7 +129,7 @@ export function CustomerProfilePanel({
               <button
                 type="button"
                 onClick={() => setEditing(false)}
-                className="btn flex-1 glass-dark py-3 text-[0.9375rem] font-semibold text-chalk"
+                className="btn flex-1 glass-dark py-3 text-[0.9375rem] font-semibold text-on-surface"
               >
                 {t.cancel}
               </button>
@@ -152,13 +152,13 @@ export function CustomerProfilePanel({
                 onClick={openEdit}
                 disabled={busy}
                 aria-label={t.identifyEditCta}
-                className="btn glass-dark size-10 shrink-0 rounded-full text-chalk disabled:opacity-40"
+                className="btn glass-dark size-10 shrink-0 rounded-full text-on-surface disabled:opacity-40"
               >
                 <EditIcon className="size-4" />
               </button>
             </div>
-            <p className="text-[0.8125rem] text-chalk/45">{memberSince}</p>
-            <div className="flex items-center justify-between text-[0.8125rem] text-chalk/45">
+            <p className="text-[0.8125rem] text-on-surface/45">{memberSince}</p>
+            <div className="flex items-center justify-between text-[0.8125rem] text-on-surface/45">
               <span>{lastVisit}</span>
               <span>{currentCard}</span>
             </div>
@@ -175,7 +175,7 @@ export function CustomerProfilePanel({
                 onClick={() => setAddStamps((n) => Math.max(0, n - 1))}
                 disabled={addStamps <= 0}
                 aria-label={t.identifyStampsMinus}
-                className="btn glass-dark size-11 shrink-0 rounded-full text-[1.5rem] font-bold leading-none text-chalk disabled:opacity-30"
+                className="btn glass-dark size-11 shrink-0 rounded-full text-[1.5rem] font-bold leading-none text-on-surface disabled:opacity-30"
               >
                 −
               </button>
@@ -187,7 +187,7 @@ export function CustomerProfilePanel({
                 onClick={() => setAddStamps((n) => Math.min(profile.maxStamps, n + 1))}
                 disabled={addStamps >= profile.maxStamps}
                 aria-label={t.identifyStampsPlus}
-                className="btn glass-dark size-11 shrink-0 rounded-full text-[1.5rem] font-bold leading-none text-chalk disabled:opacity-30"
+                className="btn glass-dark size-11 shrink-0 rounded-full text-[1.5rem] font-bold leading-none text-on-surface disabled:opacity-30"
               >
                 +
               </button>
@@ -205,7 +205,7 @@ export function CustomerProfilePanel({
           {/* --------------------------------------------- café gratis */}
           <section className="glass-dark flex flex-col items-center gap-3 p-5 text-center">
             <p className="text-[1.0625rem] font-bold">{t.identifyFreeCoffeeSectionTitle}</p>
-            <p className="text-[0.8125rem] text-chalk/50">
+            <p className="text-[0.8125rem] text-on-surface/50">
               {plural(
                 profile.rewardsPending,
                 t.identifyAvailableOne,
@@ -222,7 +222,7 @@ export function CustomerProfilePanel({
                       onClick={() => setCustomRedeem((n) => Math.max(1, n - 1))}
                       disabled={customRedeem <= 1}
                       aria-label={t.identifyRedeemMinus}
-                      className="btn glass-dark size-11 shrink-0 rounded-full text-[1.5rem] font-bold leading-none text-chalk disabled:opacity-30"
+                      className="btn glass-dark size-11 shrink-0 rounded-full text-[1.5rem] font-bold leading-none text-on-surface disabled:opacity-30"
                     >
                       −
                     </button>
@@ -234,7 +234,7 @@ export function CustomerProfilePanel({
                       onClick={() => setCustomRedeem((n) => Math.min(profile.rewardsPending, n + 1))}
                       disabled={customRedeem >= profile.rewardsPending}
                       aria-label={t.identifyRedeemPlus}
-                      className="btn glass-dark size-11 shrink-0 rounded-full text-[1.5rem] font-bold leading-none text-chalk disabled:opacity-30"
+                      className="btn glass-dark size-11 shrink-0 rounded-full text-[1.5rem] font-bold leading-none text-on-surface disabled:opacity-30"
                     >
                       +
                     </button>
@@ -263,7 +263,7 @@ export function CustomerProfilePanel({
                       type="button"
                       onClick={startAdjustingRedeem}
                       disabled={busy}
-                      className="text-[0.75rem] font-semibold text-chalk/40 underline disabled:opacity-40"
+                      className="text-[0.75rem] font-semibold text-on-surface/40 underline disabled:opacity-40"
                     >
                       {t.identifyRedeemAdjustCta}
                     </button>

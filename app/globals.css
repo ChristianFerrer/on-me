@@ -42,6 +42,18 @@
   --color-amber: #fbbf24;
   --color-coral: #fb7185;
 
+  /* --- superficie de trabajo --------------------------------------------
+     Fondo y texto de las pantallas de trabajo -panel, barra- y de la
+     tarjeta de cliente: lo único que cambia con `shops.theme`. `ink` y
+     `chalk` se quedan fijos a propósito -los usan los botones de acento
+     (`bg-lime text-ink`) y el veredicto a color plano del barista, que no
+     "cambian de tema" cuando lo hace el resto de la pantalla-, así que
+     esto vive en tokens propios, no en una redefinición de los de arriba.
+     Valor por defecto -oscuro-, ver [data-theme="light"] en @layer base. */
+  --color-surface: #0e1211;
+  --color-surface-2: #171c1a;
+  --color-on-surface: #f5f7f5;
+
   /* --- tipografía ------------------------------------------------------ */
   --font-sans: var(--font-jakarta), "Helvetica Neue", Arial, sans-serif;
 
@@ -75,6 +87,42 @@
        y solo el caso menos frecuente -ya lo habían expandido antes- paga
        ese único reajuste tras montar. */
     --admin-sidebar-width: 4.5rem;
+
+    /* Componentes rgb de --color-surface/--color-on-surface, para los
+       rgba() de .glass-dark/.slab/.field que necesitan transparencia -un
+       color token de Tailwind no se puede meter dentro de un rgba() a
+       medio componer-. Mismo valor que los hex de arriba, repetido a
+       mano porque CSS no tiene una función nativa hex->rgb. */
+    --surface-rgb: 14, 18, 17;
+    --on-surface-rgb: 245, 247, 245;
+    /* Fondo de .aurora-night: radios de color sobre una base diagonal,
+       mismo lenguaje en los dos temas, solo cambia la luminosidad. */
+    --aurora-night-bg: #070908;
+    --aurora-night-image:
+      radial-gradient(115% 85% at 2% 0%, rgba(129, 140, 248, 0.38) 0%, transparent 55%),
+      radial-gradient(100% 75% at 98% 8%, rgba(251, 113, 133, 0.22) 0%, transparent 58%),
+      radial-gradient(120% 95% at 50% 108%, rgba(167, 139, 250, 0.34) 0%, transparent 62%),
+      linear-gradient(155deg, #12131c 0%, #1a1530 48%, #0d1420 100%);
+  }
+
+  /* Tema claro de las pantallas de trabajo -ver shops.theme en
+     /admin/ajustes-: mismo material -cristal, radios de color-, luminosidad
+     invertida. Se aplica en el `data-theme` que ponen app/admin/layout.tsx
+     y app/s/layout.tsx según el tema del local; sin sesión -login- no hay
+     local que preguntar, así que esas pantallas se quedan en el oscuro de
+     siempre, el valor por defecto de arriba. */
+  [data-theme="light"] {
+    --color-surface: #fbfcfb;
+    --color-surface-2: #f1f3f0;
+    --color-on-surface: #12161a;
+    --surface-rgb: 255, 255, 255;
+    --on-surface-rgb: 14, 18, 17;
+    --aurora-night-bg: #eef1ec;
+    --aurora-night-image:
+      radial-gradient(115% 85% at 2% 0%, rgba(99, 102, 241, 0.14) 0%, transparent 55%),
+      radial-gradient(100% 75% at 98% 8%, rgba(244, 63, 94, 0.1) 0%, transparent 58%),
+      radial-gradient(120% 95% at 50% 108%, rgba(139, 92, 246, 0.12) 0%, transparent 62%),
+      linear-gradient(155deg, #fdfcf9 0%, #f4eff9 48%, #eef3f6 100%);
   }
 
   * {
@@ -151,12 +199,8 @@
      lo bastante oscura para que el texto claro (chalk) siga siendo el que
      manda, igual que antes sobre el fondo plano. */
   .aurora-night {
-    background-color: var(--color-void);
-    background-image:
-      radial-gradient(115% 85% at 2% 0%, rgba(129, 140, 248, 0.38) 0%, transparent 55%),
-      radial-gradient(100% 75% at 98% 8%, rgba(251, 113, 133, 0.22) 0%, transparent 58%),
-      radial-gradient(120% 95% at 50% 108%, rgba(167, 139, 250, 0.34) 0%, transparent 62%),
-      linear-gradient(155deg, #12131c 0%, #1a1530 48%, #0d1420 100%);
+    background-color: var(--aurora-night-bg);
+    background-image: var(--aurora-night-image);
   }
 
   /* ==========================================================================
@@ -176,10 +220,11 @@
      paneles, fichas y chrome flotante. Un solo lugar donde ajustar "el
      contenedor" cuando haga falta, en vez de un valor distinto por pantalla. */
   .glass-dark {
-    background: rgba(10, 14, 13, 0.62);
+    background: rgba(var(--surface-rgb), 0.62);
     backdrop-filter: blur(18px) saturate(1.2);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(var(--on-surface-rgb), 0.1);
     border-radius: var(--radius-card);
+    color: var(--color-on-surface);
   }
 
   /* Tarjeta de /admin/metricas: la spec de esa página pide un ciruela
@@ -265,10 +310,10 @@
      la superficie que usa <Slab> -el bloque de contenido genérico-, no el
      chrome flotante. */
   .slab {
-    background: rgba(10, 14, 13, 0.62);
+    background: rgba(var(--surface-rgb), 0.62);
     backdrop-filter: blur(18px) saturate(1.2);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    color: var(--color-chalk);
+    border: 1px solid rgba(var(--on-surface-rgb), 0.1);
+    color: var(--color-on-surface);
     border-radius: var(--radius-card);
   }
 
@@ -337,9 +382,9 @@
     font-weight: 500;
     font-family: inherit;
     padding: 1.0625rem 1.25rem;
-    color: var(--color-chalk);
-    background: var(--color-ink);
-    border: 1px solid rgba(255, 255, 255, 0.09);
+    color: var(--color-on-surface);
+    background: var(--color-surface);
+    border: 1px solid rgba(var(--on-surface-rgb), 0.09);
     border-radius: var(--radius-field);
     outline: none;
     transition:
@@ -347,12 +392,12 @@
       background-color 160ms var(--ease-out-soft);
   }
   .field::placeholder {
-    color: rgba(245, 247, 245, 0.42);
+    color: rgba(var(--on-surface-rgb), 0.42);
     font-weight: 400;
   }
   .field:focus {
     border-color: var(--color-lime);
-    background: var(--color-ink-2);
+    background: var(--color-surface-2);
   }
   .field[aria-invalid="true"] {
     border-color: var(--color-coral);

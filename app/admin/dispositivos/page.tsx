@@ -26,26 +26,26 @@ export default async function DevicesPage() {
         <Link
           href="/inicio"
           prefetch={false}
-          className="-m-2 p-2 text-chalk/45 transition-colors hover:text-chalk nav:hidden"
+          className="-m-2 p-2 text-on-surface/45 transition-colors hover:text-on-surface nav:hidden"
           aria-label={t.home.eyebrow}
         >
           <HomeIcon className="size-6" />
         </Link>
         <div>
-          <p className="eyebrow text-chalk/35">{ctx.shop.name}</p>
+          <p className="eyebrow text-on-surface/35">{ctx.shop.name}</p>
           <h1 className="display mt-1 text-[1.75rem]">{t.admin.devices}</h1>
         </div>
         <Link
           href="/admin/usuarios"
           prefetch={false}
-          className="ml-auto text-[0.8125rem] font-medium text-chalk/55 transition-colors hover:text-chalk"
+          className="ml-auto text-[0.8125rem] font-medium text-on-surface/55 transition-colors hover:text-on-surface"
         >
           {t.admin.usersNav}
         </Link>
         <Link
           href="/admin/ajustes"
           prefetch={false}
-          className="text-[0.8125rem] font-medium text-chalk/55 transition-colors hover:text-chalk"
+          className="text-[0.8125rem] font-medium text-on-surface/55 transition-colors hover:text-on-surface"
         >
           {t.admin.settingsNav}
         </Link>

@@ -35,7 +35,7 @@ function NotEnrolled({ home }: { home: string }) {
         href="/inicio"
         prefetch={false}
         aria-label={home}
-        className="pt-2 text-chalk/45 transition-colors hover:text-chalk"
+        className="pt-2 text-on-surface/45 transition-colors hover:text-on-surface"
       >
         <HomeIcon className="size-6" />
       </Link>
@@ -46,7 +46,7 @@ function NotEnrolled({ home }: { home: string }) {
           <h1 className="display mt-3 text-[1.75rem]">
             este dispositivo no está autorizado
           </h1>
-          <p className="mt-3 text-[0.9375rem] leading-relaxed text-chalk/55">
+          <p className="mt-3 text-[0.9375rem] leading-relaxed text-on-surface/55">
             this device is not authorised. abre el enlace de alta del local
             para activarlo.
           </p>

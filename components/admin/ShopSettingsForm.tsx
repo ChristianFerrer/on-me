@@ -80,10 +80,10 @@ export function ShopSettingsForm({
     <div className="flex max-w-md flex-col gap-5">
       <form onSubmit={save} className="glass-dark flex flex-col gap-6 p-6">
         <div>
-          <label htmlFor="max-stamps" className="text-[0.9375rem] font-semibold text-chalk">
+          <label htmlFor="max-stamps" className="text-[0.9375rem] font-semibold text-on-surface">
             {t.settingsMaxStampsLabel}
           </label>
-          <p className="mt-1 text-[0.8125rem] text-chalk/50">{t.settingsMaxStampsBody}</p>
+          <p className="mt-1 text-[0.8125rem] text-on-surface/50">{t.settingsMaxStampsBody}</p>
           <input
             id="max-stamps"
             type="number"
@@ -100,8 +100,8 @@ export function ShopSettingsForm({
         </div>
 
         <div>
-          <p className="text-[0.9375rem] font-semibold text-chalk">{t.settingsThemeLabel}</p>
-          <p className="mt-1 text-[0.8125rem] text-chalk/50">{t.settingsThemeBody}</p>
+          <p className="text-[0.9375rem] font-semibold text-on-surface">{t.settingsThemeLabel}</p>
+          <p className="mt-1 text-[0.8125rem] text-on-surface/50">{t.settingsThemeBody}</p>
           <div className="mt-3 flex gap-2.5">
             <Toggle
               active={themeValue === "dark"}
@@ -123,8 +123,8 @@ export function ShopSettingsForm({
         </div>
 
         <div>
-          <p className="text-[0.9375rem] font-semibold text-chalk">{t.settingsCardStyleLabel}</p>
-          <p className="mt-1 text-[0.8125rem] text-chalk/50">{t.settingsCardStyleBody}</p>
+          <p className="text-[0.9375rem] font-semibold text-on-surface">{t.settingsCardStyleLabel}</p>
+          <p className="mt-1 text-[0.8125rem] text-on-surface/50">{t.settingsCardStyleBody}</p>
           <div className="mt-3 flex gap-2.5">
             <Toggle
               active={cardStyleValue === "digital"}
@@ -146,10 +146,10 @@ export function ShopSettingsForm({
         </div>
 
         <div>
-          <label htmlFor="default-locale" className="text-[0.9375rem] font-semibold text-chalk">
+          <label htmlFor="default-locale" className="text-[0.9375rem] font-semibold text-on-surface">
             {t.settingsLocaleLabel}
           </label>
-          <p className="mt-1 text-[0.8125rem] text-chalk/50">{t.settingsLocaleBody}</p>
+          <p className="mt-1 text-[0.8125rem] text-on-surface/50">{t.settingsLocaleBody}</p>
           <select
             id="default-locale"
             value={localeValue}
@@ -192,7 +192,7 @@ function Toggle({ active, label, onClick }: { active: boolean; label: string; on
       onClick={onClick}
       aria-pressed={active}
       className={`btn flex-1 px-4 py-2.5 text-[0.8125rem] font-semibold transition-colors ${
-        active ? "bg-lime text-ink" : "glass-dark text-chalk/60 hover:text-chalk"
+        active ? "bg-lime text-ink" : "glass-dark text-on-surface/60 hover:text-on-surface"
       }`}
     >
       {label}
@@ -249,12 +249,12 @@ function LogoUploader({ t, logoUrl }: { t: AdminDict; logoUrl: string | null }) 
   return (
     <div className="glass-dark flex flex-col gap-4 p-6">
       <div>
-        <p className="text-[0.9375rem] font-semibold text-chalk">{t.settingsLogoLabel}</p>
-        <p className="mt-1 text-[0.8125rem] text-chalk/50">{t.settingsLogoBody}</p>
+        <p className="text-[0.9375rem] font-semibold text-on-surface">{t.settingsLogoLabel}</p>
+        <p className="mt-1 text-[0.8125rem] text-on-surface/50">{t.settingsLogoBody}</p>
       </div>
 
       <div className="flex items-center gap-4">
-        <div className="flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-ink-2">
+        <div className="flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-surface-2">
           {preview ? (
             // El logo viene de Supabase Storage -una URL externa que cambia por
             // local-: no vale la pena pagar la configuración de dominios
@@ -262,11 +262,11 @@ function LogoUploader({ t, logoUrl }: { t: AdminDict; logoUrl: string | null }) 
             // eslint-disable-next-line @next/next/no-img-element
             <img src={preview} alt="" className="size-full object-cover" />
           ) : (
-            <span className="eyebrow text-center text-[0.5625rem] text-chalk/25">{t.settingsLogoEmpty}</span>
+            <span className="eyebrow text-center text-[0.5625rem] text-on-surface/25">{t.settingsLogoEmpty}</span>
           )}
         </div>
         <div className="flex flex-col items-start gap-2">
-          <label className="btn glass-dark cursor-pointer px-4 py-2.5 text-[0.8125rem] font-semibold text-chalk">
+          <label className="btn glass-dark cursor-pointer px-4 py-2.5 text-[0.8125rem] font-semibold text-on-surface">
             {busy ? t.settingsLogoUploading : t.settingsLogoUpload}
             <input
               ref={inputRef}

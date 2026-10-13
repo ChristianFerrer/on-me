@@ -87,16 +87,16 @@ export function ResetPasswordForm({ t }: { t: Dict }) {
   }
 
   if (status === "checking") {
-    return <p className="text-center text-[0.9375rem] text-chalk/55">{t.common.loading}</p>;
+    return <p className="text-center text-[0.9375rem] text-on-surface/55">{t.common.loading}</p>;
   }
 
   if (status === "invalid") {
     return (
       <div className="flex flex-col items-center gap-4 text-center">
-        <p className="text-[0.9375rem] leading-relaxed text-chalk/70">
+        <p className="text-[0.9375rem] leading-relaxed text-on-surface/70">
           {t.admin.resetPasswordInvalidLink}
         </p>
-        <a href="/admin/constelacion-sol" className="text-[0.8125rem] font-medium text-chalk/55 transition-colors hover:text-chalk">
+        <a href="/admin/constelacion-sol" className="text-[0.8125rem] font-medium text-on-surface/55 transition-colors hover:text-on-surface">
           {t.admin.resetPasswordGoToLogin}
         </a>
       </div>
@@ -106,7 +106,7 @@ export function ResetPasswordForm({ t }: { t: Dict }) {
   if (status === "success") {
     return (
       <div className="flex flex-col items-center gap-4 text-center">
-        <p className="text-[0.9375rem] leading-relaxed text-chalk/70">
+        <p className="text-[0.9375rem] leading-relaxed text-on-surface/70">
           {t.admin.resetPasswordSuccess}
         </p>
         <a href="/admin/constelacion-sol" className="text-[0.8125rem] font-medium text-lime">
@@ -134,7 +134,7 @@ export function ResetPasswordForm({ t }: { t: Dict }) {
           onClick={() => setShowPassword((value) => !value)}
           aria-label={showPassword ? t.admin.hidePassword : t.admin.showPassword}
           aria-pressed={showPassword}
-          className="absolute inset-y-0 right-1.5 flex items-center px-3 text-chalk/45 transition-colors hover:text-chalk"
+          className="absolute inset-y-0 right-1.5 flex items-center px-3 text-on-surface/45 transition-colors hover:text-on-surface"
         >
           {showPassword ? <EyeOffIcon className="size-5" /> : <EyeIcon className="size-5" />}
         </button>

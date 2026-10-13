@@ -113,13 +113,13 @@ export default async function MetricsPage({
           <Link
             href="/inicio"
             prefetch={false}
-            className="-m-2 p-2 text-chalk/45 transition-colors hover:text-chalk nav:hidden"
+            className="-m-2 p-2 text-on-surface/45 transition-colors hover:text-on-surface nav:hidden"
             aria-label={t.home.eyebrow}
           >
             <HomeIcon className="size-6" />
           </Link>
           <div>
-            <p className="eyebrow text-chalk/35">{ctx.shop.name}</p>
+            <p className="eyebrow text-on-surface/35">{ctx.shop.name}</p>
             <h1 className="display mt-1 text-[1.75rem] max-[560px]:text-[1.0625rem] md:text-[2rem]">
               {t.admin.metricsTitle}
             </h1>
@@ -134,7 +134,7 @@ export default async function MetricsPage({
               prefetch={false}
               className={cn(
                 "rounded-full px-3.5 py-2 text-[0.8125rem] font-medium transition-colors",
-                r === range ? "bg-lime text-ink" : "text-chalk/55 hover:text-chalk",
+                r === range ? "bg-lime text-ink" : "text-on-surface/55 hover:text-on-surface",
               )}
             >
               {r === "7d" ? m.range7d : r === "30d" ? m.range30d : m.rangeAll}
@@ -156,7 +156,7 @@ export default async function MetricsPage({
       <div className="mx-auto grid w-full max-w-[1560px] grid-cols-12 gap-x-[14px] gap-y-[26px]">
         {/* fila 1 · titular + 4 cifras */}
         <section className="col-span-12 flex flex-col gap-4">
-          <p className="text-balance text-[1.0625rem] leading-relaxed text-chalk/80 max-[560px]:text-[0.9375rem]">
+          <p className="text-balance text-[1.0625rem] leading-relaxed text-on-surface/80 max-[560px]:text-[0.9375rem]">
             {headline}
           </p>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 min-[1400px]:grid-cols-4">
@@ -522,7 +522,7 @@ export default async function MetricsPage({
 
       <Link
         href="/privacidad?from=admin"
-        className="btn mt-auto items-center gap-2 bg-ink-2 px-6 py-4 text-[1rem] text-chalk ring-1 ring-inset ring-chalk/15 lg:self-start"
+        className="btn mt-auto items-center gap-2 bg-surface-2 px-6 py-4 text-[1rem] text-on-surface ring-1 ring-inset ring-on-surface/15 lg:self-start"
       >
         <ShieldIcon className="size-5" />
         {t.admin.linksPrivacy}

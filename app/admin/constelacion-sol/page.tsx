@@ -32,7 +32,7 @@ export default async function ConstelacionSolPage({
         <Link
           href="/inicio"
           prefetch={false}
-          className="-m-2 mt-0 p-2 text-chalk/45 transition-colors hover:text-chalk"
+          className="-m-2 mt-0 p-2 text-on-surface/45 transition-colors hover:text-on-surface"
           aria-label={t.home.eyebrow}
         >
           <HomeIcon className="size-6" />

@@ -7,7 +7,7 @@ type AdminDict = Dict["admin"];
 const STATUS = {
   pass: "bg-lime text-ink",
   below: "bg-coral text-ink",
-  insufficient_sample: "bg-white/8 text-chalk/50",
+  insufficient_sample: "bg-[rgba(var(--on-surface-rgb),.08)] text-on-surface/50",
 } as const;
 
 /**
@@ -41,7 +41,7 @@ export function GateCard({
   return (
     <article className="glass-dark p-6">
       <div className="flex items-start justify-between gap-3">
-        <p className="eyebrow uppercase text-chalk/60">{gate.key}</p>
+        <p className="eyebrow uppercase text-on-surface/60">{gate.key}</p>
         <p
           className={cn(
             "eyebrow rounded-full px-2.5 py-1",
@@ -55,15 +55,15 @@ export function GateCard({
       <p
         className={cn(
           "display-tight numeral mt-5 text-[2.75rem]",
-          short ? "text-chalk/30" : "text-chalk",
+          short ? "text-on-surface/30" : "text-on-surface",
         )}
       >
         {percent}
       </p>
 
-      <p className="mt-2 text-[0.875rem] leading-snug text-chalk/60">{label}</p>
+      <p className="mt-2 text-[0.875rem] leading-snug text-on-surface/60">{label}</p>
 
-      <p className="numeral mt-4 text-[0.8125rem] text-chalk/60">
+      <p className="numeral mt-4 text-[0.8125rem] text-on-surface/60">
         {fill(t.target, { n: Math.round(gate.threshold * 100) })}
         {short ? ` · ${fill(t.insufficientBody, { n: gate.minSample, m: gate.denominator })}` : ""}
       </p>

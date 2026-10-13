@@ -37,9 +37,9 @@ export function PinPad({
   }
 
   return (
-    <div className="fixed inset-0 z-[70] flex flex-col overflow-y-auto aurora-night text-chalk">
+    <div className="fixed inset-0 z-[70] flex flex-col overflow-y-auto aurora-night text-on-surface">
       <div className="flex flex-1 flex-col items-center justify-center gap-7 px-8 py-6">
-        <p className="eyebrow text-chalk/45">{t.confirmPin}</p>
+        <p className="eyebrow text-on-surface/45">{t.confirmPin}</p>
 
         <div className="flex gap-3.5">
           {[0, 1, 2, 3].map((i) => (
@@ -47,7 +47,7 @@ export function PinPad({
               key={i}
               className={cn(
                 "size-3.5 rounded-full transition-colors",
-                i < pin.length ? "bg-lime" : "bg-white/15",
+                i < pin.length ? "bg-lime" : "bg-[rgba(var(--on-surface-rgb),0.15)]",
               )}
             />
           ))}
@@ -56,7 +56,7 @@ export function PinPad({
         <p
           className={cn(
             "text-[0.9375rem] font-medium",
-            wrong ? "text-coral" : "text-chalk/40",
+            wrong ? "text-coral" : "text-on-surface/40",
           )}
         >
           {wrong ? t.pinWrong : t.pinHint}
@@ -99,7 +99,7 @@ function Key({
       aria-label={label}
       className={cn(
         "btn numeral rounded-[var(--radius-field)] py-5 text-[1.5rem] font-semibold",
-        muted ? "text-chalk/45" : "bg-ink-2 text-chalk",
+        muted ? "text-on-surface/45" : "bg-surface-2 text-on-surface",
       )}
     >
       {children}

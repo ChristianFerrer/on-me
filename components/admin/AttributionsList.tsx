@@ -58,7 +58,7 @@ export function AttributionsList({
   return (
     <div className="flex flex-col gap-2.5">
       <div className="relative md:max-w-sm">
-        <SearchIcon className="pointer-events-none absolute left-4 top-1/2 size-4 -translate-y-1/2 text-chalk/35" />
+        <SearchIcon className="pointer-events-none absolute left-4 top-1/2 size-4 -translate-y-1/2 text-on-surface/35" />
         <input
           value={query}
           onChange={(event) => setQuery(event.target.value)}
@@ -69,9 +69,9 @@ export function AttributionsList({
       </div>
 
       {rows.length === 0 ? (
-        <p className="text-[0.9375rem] text-chalk/45">{t.admin.attrEmpty}</p>
+        <p className="text-[0.9375rem] text-on-surface/45">{t.admin.attrEmpty}</p>
       ) : filtered.length === 0 ? (
-        <p className="text-[0.9375rem] text-chalk/45">{t.admin.attrSearchEmpty}</p>
+        <p className="text-[0.9375rem] text-on-surface/45">{t.admin.attrSearchEmpty}</p>
       ) : (
         <>
           {/* Tarjetas: solo móvil, una columna estrecha lee mejor apilada
@@ -82,7 +82,7 @@ export function AttributionsList({
                 <div className="flex items-center justify-between gap-3">
                   <div className="min-w-0">
                     <p className="truncate text-[0.9375rem] font-semibold">{row.guestName}</p>
-                    <p className="eyebrow mt-0.5 text-chalk/35">
+                    <p className="eyebrow mt-0.5 text-on-surface/35">
                       {t.admin.attrPadrino} · {row.referrerName}
                     </p>
                   </div>
@@ -99,19 +99,19 @@ export function AttributionsList({
                     prefetch={false}
                     aria-label={t.admin.attrViewInConstellation}
                     title={t.admin.attrViewInConstellation}
-                    className="btn glass-dark size-8 shrink-0 text-chalk/60 hover:text-chalk"
+                    className="btn glass-dark size-8 shrink-0 text-on-surface/60 hover:text-on-surface"
                   >
                     <OrbitIcon className="size-4" />
                   </Link>
                 </div>
 
-                <dl className="numeral mt-2.5 flex flex-wrap gap-x-4 gap-y-1 text-[0.6875rem] text-chalk/40">
+                <dl className="numeral mt-2.5 flex flex-wrap gap-x-4 gap-y-1 text-[0.6875rem] text-on-surface/40">
                   <div className="flex items-baseline gap-1">
-                    <dt className="text-chalk/30">{t.admin.attrRedeemed}</dt>
+                    <dt className="text-on-surface/30">{t.admin.attrRedeemed}</dt>
                     <dd>{formatDateTime(row.redeemedAt, locale)}</dd>
                   </div>
                   <div className="flex items-baseline gap-1">
-                    <dt className="text-chalk/30">{t.admin.attrReturned}</dt>
+                    <dt className="text-on-surface/30">{t.admin.attrReturned}</dt>
                     <dd>{row.returnedAt ? formatDateTime(row.returnedAt, locale) : "—"}</dd>
                   </div>
                 </dl>
@@ -125,7 +125,7 @@ export function AttributionsList({
           <div className="glass-dark hidden overflow-x-auto rounded-xl md:block">
             <table className="w-full text-left text-[0.8125rem]">
               <thead>
-                <tr className="text-chalk/40">
+                <tr className="text-on-surface/40">
                   <th className="px-3.5 py-2.5 font-medium">{t.admin.attrGuest}</th>
                   <th className="px-3.5 py-2.5 font-medium">{t.admin.attrPadrino}</th>
                   <th className="px-3.5 py-2.5 font-medium">{t.admin.attrState}</th>
@@ -136,9 +136,9 @@ export function AttributionsList({
               </thead>
               <tbody>
                 {filtered.map((row) => (
-                  <tr key={row.id} className="border-t border-white/8">
+                  <tr key={row.id} className="border-t border-[rgba(var(--on-surface-rgb),0.08)]">
                     <td className="max-w-48 truncate px-3.5 py-2.5 font-semibold">{row.guestName}</td>
-                    <td className="max-w-48 truncate px-3.5 py-2.5 text-chalk/60">{row.referrerName}</td>
+                    <td className="max-w-48 truncate px-3.5 py-2.5 text-on-surface/60">{row.referrerName}</td>
                     <td className="px-3.5 py-2.5">
                       <span
                         className={cn(
@@ -149,10 +149,10 @@ export function AttributionsList({
                         {stateBadgeLabel(row.state, t)}
                       </span>
                     </td>
-                    <td className="numeral px-3.5 py-2.5 text-chalk/60">
+                    <td className="numeral px-3.5 py-2.5 text-on-surface/60">
                       {formatDateTime(row.redeemedAt, locale)}
                     </td>
-                    <td className="numeral px-3.5 py-2.5 text-chalk/60">
+                    <td className="numeral px-3.5 py-2.5 text-on-surface/60">
                       {row.returnedAt ? formatDateTime(row.returnedAt, locale) : "—"}
                     </td>
                     <td className="px-3.5 py-2.5 text-right">
@@ -161,7 +161,7 @@ export function AttributionsList({
                         prefetch={false}
                         aria-label={t.admin.attrViewInConstellation}
                         title={t.admin.attrViewInConstellation}
-                        className="btn glass-dark inline-flex size-8 text-chalk/60 hover:text-chalk"
+                        className="btn glass-dark inline-flex size-8 text-on-surface/60 hover:text-on-surface"
                       >
                         <OrbitIcon className="size-4" />
                       </Link>

@@ -92,7 +92,7 @@ export function Scanner({
   const blocked = !online || status === "no_camera";
 
   return (
-    <div className="fixed inset-0 overflow-hidden aurora-night text-chalk">
+    <div className="fixed inset-0 overflow-hidden aurora-night text-on-surface">
       <video
         ref={videoRef}
         playsInline
@@ -108,14 +108,14 @@ export function Scanner({
         <header className="flex items-start justify-between gap-3 px-4 pt-[max(1rem,env(safe-area-inset-top))]">
           <div className="glass-dark min-w-0 px-4 py-2.5">
             <p className="truncate text-[0.9375rem] font-semibold leading-tight">{shopName}</p>
-            <p className="eyebrow mt-0.5 truncate text-chalk/45">{deviceName}</p>
+            <p className="eyebrow mt-0.5 truncate text-on-surface/45">{deviceName}</p>
           </div>
           <div className="flex items-center gap-2">
             <Link
               href="/inicio"
               prefetch={false}
               aria-label={t.home}
-              className="btn glass-dark size-11 rounded-full text-chalk"
+              className="btn glass-dark size-11 rounded-full text-on-surface"
             >
               <HomeIcon className="size-5" />
             </Link>
@@ -125,14 +125,14 @@ export function Scanner({
               href={`/j/${shopSlug}/qr?from=/s`}
               prefetch={false}
               aria-label={t.signupQr}
-              className="btn glass-dark size-11 rounded-full text-chalk"
+              className="btn glass-dark size-11 rounded-full text-on-surface"
             >
               <QrIcon className="size-5" />
             </Link>
             <Link
               href="/s/buscar"
               prefetch={false}
-              className="btn glass-dark items-center gap-2 rounded-full px-5 py-3 text-[0.875rem] text-chalk"
+              className="btn glass-dark items-center gap-2 rounded-full px-5 py-3 text-[0.875rem] text-on-surface"
             >
               <SearchIcon className="size-4" />
               {t.search}
@@ -143,7 +143,7 @@ export function Scanner({
                 onClick={onSwitchMode}
                 aria-label={t.switchToIdentifyMode}
                 title={t.switchToIdentifyMode}
-                className="btn glass-dark size-11 rounded-full text-chalk"
+                className="btn glass-dark size-11 rounded-full text-on-surface"
               >
                 <UserIcon className="size-5" />
               </button>
@@ -156,13 +156,13 @@ export function Scanner({
             <div
               role="group"
               aria-label={t.quantityLabel}
-              className="glass-dark flex items-center gap-0.5 rounded-full p-1.5 text-chalk"
+              className="glass-dark flex items-center gap-0.5 rounded-full p-1.5 text-on-surface"
             >
               <span
                 aria-hidden
                 className={cn(
                   "flex size-8 shrink-0 items-center justify-center rounded-full transition-colors",
-                  quantityChosen ? "text-chalk/45" : "anim-dot-pulse bg-lime text-ink",
+                  quantityChosen ? "text-on-surface/45" : "anim-dot-pulse bg-lime text-ink",
                 )}
               >
                 <CoffeeIcon className="size-4" />
@@ -176,7 +176,7 @@ export function Scanner({
                   aria-label={fill(t.quantityOption, { n })}
                   className={cn(
                     "numeral flex size-8 items-center justify-center rounded-full text-[0.875rem] font-bold transition-colors",
-                    quantity === n ? "bg-lime text-ink" : "text-chalk/55 hover:text-chalk",
+                    quantity === n ? "bg-lime text-ink" : "text-on-surface/55 hover:text-on-surface",
                   )}
                 >
                   {n}
@@ -188,7 +188,7 @@ export function Scanner({
 
         <div className="flex flex-1 items-center justify-center px-10">
           {phase.step === "idle" && !blocked && !quantityChosen ? (
-            <p className="display-tight hyphens-auto break-words text-center text-[clamp(1.875rem,9vw,3.25rem)] leading-[1.1] text-chalk">
+            <p className="display-tight hyphens-auto break-words text-center text-[clamp(1.875rem,9vw,3.25rem)] leading-[1.1] text-on-surface">
               {t.quantityPrompt}
             </p>
           ) : (
@@ -202,7 +202,7 @@ export function Scanner({
               <p className="text-[1rem] font-semibold text-coral">
                 {!online ? t.offline : t.noCamera}
               </p>
-              <p className="mt-1 text-[0.875rem] text-chalk/60">
+              <p className="mt-1 text-[0.875rem] text-on-surface/60">
                 {!online ? t.offlineBody : t.noCameraBody}
               </p>
               {status === "no_camera" ? (
@@ -216,7 +216,7 @@ export function Scanner({
               ) : null}
             </div>
           ) : quantityChosen ? (
-            <p className="text-center text-[0.9375rem] font-medium text-chalk/70">
+            <p className="text-center text-[0.9375rem] font-medium text-on-surface/70">
               {phase.step === "sending" ? t.checking : status === "booting" ? t.opening : t.scanning}
             </p>
           ) : null}

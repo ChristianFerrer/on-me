@@ -24,19 +24,19 @@ export default async function SettingsPage() {
       <Link
         href="/inicio"
         prefetch={false}
-        className="-m-2 p-2 text-chalk/45 transition-colors hover:text-chalk nav:hidden"
+        className="-m-2 p-2 text-on-surface/45 transition-colors hover:text-on-surface nav:hidden"
         aria-label={t.home.eyebrow}
       >
         <HomeIcon className="size-6" />
       </Link>
       <div>
-        <p className="eyebrow text-chalk/35">{ctx.shop.name}</p>
+        <p className="eyebrow text-on-surface/35">{ctx.shop.name}</p>
         <h1 className="display mt-1 text-[1.75rem]">{t.admin.settingsTitle}</h1>
       </div>
       <Link
         href="/admin/dispositivos"
         prefetch={false}
-        className="ml-auto text-[0.8125rem] font-medium text-chalk/55 transition-colors hover:text-chalk"
+        className="ml-auto text-[0.8125rem] font-medium text-on-surface/55 transition-colors hover:text-on-surface"
       >
         {t.admin.devices}
       </Link>
@@ -51,7 +51,7 @@ export default async function SettingsPage() {
         className="gap-7 pb-28 md:pb-10 nav:pl-[calc(var(--admin-sidebar-width,16rem)+2rem)] nav:pr-10"
       >
         {header}
-        <p className="text-[0.9375rem] text-chalk/55">{t.admin.settingsAccessDenied}</p>
+        <p className="text-[0.9375rem] text-on-surface/55">{t.admin.settingsAccessDenied}</p>
         <BottomNav t={t.admin} email={ctx.email} />
       </Screen>
     );

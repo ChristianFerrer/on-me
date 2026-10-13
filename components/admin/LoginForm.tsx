@@ -39,12 +39,12 @@ export function LoginForm({ t }: { t: AdminDict }) {
     return (
       <form onSubmit={handleForgotSubmit} className="flex flex-col gap-3">
         {forgotSent ? (
-          <p role="status" className="px-1 text-[0.9375rem] leading-relaxed text-chalk/70">
+          <p role="status" className="px-1 text-[0.9375rem] leading-relaxed text-on-surface/70">
             {t.forgotPasswordSent}
           </p>
         ) : (
           <>
-            <p className="px-1 text-[0.8125rem] leading-relaxed text-chalk/55">
+            <p className="px-1 text-[0.8125rem] leading-relaxed text-on-surface/55">
               {t.forgotPasswordBody}
             </p>
             <input
@@ -68,7 +68,7 @@ export function LoginForm({ t }: { t: AdminDict }) {
             setForgotMode(false);
             setForgotSent(false);
           }}
-          className="px-1 text-center text-[0.8125rem] font-medium text-chalk/55 transition-colors hover:text-chalk"
+          className="px-1 text-center text-[0.8125rem] font-medium text-on-surface/55 transition-colors hover:text-on-surface"
         >
           {t.forgotPasswordBack}
         </button>
@@ -141,7 +141,7 @@ export function LoginForm({ t }: { t: AdminDict }) {
           onClick={() => setShowPassword((value) => !value)}
           aria-label={showPassword ? t.hidePassword : t.showPassword}
           aria-pressed={showPassword}
-          className="absolute inset-y-0 right-1.5 flex items-center px-3 text-chalk/45 transition-colors hover:text-chalk"
+          className="absolute inset-y-0 right-1.5 flex items-center px-3 text-on-surface/45 transition-colors hover:text-on-surface"
         >
           {showPassword ? (
             <EyeOffIcon className="size-5" />
@@ -164,7 +164,7 @@ export function LoginForm({ t }: { t: AdminDict }) {
       <button
         type="button"
         onClick={() => setForgotMode(true)}
-        className="px-1 text-center text-[0.8125rem] font-medium text-chalk/55 transition-colors hover:text-chalk"
+        className="px-1 text-center text-[0.8125rem] font-medium text-on-surface/55 transition-colors hover:text-on-surface"
       >
         {t.forgotPassword}
       </button>

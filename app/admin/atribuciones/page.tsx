@@ -65,18 +65,18 @@ export default async function AttributionsPage() {
         <Link
           href="/inicio"
           prefetch={false}
-          className="-m-2 p-2 text-chalk/45 transition-colors hover:text-chalk nav:hidden"
+          className="-m-2 p-2 text-on-surface/45 transition-colors hover:text-on-surface nav:hidden"
           aria-label={t.home.eyebrow}
         >
           <HomeIcon className="size-6" />
         </Link>
         <div>
-          <p className="eyebrow text-chalk/35">{ctx.shop.name}</p>
+          <p className="eyebrow text-on-surface/35">{ctx.shop.name}</p>
           <h1 className="display mt-1 text-[1.75rem]">{t.admin.attributions}</h1>
         </div>
       </header>
 
-      <p className="-mt-2 text-[0.8125rem] leading-snug text-chalk/40">
+      <p className="-mt-2 text-[0.8125rem] leading-snug text-on-surface/40">
         {t.admin.attrColorNote}
       </p>
 

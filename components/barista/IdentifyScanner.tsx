@@ -59,7 +59,7 @@ export function IdentifyScanner({
   const blocked = !online || status === "no_camera";
 
   return (
-    <div className="fixed inset-0 overflow-hidden aurora-night text-chalk">
+    <div className="fixed inset-0 overflow-hidden aurora-night text-on-surface">
       <video
         ref={videoRef}
         playsInline
@@ -75,14 +75,14 @@ export function IdentifyScanner({
         <header className="flex items-start justify-between gap-3 px-4 pt-[max(1rem,env(safe-area-inset-top))]">
           <div className="glass-dark min-w-0 px-4 py-2.5">
             <p className="truncate text-[0.9375rem] font-semibold leading-tight">{shopName}</p>
-            <p className="eyebrow mt-0.5 truncate text-chalk/45">{deviceName}</p>
+            <p className="eyebrow mt-0.5 truncate text-on-surface/45">{deviceName}</p>
           </div>
           <div className="flex items-center gap-2">
             <Link
               href="/inicio"
               prefetch={false}
               aria-label={t.home}
-              className="btn glass-dark size-11 rounded-full text-chalk"
+              className="btn glass-dark size-11 rounded-full text-on-surface"
             >
               <HomeIcon className="size-5" />
             </Link>
@@ -90,14 +90,14 @@ export function IdentifyScanner({
               href={`/j/${shopSlug}/qr?from=/s`}
               prefetch={false}
               aria-label={t.signupQr}
-              className="btn glass-dark size-11 rounded-full text-chalk"
+              className="btn glass-dark size-11 rounded-full text-on-surface"
             >
               <QrIcon className="size-5" />
             </Link>
             <Link
               href="/s/buscar"
               prefetch={false}
-              className="btn glass-dark items-center gap-2 rounded-full px-5 py-3 text-[0.875rem] text-chalk"
+              className="btn glass-dark items-center gap-2 rounded-full px-5 py-3 text-[0.875rem] text-on-surface"
             >
               <SearchIcon className="size-4" />
               {t.search}
@@ -124,7 +124,7 @@ export function IdentifyScanner({
               <p className="text-[1rem] font-semibold text-coral">
                 {!online ? t.offline : t.noCamera}
               </p>
-              <p className="mt-1 text-[0.875rem] text-chalk/60">
+              <p className="mt-1 text-[0.875rem] text-on-surface/60">
                 {!online ? t.offlineBody : t.noCameraBody}
               </p>
               {status === "no_camera" ? (
@@ -138,7 +138,7 @@ export function IdentifyScanner({
               ) : null}
             </div>
           ) : (
-            <p className="text-center text-[0.9375rem] font-medium text-chalk/70">
+            <p className="text-center text-[0.9375rem] font-medium text-on-surface/70">
               {phase.step === "identifying"
                 ? t.checking
                 : status === "booting"

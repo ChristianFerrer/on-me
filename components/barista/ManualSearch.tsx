@@ -65,11 +65,11 @@ export function ManualSearch({ t }: { t: BaristaDict }) {
   return (
     <div className="flex flex-1 flex-col gap-7">
       <div>
-        <label htmlFor="query" className="eyebrow text-chalk/45">
+        <label htmlFor="query" className="eyebrow text-on-surface/45">
           {t.searchTitle}
         </label>
         <div className="relative mt-3">
-          <SearchIcon className="pointer-events-none absolute left-4 top-1/2 size-5 -translate-y-1/2 text-chalk/35" />
+          <SearchIcon className="pointer-events-none absolute left-4 top-1/2 size-5 -translate-y-1/2 text-on-surface/35" />
           <input
             id="query"
             value={query}
@@ -82,15 +82,15 @@ export function ManualSearch({ t }: { t: BaristaDict }) {
             className="field pl-12 text-[1.375rem] font-semibold"
           />
         </div>
-        <p id="query-hint" className="mt-2.5 text-[0.875rem] text-chalk/40">
+        <p id="query-hint" className="mt-2.5 text-[0.875rem] text-on-surface/40">
           {t.searchHint}
         </p>
       </div>
 
-      {loading ? <p className="eyebrow text-chalk/35">···</p> : null}
+      {loading ? <p className="eyebrow text-on-surface/35">···</p> : null}
 
       {hits && hits.length === 0 ? (
-        <p className="text-[1rem] font-medium text-chalk/55">{t.searchEmpty}</p>
+        <p className="text-[1rem] font-medium text-on-surface/55">{t.searchEmpty}</p>
       ) : null}
 
       <ul className="stagger flex flex-col gap-2.5">
@@ -101,7 +101,7 @@ export function ManualSearch({ t }: { t: BaristaDict }) {
               prefetch={false}
               className={cn(
                 "btn w-full justify-between rounded-[var(--radius-card)] px-5 py-4 text-left",
-                hit.rewardPending ? "bg-amber text-ink" : "bg-ink-2 text-chalk",
+                hit.rewardPending ? "bg-amber text-ink" : "bg-surface-2 text-on-surface",
               )}
             >
               <span className="min-w-0">
@@ -111,7 +111,7 @@ export function ManualSearch({ t }: { t: BaristaDict }) {
                 <span
                   className={cn(
                     "numeral text-[0.8125rem] font-normal",
-                    hit.rewardPending ? "text-ink/55" : "text-chalk/45",
+                    hit.rewardPending ? "text-ink/55" : "text-on-surface/45",
                   )}
                 >
                   ··{hit.last4}

@@ -37,7 +37,7 @@ export function Screen({
   const skin = {
     aurora: "aurora text-ink",
     quiet: "aurora-quiet text-ink",
-    ink: "aurora-night text-chalk",
+    ink: "aurora-night text-on-surface",
   }[tone];
 
   return (

@@ -81,7 +81,7 @@ export function DeviceManager({
       </form>
 
       {devices.length === 0 ? (
-        <p className="text-[0.9375rem] text-chalk/45">{t.noDevices}</p>
+        <p className="text-[0.9375rem] text-on-surface/45">{t.noDevices}</p>
       ) : (
         <>
           {/* Tarjetas: solo móvil. */}
@@ -102,7 +102,7 @@ export function DeviceManager({
           <div className="glass-dark hidden overflow-x-auto rounded-xl md:block">
             <table className="w-full text-left text-[0.8125rem]">
               <thead>
-                <tr className="text-chalk/40">
+                <tr className="text-on-surface/40">
                   <th className="px-3.5 py-2.5 font-medium">{t.newDevice}</th>
                   <th className="px-3.5 py-2.5 font-medium">{t.online}</th>
                   <th className="px-3.5 py-2.5 font-medium">{t.pin}</th>
@@ -183,7 +183,7 @@ function DeviceRow({
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="truncate text-[1.0625rem] font-semibold">{device.name}</p>
-          <p className="mt-1 flex items-center gap-1.5 text-[0.8125rem] text-chalk/45">
+          <p className="mt-1 flex items-center gap-1.5 text-[0.8125rem] text-on-surface/45">
             <span
               className={cn(
                 "size-1.5 rounded-full",
@@ -199,7 +199,7 @@ function DeviceRow({
         <span
           className={cn(
             "eyebrow shrink-0 rounded-full px-2.5 py-1",
-            device.hasPin ? "bg-white/8 text-chalk/50" : "bg-amber/15 text-amber",
+            device.hasPin ? "bg-[rgba(var(--on-surface-rgb),.08)] text-on-surface/50" : "bg-amber/15 text-amber",
           )}
         >
           {device.hasPin ? t.pinSet : t.noPin}
@@ -210,14 +210,14 @@ function DeviceRow({
         <button
           type="button"
           onClick={() => setLinkOpen((value) => !value)}
-          className="btn bg-ink-2 px-4 py-3 text-[0.8125rem] text-chalk"
+          className="btn bg-surface-2 px-4 py-3 text-[0.8125rem] text-on-surface"
         >
           {linkOpen ? t.hideLink : t.viewLink}
         </button>
         <button
           type="button"
           onClick={() => setPinOpen((value) => !value)}
-          className="btn bg-ink-2 px-4 py-3 text-[0.8125rem] text-chalk"
+          className="btn bg-surface-2 px-4 py-3 text-[0.8125rem] text-on-surface"
         >
           {device.hasPin ? t.changePin : t.setPin}
         </button>
@@ -234,11 +234,11 @@ function DeviceRow({
       </div>
 
       {linkOpen ? (
-        <div className="mt-4 flex flex-col items-center gap-4 rounded-xl bg-ink-2 p-4 text-center sm:flex-row sm:text-left">
+        <div className="mt-4 flex flex-col items-center gap-4 rounded-xl bg-surface-2 p-4 text-center sm:flex-row sm:text-left">
           <DeviceQr value={link} />
           <div className="min-w-0 flex-1">
-            <p className="text-[0.8125rem] text-chalk/45">{t.deviceLinkHint}</p>
-            <p className="mt-1.5 break-all text-[0.8125rem] font-medium text-chalk/80">
+            <p className="text-[0.8125rem] text-on-surface/45">{t.deviceLinkHint}</p>
+            <p className="mt-1.5 break-all text-[0.8125rem] font-medium text-on-surface/80">
               {link}
             </p>
             <button
@@ -289,9 +289,9 @@ function DeviceTableRow({
 
   return (
     <>
-      <tr className="border-t border-white/8">
+      <tr className="border-t border-[rgba(var(--on-surface-rgb),.08)]">
         <td className="max-w-56 truncate px-3.5 py-3 font-semibold">{device.name}</td>
-        <td className="px-3.5 py-3 text-chalk/60">
+        <td className="px-3.5 py-3 text-on-surface/60">
           <span className="flex items-center gap-1.5">
             <span
               className={cn(
@@ -309,7 +309,7 @@ function DeviceTableRow({
           <span
             className={cn(
               "eyebrow rounded-full px-2.5 py-1",
-              device.hasPin ? "bg-white/8 text-chalk/50" : "bg-amber/15 text-amber",
+              device.hasPin ? "bg-[rgba(var(--on-surface-rgb),.08)] text-on-surface/50" : "bg-amber/15 text-amber",
             )}
           >
             {device.hasPin ? t.pinSet : t.noPin}
@@ -320,14 +320,14 @@ function DeviceTableRow({
             <button
               type="button"
               onClick={() => setLinkOpen((value) => !value)}
-              className="btn bg-ink-2 px-3 py-2 text-[0.8125rem] text-chalk"
+              className="btn bg-surface-2 px-3 py-2 text-[0.8125rem] text-on-surface"
             >
               {linkOpen ? t.hideLink : t.viewLink}
             </button>
             <button
               type="button"
               onClick={() => setPinOpen((value) => !value)}
-              className="btn bg-ink-2 px-3 py-2 text-[0.8125rem] text-chalk"
+              className="btn bg-surface-2 px-3 py-2 text-[0.8125rem] text-on-surface"
             >
               {device.hasPin ? t.changePin : t.setPin}
             </button>
@@ -346,13 +346,13 @@ function DeviceTableRow({
       </tr>
 
       {linkOpen ? (
-        <tr className="border-t border-white/8">
+        <tr className="border-t border-[rgba(var(--on-surface-rgb),.08)]">
           <td colSpan={4} className="p-4">
-            <div className="flex items-center gap-4 rounded-xl bg-ink-2 p-4">
+            <div className="flex items-center gap-4 rounded-xl bg-surface-2 p-4">
               <DeviceQr value={link} />
               <div className="min-w-0 flex-1">
-                <p className="text-[0.8125rem] text-chalk/45">{t.deviceLinkHint}</p>
-                <p className="mt-1.5 break-all text-[0.8125rem] font-medium text-chalk/80">{link}</p>
+                <p className="text-[0.8125rem] text-on-surface/45">{t.deviceLinkHint}</p>
+                <p className="mt-1.5 break-all text-[0.8125rem] font-medium text-on-surface/80">{link}</p>
                 <button
                   type="button"
                   onClick={() => void copyLink()}
@@ -368,7 +368,7 @@ function DeviceTableRow({
       ) : null}
 
       {pinOpen ? (
-        <tr className="border-t border-white/8">
+        <tr className="border-t border-[rgba(var(--on-surface-rgb),.08)]">
           <td colSpan={4} className="p-4">
             <PinForm
               t={t}
@@ -434,7 +434,7 @@ function PinForm({
   return (
     <form
       onSubmit={save}
-      className="mt-4 flex flex-wrap items-center gap-2.5 rounded-xl bg-ink-2 p-4"
+      className="mt-4 flex flex-wrap items-center gap-2.5 rounded-xl bg-surface-2 p-4"
     >
       <div className="relative">
         <input
@@ -461,12 +461,12 @@ function PinForm({
           type="button"
           onClick={() => setShow((value) => !value)}
           aria-label={show ? t.hidePassword : t.showPassword}
-          className="absolute inset-y-0 right-1 flex items-center px-2 text-chalk/45 hover:text-chalk"
+          className="absolute inset-y-0 right-1 flex items-center px-2 text-on-surface/45 hover:text-on-surface"
         >
           {show ? <EyeOffIcon className="size-4" /> : <EyeIcon className="size-4" />}
         </button>
       </div>
-      <p className="text-[0.75rem] text-chalk/40">{t.pinHint}</p>
+      <p className="text-[0.75rem] text-on-surface/40">{t.pinHint}</p>
 
       <div className="ml-auto flex gap-2">
         {hasPin ? (
@@ -512,7 +512,7 @@ function DeviceQr({ value }: { value: string }) {
   }, [value]);
 
   if (!src) {
-    return <div className="size-24 shrink-0 rounded-lg bg-white/10" />;
+    return <div className="size-24 shrink-0 rounded-lg bg-[rgba(var(--on-surface-rgb),.1)]" />;
   }
 
   // eslint-disable-next-line @next/next/no-img-element

@@ -5,12 +5,16 @@ type Tone = "ink" | "lime" | "chalk" | "ghost" | "ghost-light";
 type Size = "sm" | "md" | "lg";
 
 const TONES: Record<Tone, string> = {
-  ink: "bg-ink text-chalk hover:bg-ink-2",
+  // `surface`/`on-surface`, no `ink`/`chalk` fijos: por defecto son el mismo
+  // valor -se ve igual en toda pantalla sin tema-, pero dentro de una
+  // pantalla de trabajo en claro (ver app/admin/layout.tsx, app/s/layout.tsx)
+  // este botón pasa a ser oscuro-sobre-claro en vez de quedarse invertido.
+  ink: "bg-surface text-on-surface hover:bg-surface-2",
   lime: "bg-lime text-ink hover:brightness-[1.04]",
   chalk: "bg-chalk text-ink hover:bg-white",
   ghost: "bg-transparent text-ink border-ink/16 hover:bg-ink/5",
   "ghost-light":
-    "bg-transparent text-chalk border-[rgba(255,255,255,0.18)] hover:bg-[rgba(255,255,255,0.07)]",
+    "bg-transparent text-on-surface border-[rgba(var(--on-surface-rgb),0.18)] hover:bg-[rgba(var(--on-surface-rgb),0.07)]",
 };
 
 const SIZES: Record<Size, string> = {

@@ -141,14 +141,14 @@ export function BottomNav({
 
   return (
     <>
-      <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-white/8 bg-black nav:hidden">
+      <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-[rgba(var(--on-surface-rgb),.08)] bg-surface nav:hidden">
         {email ? (
-          <div className="mx-auto flex w-full max-w-[30rem] items-center justify-between gap-2 border-b border-white/8 px-4 py-1 sm:max-w-[34rem] lg:max-w-[38rem]">
-            <span className="truncate text-[0.625rem] text-chalk/40">{email}</span>
+          <div className="mx-auto flex w-full max-w-[30rem] items-center justify-between gap-2 border-b border-[rgba(var(--on-surface-rgb),.08)] px-4 py-1 sm:max-w-[34rem] lg:max-w-[38rem]">
+            <span className="truncate text-[0.625rem] text-on-surface/40">{email}</span>
             <button
               type="button"
               onClick={() => void signOut()}
-              className="flex shrink-0 items-center gap-1 text-[0.625rem] font-semibold text-chalk/55 transition-colors hover:text-chalk"
+              className="flex shrink-0 items-center gap-1 text-[0.625rem] font-semibold text-on-surface/55 transition-colors hover:text-on-surface"
             >
               <LogOutIcon className="size-3" />
               {t.signOut}
@@ -169,7 +169,7 @@ export function BottomNav({
             onMouseEnter={() => prefetchOnIntent(router, "/inicio")}
             onFocus={() => prefetchOnIntent(router, "/inicio")}
             onTouchStart={() => prefetchOnIntent(router, "/inicio")}
-            className="flex min-w-0 flex-1 flex-col items-center gap-1 px-1 py-2.5 text-chalk/45 transition-colors hover:text-chalk/70"
+            className="flex min-w-0 flex-1 flex-col items-center gap-1 px-1 py-2.5 text-on-surface/45 transition-colors hover:text-on-surface/70"
           >
             <HomeIcon className="size-5" />
             <span className="w-full truncate text-center text-[0.625rem] font-semibold leading-none">{t.navHome}</span>
@@ -184,7 +184,7 @@ export function BottomNav({
               onTouchStart={() => prefetchOnIntent(router, item.href)}
               className={cn(
                 "flex min-w-0 flex-1 flex-col items-center gap-1 px-1 py-2.5 transition-colors",
-                active === item.key ? "text-lime" : "text-chalk/45 hover:text-chalk/70",
+                active === item.key ? "text-lime" : "text-on-surface/45 hover:text-on-surface/70",
               )}
             >
               {item.icon}
@@ -198,7 +198,7 @@ export function BottomNav({
 
       <nav
         style={{ width: collapsed ? ADMIN_SIDEBAR_WIDTH_COLLAPSED : ADMIN_SIDEBAR_WIDTH }}
-        className="fixed inset-y-0 left-0 z-40 hidden flex-col gap-1 overflow-hidden rounded-none border-y-0 border-l-0 border-r border-white/10 bg-black p-4 transition-[width] duration-200 ease-out-soft nav:flex"
+        className="fixed inset-y-0 left-0 z-40 hidden flex-col gap-1 overflow-hidden rounded-none border-y-0 border-l-0 border-r border-[rgba(var(--on-surface-rgb),.1)] bg-surface p-4 transition-[width] duration-200 ease-out-soft nav:flex"
       >
         <div className={cn("flex items-center pb-6 pt-2", collapsed ? "justify-center" : "justify-between")}>
           <Link
@@ -217,7 +217,7 @@ export function BottomNav({
               onClick={toggleSidebar}
               aria-label={t.collapseSidebar}
               title={t.collapseSidebar}
-              className="flex shrink-0 items-center justify-center rounded-lg p-1.5 text-chalk/45 transition-colors hover:bg-white/6 hover:text-chalk"
+              className="flex shrink-0 items-center justify-center rounded-lg p-1.5 text-on-surface/45 transition-colors hover:bg-[rgba(var(--on-surface-rgb),.06)] hover:text-on-surface"
             >
               <ArrowLeftIcon className="size-4" />
             </button>
@@ -230,7 +230,7 @@ export function BottomNav({
             onClick={toggleSidebar}
             aria-label={t.expandSidebar}
             title={t.expandSidebar}
-            className="mb-1 flex items-center justify-center rounded-xl px-3 py-2.5 text-chalk/45 transition-colors hover:bg-white/6 hover:text-chalk"
+            className="mb-1 flex items-center justify-center rounded-xl px-3 py-2.5 text-on-surface/45 transition-colors hover:bg-[rgba(var(--on-surface-rgb),.06)] hover:text-on-surface"
           >
             <ArrowRightIcon className="size-5" />
           </button>
@@ -250,7 +250,7 @@ export function BottomNav({
               collapsed && "justify-center px-0",
               active === item.key
                 ? "bg-lime/12 text-lime"
-                : "text-chalk/55 hover:bg-white/6 hover:text-chalk",
+                : "text-on-surface/55 hover:bg-[rgba(var(--on-surface-rgb),.06)] hover:text-on-surface",
             )}
           >
             {item.icon}
@@ -260,14 +260,14 @@ export function BottomNav({
 
         {email ? (
           <div className={cn("mt-auto flex flex-col gap-2 pt-4", collapsed ? "items-center" : "px-1")}>
-            {!collapsed ? <p className="truncate px-2 text-[0.75rem] text-chalk/40">{email}</p> : null}
+            {!collapsed ? <p className="truncate px-2 text-[0.75rem] text-on-surface/40">{email}</p> : null}
             <button
               type="button"
               onClick={() => void signOut()}
               title={collapsed ? `${t.signOut} · ${email}` : undefined}
               aria-label={t.signOut}
               className={cn(
-                "flex items-center gap-3 rounded-xl py-2.5 text-left text-[0.875rem] font-semibold text-chalk/55 transition-colors hover:bg-white/6 hover:text-chalk",
+                "flex items-center gap-3 rounded-xl py-2.5 text-left text-[0.875rem] font-semibold text-on-surface/55 transition-colors hover:bg-[rgba(var(--on-surface-rgb),.06)] hover:text-on-surface",
                 collapsed ? "justify-center px-0" : "px-3",
               )}
             >

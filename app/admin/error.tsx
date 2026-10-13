@@ -36,7 +36,7 @@ export default function AdminError({
       <div className="flex flex-1 flex-col items-center justify-center gap-6">
         <Slab className="w-full max-w-[26rem] p-7 text-center">
           <h1 className="display text-[1.875rem]">{t.errors.generic}</h1>
-          <p className="mt-3 text-[0.9375rem] leading-relaxed text-chalk/70">
+          <p className="mt-3 text-[0.9375rem] leading-relaxed text-on-surface/70">
             {t.errors.genericBody}
           </p>
           <div className="mt-6 flex flex-col gap-2.5">
@@ -46,7 +46,7 @@ export default function AdminError({
             <Link
               href="/inicio"
               prefetch={false}
-              className="text-[0.8125rem] font-medium text-chalk/55 transition-colors hover:text-chalk"
+              className="text-[0.8125rem] font-medium text-on-surface/55 transition-colors hover:text-on-surface"
             >
               {t.errors.backHome}
             </Link>
