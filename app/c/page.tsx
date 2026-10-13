@@ -90,8 +90,12 @@ export default async function CardPage() {
         <CardCarousel
           customerFullName={card.customer.name}
           phoneLast4={card.customer.phone_last4}
+          shopName={shop.name}
+          logoUrl={shop.logo_url}
           goal={shop.stamps_goal}
           bonusStamps={shop.bonus_stamps}
+          light={shop.theme === "light"}
+          cardStyle={shop.card_style}
           // El QR va renderizado desde aquí -componente async de servidor,
           // no se puede montar dentro de CardCarousel-, pero el carrusel
           // decide cuándo se ve: es su primera tarjeta, no algo aparte.

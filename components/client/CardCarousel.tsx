@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { CoffeeColdIcon, CoffeeIcon, GiftIcon, QrIcon, UserIcon } from "@/components/ui/Icons";
+import { RealStampCard } from "@/components/client/RealStampCard";
 import { cn } from "@/lib/cn";
 import { fill } from "@/lib/i18n";
 
@@ -24,19 +25,66 @@ type Status = {
   returnedGuests: number;
 };
 
+/**
+ * Clases por tema: el fondo `.aurora` -un degradado claro y vivo- no
+ * cambia con el tema del local, solo las superficies que flotan encima.
+ * En oscuro son cristal grafito con texto chalk -el aspecto de siempre-;
+ * en claro, cristal blanco con texto ink, mismo material, mismos acentos
+ * lima, nada más que el contraste invertido.
+ */
+function surfaceTone(light: boolean) {
+  return light
+    ? {
+        slide: "border-lime/35 bg-[linear-gradient(158deg,rgba(210,251,79,.4),rgba(255,255,255,.92))] text-ink",
+        eyebrow: "text-ink/45",
+        body: "text-ink/65",
+        ghostBtn: "border-ink/10 bg-ink/5 text-ink hover:brightness-95",
+        disabledBtn: "cursor-not-allowed bg-ink/5 text-ink/30",
+        panel: "border-ink/10 bg-white/70 text-ink",
+        panelMuted: "text-ink/55",
+        dotEmpty: "border-ink/15 text-ink/25",
+        tabInactive: "border-ink/10 bg-white/70 text-ink/45",
+        subtle60: "text-ink/60",
+        subtle40: "text-ink/40",
+      }
+    : {
+        slide: "border-lime/30 bg-[linear-gradient(158deg,rgba(214,243,76,.22),rgba(10,14,13,.82))] text-chalk",
+        eyebrow: "text-white/45",
+        body: "text-white/72",
+        ghostBtn: "border-white/[.09] bg-white/10 text-white hover:brightness-110",
+        disabledBtn: "cursor-not-allowed bg-white/10 text-chalk/30",
+        panel: "border-white/[.09] bg-black/60 text-chalk",
+        panelMuted: "text-chalk/55",
+        dotEmpty: "border-white/15 text-chalk/22",
+        tabInactive: "border-white/[.09] bg-black/60 text-chalk/45",
+        subtle60: "text-white/60",
+        subtle40: "text-white/40",
+      };
+}
+
 export function CardCarousel({
   customerFullName,
   phoneLast4,
+  shopName,
+  logoUrl,
   goal,
   bonusStamps,
+  light,
+  cardStyle,
   qr,
   initial,
   labels,
 }: {
   customerFullName: string;
   phoneLast4: string;
+  shopName: string;
+  logoUrl: string | null;
   goal: number;
   bonusStamps: number;
+  /** `shop.theme === 'light'`, ver /admin/ajustes. */
+  light: boolean;
+  /** `shop.card_style`, ver /admin/ajustes: 'real' sustituye el panel de progreso por RealStampCard. */
+  cardStyle: "digital" | "real";
   qr: React.ReactNode;
   initial: Status;
   labels: {
@@ -102,6 +150,7 @@ export function CardCarousel({
 
   const { stamps, rewardsPendingCount, inviteCount, returnedGuests } = status;
   const remaining = goal - stamps;
+  const tone = surfaceTone(light);
 
   function step(): number {
     const first = trackRef.current?.querySelector<HTMLElement>("[data-slide]");
@@ -180,46 +229,67 @@ export function CardCarousel({
 
   return (
     <>
-      <div className="card-scope mx-4 flex-none rounded-[22px] border border-white/[.09] bg-black/60 p-[15px] text-chalk backdrop-blur-[14px]">
-        <div className="flex items-baseline gap-2.5">
-          <div className="flex flex-none items-baseline gap-[7px]">
-            <b className="numeral text-[clamp(24px,5.4vh,32px)] font-medium leading-none tracking-[-0.05em] text-lime">
-              {stamps}
-            </b>
-            <em className="text-[clamp(11.5px,1.9vh,13.5px)] font-medium not-italic text-chalk/55">
-              {fill(labels.ofGoal, { goal })}
-            </em>
+      {cardStyle === "real" ? (
+        <RealStampCard
+          shopName={shopName}
+          logoUrl={logoUrl}
+          stamps={stamps}
+          goal={goal}
+          rewardsPendingCount={rewardsPendingCount}
+          labels={labels}
+        />
+      ) : (
+        <div
+          className={cn(
+            "card-scope mx-4 flex-none rounded-[22px] border p-[15px] backdrop-blur-[14px]",
+            tone.panel,
+          )}
+        >
+          <div className="flex items-baseline gap-2.5">
+            <div className="flex flex-none items-baseline gap-[7px]">
+              <b className="numeral text-[clamp(24px,5.4vh,32px)] font-medium leading-none tracking-[-0.05em] text-lime">
+                {stamps}
+              </b>
+              <em className={cn("text-[clamp(11.5px,1.9vh,13.5px)] font-medium not-italic", tone.panelMuted)}>
+                {fill(labels.ofGoal, { goal })}
+              </em>
+            </div>
+            <div
+              className={cn(
+                "ml-auto text-right text-[clamp(10.5px,1.75vh,12.5px)] leading-[1.25]",
+                tone.panelMuted,
+              )}
+            >
+              {rewardsPendingCount > 0
+                ? labels.readyHint
+                : remaining === 1
+                  ? labels.oneToGo
+                  : fill(labels.nToGo, { n: remaining })}
+            </div>
           </div>
-          <div className="ml-auto text-right text-[clamp(10.5px,1.75vh,12.5px)] leading-[1.25] text-chalk/55">
-            {rewardsPendingCount > 0
-              ? labels.readyHint
-              : remaining === 1
-                ? labels.oneToGo
-                : fill(labels.nToGo, { n: remaining })}
+          <div className="mt-[clamp(10px,1.8vh,14px)] grid grid-cols-10 gap-[clamp(4px,1.1vw,7px)]">
+            {Array.from({ length: goal }, (_, i) => {
+              const filled = i < stamps;
+              const next = i === stamps;
+              return (
+                <span
+                  key={i}
+                  className={cn(
+                    "flex aspect-square items-center justify-center rounded-[8px] border transition-colors duration-300",
+                    filled
+                      ? "border-lime bg-lime text-ink shadow-[0_0_12px_rgba(210,251,79,0.3)]"
+                      : next
+                        ? "anim-dot-pulse border-lime/60 text-lime"
+                        : tone.dotEmpty,
+                  )}
+                >
+                  {filled ? <CoffeeIcon className="size-[56%]" /> : <CoffeeColdIcon className="size-[56%]" />}
+                </span>
+              );
+            })}
           </div>
         </div>
-        <div className="mt-[clamp(10px,1.8vh,14px)] grid grid-cols-10 gap-[clamp(4px,1.1vw,7px)]">
-          {Array.from({ length: goal }, (_, i) => {
-            const filled = i < stamps;
-            const next = i === stamps;
-            return (
-              <span
-                key={i}
-                className={cn(
-                  "flex aspect-square items-center justify-center rounded-[8px] border transition-colors duration-300",
-                  filled
-                    ? "border-lime bg-lime text-ink shadow-[0_0_12px_rgba(210,251,79,0.3)]"
-                    : next
-                      ? "anim-dot-pulse border-lime/60 text-lime"
-                      : "border-white/15 text-chalk/22",
-                )}
-              >
-                {filled ? <CoffeeIcon className="size-[56%]" /> : <CoffeeColdIcon className="size-[56%]" />}
-              </span>
-            );
-          })}
-        </div>
-      </div>
+      )}
 
       <div
         role="tablist"
@@ -250,7 +320,7 @@ export function CardCarousel({
                   ? "border-lime bg-lime text-ink shadow-[0_6px_18px_rgba(210,251,79,0.28)]"
                   : live
                     ? "border-lime/36 bg-lime/[.13] text-lime"
-                    : "border-white/[.09] bg-black/60 text-chalk/45",
+                    : tone.tabInactive,
               )}
             >
               <span className="relative flex items-center justify-center">
@@ -299,8 +369,13 @@ export function CardCarousel({
               ) : null}
 
               {tab.id === "free" ? (
-                <div className="card-scope flex size-full flex-col items-center justify-center gap-[clamp(7px,1.4vh,12px)] rounded-[clamp(18px,3.3vh,26px)] border border-lime/30 bg-[linear-gradient(158deg,rgba(214,243,76,.22),rgba(10,14,13,.82))] p-[clamp(17px,3vh,26px)] text-center text-chalk backdrop-blur-[18px]">
-                  <p className="eyebrow text-white/45">{tab.label}</p>
+                <div
+                  className={cn(
+                    "card-scope flex size-full flex-col items-center justify-center gap-[clamp(7px,1.4vh,12px)] rounded-[clamp(18px,3.3vh,26px)] border p-[clamp(17px,3vh,26px)] text-center backdrop-blur-[18px]",
+                    tone.slide,
+                  )}
+                >
+                  <p className={cn("eyebrow", tone.eyebrow)}>{tab.label}</p>
                   <p className="numeral text-[clamp(36px,8.8vh,56px)] font-medium leading-none tracking-[-0.05em] text-lime">
                     {rewardsPendingCount}
                   </p>
@@ -309,16 +384,16 @@ export function CardCarousel({
                       ? labels.freeCoffeeTitleOne
                       : fill(labels.freeCoffeeTitleMany, { n: rewardsPendingCount })}
                   </h2>
-                  <p className="text-[clamp(11.5px,1.95vh,13.5px)] leading-[1.45] text-white/72">{labels.freeCoffeeBody}</p>
+                  <p className={cn("text-[clamp(11.5px,1.95vh,13.5px)] leading-[1.45]", tone.body)}>
+                    {labels.freeCoffeeBody}
+                  </p>
                   <button
                     type="button"
                     disabled={rewardsPendingCount === 0}
                     onClick={() => goTo(0)}
                     className={cn(
                       "mt-1 rounded-full px-[18px] py-[clamp(10px,1.9vh,14px)] text-[clamp(12.5px,2vh,15px)] font-bold transition-[filter]",
-                      rewardsPendingCount === 0
-                        ? "cursor-not-allowed bg-white/10 text-chalk/30"
-                        : "bg-lime text-ink hover:brightness-110 active:scale-[0.97]",
+                      rewardsPendingCount === 0 ? tone.disabledBtn : "bg-lime text-ink hover:brightness-110 active:scale-[0.97]",
                     )}
                   >
                     {labels.showCodeCta}
@@ -328,8 +403,13 @@ export function CardCarousel({
               ) : null}
 
               {tab.id === "gift" ? (
-                <div className="card-scope flex size-full flex-col items-center justify-center gap-[clamp(7px,1.4vh,12px)] rounded-[clamp(18px,3.3vh,26px)] border border-lime/30 bg-[linear-gradient(158deg,rgba(214,243,76,.22),rgba(10,14,13,.82))] p-[clamp(17px,3vh,26px)] text-center text-chalk backdrop-blur-[18px]">
-                  <p className="eyebrow text-white/45">{tab.label}</p>
+                <div
+                  className={cn(
+                    "card-scope flex size-full flex-col items-center justify-center gap-[clamp(7px,1.4vh,12px)] rounded-[clamp(18px,3.3vh,26px)] border p-[clamp(17px,3vh,26px)] text-center backdrop-blur-[18px]",
+                    tone.slide,
+                  )}
+                >
+                  <p className={cn("eyebrow", tone.eyebrow)}>{tab.label}</p>
                   {returnedGuests > 0 ? <p className="eyebrow text-lime">{labels.guestReturned}</p> : null}
                   <p className="numeral text-[clamp(36px,8.8vh,56px)] font-medium leading-none tracking-[-0.05em] text-lime">
                     {inviteCount}
@@ -337,14 +417,17 @@ export function CardCarousel({
                   <h2 className="text-[clamp(16px,3vh,21px)] font-extrabold leading-[1.16] tracking-[-0.025em]">
                     {inviteCount === 1 ? labels.giftTitleOne : fill(labels.giftTitleMany, { n: inviteCount })}
                   </h2>
-                  <p className="text-[clamp(11.5px,1.95vh,13.5px)] leading-[1.45] text-white/72">
+                  <p className={cn("text-[clamp(11.5px,1.95vh,13.5px)] leading-[1.45]", tone.body)}>
                     {returnedGuests > 0 ? fill(labels.guestReturnedBody, { n: bonusStamps }) : labels.giftBody}
                   </p>
                   <div className="mt-1 flex w-full gap-2">
                     <button
                       type="button"
                       onClick={() => goTo(0)}
-                      className="flex-1 rounded-full border border-white/[.09] bg-white/10 px-[18px] py-[clamp(10px,1.9vh,14px)] text-[clamp(12.5px,2vh,15px)] font-bold text-white transition-[filter] hover:brightness-110 active:scale-[0.97]"
+                      className={cn(
+                        "flex-1 rounded-full border px-[18px] py-[clamp(10px,1.9vh,14px)] text-[clamp(12.5px,2vh,15px)] font-bold transition-[filter] active:scale-[0.97]",
+                        tone.ghostBtn,
+                      )}
                     >
                       {labels.giftNotNow}
                     </button>
@@ -358,10 +441,7 @@ export function CardCarousel({
                         {labels.giftChoose}
                       </Link>
                     ) : (
-                      <span
-                        aria-disabled="true"
-                        className="flex-1 cursor-not-allowed rounded-full bg-white/10 px-[18px] py-[clamp(10px,1.9vh,14px)] text-[clamp(12.5px,2vh,15px)] font-bold text-chalk/30"
-                      >
+                      <span aria-disabled="true" className={cn("flex-1 rounded-full px-[18px] py-[clamp(10px,1.9vh,14px)] text-[clamp(12.5px,2vh,15px)] font-bold", tone.disabledBtn)}>
                         {labels.giftChoose}
                       </span>
                     )}
@@ -371,16 +451,21 @@ export function CardCarousel({
               ) : null}
 
               {tab.id === "profile" ? (
-                <div className="card-scope flex size-full flex-col items-center justify-center gap-[clamp(7px,1.4vh,12px)] rounded-[clamp(18px,3.3vh,26px)] border border-lime/30 bg-[linear-gradient(158deg,rgba(214,243,76,.22),rgba(10,14,13,.82))] p-[clamp(17px,3vh,26px)] text-center text-chalk backdrop-blur-[18px]">
-                  <p className="eyebrow text-white/45">{tab.label}</p>
+                <div
+                  className={cn(
+                    "card-scope flex size-full flex-col items-center justify-center gap-[clamp(7px,1.4vh,12px)] rounded-[clamp(18px,3.3vh,26px)] border p-[clamp(17px,3vh,26px)] text-center backdrop-blur-[18px]",
+                    tone.slide,
+                  )}
+                >
+                  <p className={cn("eyebrow", tone.eyebrow)}>{tab.label}</p>
                   <span className="flex size-[clamp(52px,9vh,68px)] items-center justify-center rounded-full border border-lime/30 bg-lime/[.13] text-lime">
                     <UserIcon className="size-[52%]" />
                   </span>
                   <h2 className="break-words text-[clamp(18px,3.4vh,24px)] font-extrabold leading-[1.16] tracking-[-0.025em]">
                     {customerFullName}
                   </h2>
-                  <p className="numeral text-[clamp(13px,2.2vh,15px)] text-white/60">•••• {phoneLast4}</p>
-                  <p className="mt-1 text-[clamp(10.5px,1.75vh,12.5px)] leading-[1.45] text-white/40">
+                  <p className={cn("numeral text-[clamp(13px,2.2vh,15px)]", tone.subtle60)}>•••• {phoneLast4}</p>
+                  <p className={cn("mt-1 text-[clamp(10.5px,1.75vh,12.5px)] leading-[1.45]", tone.subtle40)}>
                     {labels.profilePhoneHint}
                   </p>
                   {idx === i ? <TimerBar touching={touching} onDone={() => goTo(0)} /> : null}

@@ -20,6 +20,10 @@ export type ScanKind =
 
 export type AttributionState = "window" | "billable" | "discarded";
 
+export type ShopTheme = "dark" | "light";
+/** 'digital': el carrusel de siempre. 'real': copia de la tarjeta de cartón física, ver RealStampCard.tsx. */
+export type ShopCardStyle = "digital" | "real";
+
 export type ShopRow = {
   id: string;
   slug: string;
@@ -36,6 +40,9 @@ export type ShopRow = {
   timezone: string;
   /** Tope de cafés que el flujo identificador deja dar de una vez, ver /admin/ajustes. */
   max_stamps_per_scan: number;
+  theme: ShopTheme;
+  card_style: ShopCardStyle;
+  logo_url: string | null;
   created_at: string;
 };
 

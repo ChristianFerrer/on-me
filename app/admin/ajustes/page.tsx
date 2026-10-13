@@ -65,7 +65,14 @@ export default async function SettingsPage() {
     >
       {header}
 
-      <ShopSettingsForm t={t.admin} maxStampsPerScan={ctx.shop.max_stamps_per_scan} />
+      <ShopSettingsForm
+        t={t.admin}
+        maxStampsPerScan={ctx.shop.max_stamps_per_scan}
+        theme={ctx.shop.theme}
+        cardStyle={ctx.shop.card_style}
+        defaultLocale={ctx.shop.default_locale}
+        logoUrl={ctx.shop.logo_url}
+      />
 
       <BottomNav t={t.admin} email={ctx.email} />
     </Screen>
