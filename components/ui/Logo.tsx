@@ -36,7 +36,7 @@ export function Logo({
         className={cn(
           "font-bold tracking-[-0.03em]",
           type,
-          tone === "ink" ? "text-ink" : "text-chalk",
+          tone === "ink" ? "text-ink" : "text-on-surface",
         )}
       >
         OnMe

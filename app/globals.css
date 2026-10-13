@@ -105,6 +105,27 @@
       linear-gradient(155deg, #12131c 0%, #1a1530 48%, #0d1420 100%);
   }
 
+  /* Vuelta explícita al oscuro para un nodo anidado dentro de un
+     ancestro `[data-theme="light"]` -ConstelacionSolMap.tsx: el cielo
+     estelar es, a propósito, siempre nocturno, sea cual sea el tema del
+     local, porque redibujar esa paleta de datos para el claro
+     reescribiría el componente entero-. Mismos valores que `:root`: solo
+     existe para ganarle en cascada a un `[data-theme="light"]` más
+     arriba en el árbol. */
+  [data-theme="dark"] {
+    --color-surface: #0e1211;
+    --color-surface-2: #171c1a;
+    --color-on-surface: #f5f7f5;
+    --surface-rgb: 14, 18, 17;
+    --on-surface-rgb: 245, 247, 245;
+    --aurora-night-bg: #070908;
+    --aurora-night-image:
+      radial-gradient(115% 85% at 2% 0%, rgba(129, 140, 248, 0.38) 0%, transparent 55%),
+      radial-gradient(100% 75% at 98% 8%, rgba(251, 113, 133, 0.22) 0%, transparent 58%),
+      radial-gradient(120% 95% at 50% 108%, rgba(167, 139, 250, 0.34) 0%, transparent 62%),
+      linear-gradient(155deg, #12131c 0%, #1a1530 48%, #0d1420 100%);
+  }
+
   /* Tema claro de las pantallas de trabajo -ver shops.theme en
      /admin/ajustes-: mismo material -cristal, radios de color-, luminosidad
      invertida. Se aplica en el `data-theme` que ponen app/admin/layout.tsx

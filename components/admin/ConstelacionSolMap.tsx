@@ -2012,7 +2012,16 @@ export function ConstelacionSolMap({
   }
 
   return (
-    <div className="fixed inset-0 aurora-night text-chalk nav:left-[var(--admin-sidebar-width,16rem)]">
+    // `data-theme="dark"` fija este cielo estelar siempre en oscuro, sea
+    // cual sea el tema del local: redibujar la paleta de puntos/líneas
+    // para el claro es trabajo de diseño de datos aparte, no un recoloreo
+    // mecánico -mismo motivo que excluye /admin/metricas-, y sin esto el
+    // fondo heredaría el claro de data-theme en app/admin/layout.tsx
+    // mientras el texto se queda fijo en tiza: invisible.
+    <div
+      data-theme="dark"
+      className="fixed inset-0 aurora-night text-chalk nav:left-[var(--admin-sidebar-width,16rem)]"
+    >
       {/* Capa de grano: sin ella el degradado nocturno se bandea en pantallas OLED. */}
       <svg className="pointer-events-none fixed inset-0 z-10 h-full w-full opacity-[0.15]" aria-hidden="true">
         <filter id="constelacion-grain">

@@ -21,7 +21,7 @@ export default async function InicioPage() {
   // real de Supabase, en cambio, no debe leerse como "sin local todavía".
   const { data: shop, error } = await db()
     .from("shops")
-    .select("slug")
+    .select("slug, theme")
     .order("created_at", { ascending: true })
     .limit(1)
     .maybeSingle();
@@ -32,13 +32,15 @@ export default async function InicioPage() {
     // `svh`, no `dvh` -mismo motivo que Screen.tsx-: a Safari iOS no se le
     // puede confiar el valor de `dvh` en la primera pintura, y `svh` nunca
     // sobreestima el área visible real, así que el fondo nunca deja ver el
-    // body claro por debajo.
-    <div className="aurora-night min-h-svh w-full text-chalk" lang={locale}>
+    // body claro por debajo. `data-theme` sigue el tema del único local del
+    // piloto -igual que app/admin/layout.tsx y app/s/layout.tsx-; sin local
+    // todavía, se queda en el oscuro por defecto.
+    <div className="aurora-night min-h-svh w-full text-on-surface" data-theme={shop?.theme} lang={locale}>
       <main className="mx-auto flex min-h-svh w-full max-w-[30rem] flex-col gap-6 px-5 pt-[max(1.75rem,env(safe-area-inset-top))] pb-[max(1.25rem,env(safe-area-inset-bottom))] sm:max-w-[34rem] sm:justify-center sm:pt-10 lg:max-w-[40rem] xl:max-w-[44rem]">
         <div className="flex shrink-0 flex-col items-center gap-2.5 text-center sm:items-start sm:text-left">
           <h1 className="sr-only">{t.home.title}</h1>
           <Logo size="lg" tone="chalk" />
-          <p className="eyebrow text-chalk/40">{t.home.subtitle}</p>
+          <p className="eyebrow text-on-surface/40">{t.home.subtitle}</p>
         </div>
 
         <nav className="grid min-h-0 flex-1 grid-cols-2 auto-rows-fr gap-2 sm:flex-none sm:gap-3">
@@ -108,7 +110,7 @@ function Tile({
       </span>
       <span className="min-w-0">
         <span className="block truncate text-[0.9375rem] font-semibold sm:text-[1.125rem]">{title}</span>
-        <span className="mt-0.5 line-clamp-2 block text-[0.75rem] text-chalk/50 sm:mt-1 sm:text-[0.875rem]">
+        <span className="mt-0.5 line-clamp-2 block text-[0.75rem] text-on-surface/50 sm:mt-1 sm:text-[0.875rem]">
           {body}
         </span>
       </span>
