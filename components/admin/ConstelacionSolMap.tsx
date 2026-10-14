@@ -260,68 +260,75 @@ function clamp(value: number, min: number, max: number): number {
 const FUNNEL_ORDER: NodeState[] = ["sent", "expired", "opened", "claimed", "window", "billable", "direct", "discarded"];
 
 /**
- * Colores literales por fase del camino del cliente -no los tokens del
- * diseño compartido (lib/giftGraph/stateBadge.ts)-: la especificación de
- * esta vista pide valores exactos, propios de la constelación, que no
- * tienen por qué existir en la paleta del resto del panel.
+ * Colores por fase del camino del cliente -no los tokens del diseño
+ * compartido (lib/giftGraph/stateBadge.ts)-: la especificación de esta
+ * vista pide valores exactos, propios de la constelación, que no tienen
+ * por qué existir en la paleta del resto del panel.
  *
- * Blanco (prospecto) → ámbar -FBBF24- (abrió el enlace: ya demostró
- * interés, pero sigue siendo un prospecto, no comparte color con nada
- * verificado) → verde -4ADE80, el mismo verde de --color-mint- (se dio de
- * alta desde la invitación: ya es cliente real, pero todavía provisional,
- * aún no ha canjeado en barra) → cian vivo -38E1FF- (en ventana: ya
- * canjeó, esperando su próxima visita) → magenta -FF00F9- (nuevo
- * verificado: hizo su primer consumo pagado después de canjear la
- * invitación -la definición exacta de "Cliente Nuevo Verificado" de
- * lib/attribution.ts-, el hito que de verdad factura al local, así que
- * lleva el color más alto de contraste de todo el mapa) → verde lima
- * -E9FF72- (alta directa, siempre en primera línea) → negro con borde
- * blanco -descartada, sin historia que seguir contando, el borde es el
- * que la hace visible sobre un fondo igual de oscuro que su propio
- * relleno- o negro con borde rojo -caducada: el rojo, no el blanco
- * neutro, marca que ahí sí hubo una invitación real que se dejó morir, a
- * diferencia de una simplemente descartada-. "se dio de alta" y "alta
- * directa" llevan cada uno su propio verde -distintos entre sí, 4ADE80 vs
- * E9FF72- a propósito: son dos caminos distintos hacia ser cliente, no el
- * mismo hito.
+ * Son tokens CSS (`--constelacion-*`, ver app/globals.css), no literales:
+ * el mapa reacciona a `shops.theme` igual que el resto del panel, pero los
+ * ocho estados necesitan su propio valor por tema -no basta con "el mismo
+ * color más apagado"-, porque la paleta neón calibrada para brillar sobre
+ * el fondo casi negro de .aurora-night (billable #FF00F9, direct #E9FF72,
+ * window #38E1FF...) cae por debajo de 2,6:1 de contraste sobre el blanco
+ * del tema claro. El valor oscuro de cada token es exactamente el neón de
+ * siempre; el claro es una paleta plana y profunda aparte, pensada para
+ * ese fondo. Ver los dos bloques de :root en globals.css para los hex.
+ *
+ * Blanco (prospecto) → ámbar (abrió el enlace: ya demostró interés, pero
+ * sigue siendo un prospecto, no comparte color con nada verificado) →
+ * verde -el mismo de --color-mint- (se dio de alta desde la invitación:
+ * ya es cliente real, pero todavía provisional, aún no ha canjeado en
+ * barra) → cian vivo (en ventana: ya canjeó, esperando su próxima visita)
+ * → magenta (nuevo verificado: hizo su primer consumo pagado después de
+ * canjear la invitación -la definición exacta de "Cliente Nuevo
+ * Verificado" de lib/attribution.ts-, el hito que de verdad factura al
+ * local, así que lleva el color más alto de contraste de todo el mapa en
+ * los dos temas) → verde lima (alta directa, siempre en primera línea) →
+ * negro con borde blanco -descartada, sin historia que seguir contando,
+ * el borde es el que la hace visible sobre un fondo igual de oscuro que
+ * su propio relleno- o negro con borde rojo -caducada: el rojo, no el
+ * blanco neutro, marca que ahí sí hubo una invitación real que se dejó
+ * morir, a diferencia de una simplemente descartada-. "se dio de alta" y
+ * "alta directa" llevan cada uno su propio verde -distintos entre sí a
+ * propósito: son dos caminos distintos hacia ser cliente, no el mismo
+ * hito.
  */
 const CONSTELACION_PHASE_COLOR: Record<NodeState, string> = {
-  sent: "#FFFFFF",
-  // opened y claimed coinciden en valor exacto con --color-amber/--color-mint
-  // del sistema compartido -ADM-16-: se referencian en vez de duplicar el
-  // literal, sin cambiar el color resultante.
-  opened: "var(--color-amber)",
-  claimed: "var(--color-mint)",
-  window: "#38E1FF",
-  billable: "#FF00F9",
-  direct: "#E9FF72",
-  discarded: "#000000",
-  expired: "#000000",
+  sent: "var(--constelacion-sent)",
+  opened: "var(--constelacion-opened)",
+  claimed: "var(--constelacion-claimed)",
+  window: "var(--constelacion-window)",
+  billable: "var(--constelacion-billable)",
+  direct: "var(--constelacion-direct)",
+  discarded: "var(--constelacion-discarded)",
+  expired: "var(--constelacion-expired)",
 };
 
-/** Borde de cada punto: el mismo casi invisible de siempre, salvo en los dos negros -sin él, se funden con el fondo-; caducada lleva su propio rojo en vez del blanco neutro de descartada, para distinguir "hubo una invitación real que caducó" de "se descartó sin más". */
+/** Borde de cada punto: el mismo casi invisible de siempre -`--on-surface-rgb`, blanco al 16% en oscuro, negro al 16% en claro-, salvo en los dos negros -sin él, se funden con el fondo del tema oscuro, o se funden entre sí en el claro-; caducada lleva su propio rojo en vez del borde neutro de descartada, para distinguir "hubo una invitación real que caducó" de "se descartó sin más". El rojo no cambia por tema: ya contrasta bien sobre los dos fondos. */
 const CONSTELACION_STROKE_COLOR: Record<NodeState, string> = {
-  sent: "rgba(255,255,255,.16)",
-  opened: "rgba(255,255,255,.16)",
-  claimed: "rgba(255,255,255,.16)",
-  window: "rgba(255,255,255,.16)",
-  billable: "rgba(255,255,255,.16)",
-  direct: "rgba(255,255,255,.16)",
-  discarded: "rgba(255,255,255,.85)",
+  sent: "rgba(var(--on-surface-rgb),.16)",
+  opened: "rgba(var(--on-surface-rgb),.16)",
+  claimed: "rgba(var(--on-surface-rgb),.16)",
+  window: "rgba(var(--on-surface-rgb),.16)",
+  billable: "rgba(var(--on-surface-rgb),.16)",
+  direct: "rgba(var(--on-surface-rgb),.16)",
+  discarded: "var(--constelacion-discarded-stroke)",
   expired: "rgba(239,68,68,.9)",
 };
 
 /**
  * Color del arco del embudo y de su etiqueta numérica: el mismo de cada
- * fase, salvo en los dos negros -un trazo o un texto negro sobre el
- * fondo casi negro del mapa no se ve, y ahí no hay forma de ponerles un
- * borde como al punto-. Gris claro en su lugar: sigue leyéndose "menos
- * importante" que los colores vivos, pero sin desaparecer.
+ * fase, salvo en los dos negros -un trazo o un texto negro sobre el fondo
+ * casi negro del tema oscuro no se ve, y ahí no hay forma de ponerles un
+ * borde como al punto-. `--on-surface-rgb` en su lugar -blanco atenuado en
+ * oscuro, negro atenuado en claro-: sigue leyéndose "menos importante" que
+ * los colores vivos, pero sin desaparecer en ningún tema.
  */
 const CONSTELACION_ACCENT_COLOR: Record<NodeState, string> = {
   ...CONSTELACION_PHASE_COLOR,
-  discarded: "rgba(255,255,255,.55)",
-  expired: "rgba(255,255,255,.55)",
+  discarded: "rgba(var(--on-surface-rgb),.55)",
+  expired: "rgba(var(--on-surface-rgb),.55)",
 };
 
 /**
@@ -2012,16 +2019,7 @@ export function ConstelacionSolMap({
   }
 
   return (
-    // `data-theme="dark"` fija este cielo estelar siempre en oscuro, sea
-    // cual sea el tema del local: redibujar la paleta de puntos/líneas
-    // para el claro es trabajo de diseño de datos aparte, no un recoloreo
-    // mecánico -mismo motivo que excluye /admin/metricas-, y sin esto el
-    // fondo heredaría el claro de data-theme en app/admin/layout.tsx
-    // mientras el texto se queda fijo en tiza: invisible.
-    <div
-      data-theme="dark"
-      className="fixed inset-0 aurora-night text-chalk nav:left-[var(--admin-sidebar-width,16rem)]"
-    >
+    <div className="fixed inset-0 aurora-night text-on-surface nav:left-[var(--admin-sidebar-width,16rem)]">
       {/* Capa de grano: sin ella el degradado nocturno se bandea en pantallas OLED. */}
       <svg className="pointer-events-none fixed inset-0 z-10 h-full w-full opacity-[0.15]" aria-hidden="true">
         <filter id="constelacion-grain">
@@ -2077,7 +2075,7 @@ export function ConstelacionSolMap({
       <div
         className={cn(
           keyboardListVisible
-            ? "fixed inset-4 z-50 flex flex-col overflow-y-auto rounded-2xl bg-ink p-4 shadow-[0_1rem_3rem_rgba(0,0,0,0.5)] md:inset-8"
+            ? "fixed inset-4 z-50 flex flex-col overflow-y-auto rounded-2xl bg-surface p-4 shadow-[0_1rem_3rem_rgba(0,0,0,0.5)] md:inset-8"
             : "sr-only",
         )}
         onFocus={() => setKeyboardListVisible(true)}
@@ -2091,7 +2089,7 @@ export function ConstelacionSolMap({
           }
         }}
       >
-        <p className="eyebrow mb-3 text-chalk/50">{t.admin.constelacionKeyboardListTitle}</p>
+        <p className="eyebrow mb-3 text-on-surface/50">{t.admin.constelacionKeyboardListTitle}</p>
         <ul className="flex flex-col gap-1">
           {keyboardListNodes.map((node) => (
             <li key={node.id}>
@@ -2101,10 +2099,10 @@ export function ConstelacionSolMap({
                   setSelectedId(node.id);
                   setKeyboardListVisible(false);
                 }}
-                className="flex w-full items-center justify-between gap-3 rounded-xl px-3 py-2.5 text-left text-[0.875rem] font-medium text-chalk transition-colors hover:bg-white/8 focus-visible:bg-white/8"
+                className="flex w-full items-center justify-between gap-3 rounded-xl px-3 py-2.5 text-left text-[0.875rem] font-medium text-on-surface transition-colors hover:bg-[rgba(var(--on-surface-rgb),.08)] focus-visible:bg-[rgba(var(--on-surface-rgb),.08)]"
               >
                 <span className="truncate">{node.name}</span>
-                <span className="shrink-0 text-[0.75rem] font-normal text-chalk/60">
+                <span className="shrink-0 text-[0.75rem] font-normal text-on-surface/60">
                   {stateBadgeLabel(node.state, t)}
                 </span>
               </button>
@@ -2132,15 +2130,15 @@ export function ConstelacionSolMap({
               pero en el lima de siempre de la marca: casi blanco en el centro,
               hacia el lima vivo y un lima más oscuro y verdoso en el borde. */}
           <radialGradient id="constelacion-sun-core">
-            <stop offset="0%" stopColor="#FBFFE8" />
-            <stop offset="45%" stopColor="#E9FF72" />
-            <stop offset="80%" stopColor="#B9E23A" />
-            <stop offset="100%" stopColor="#7FA820" />
+            <stop offset="0%" stopColor="var(--constelacion-sun-0)" />
+            <stop offset="45%" stopColor="var(--constelacion-sun-45)" />
+            <stop offset="80%" stopColor="var(--constelacion-sun-80)" />
+            <stop offset="100%" stopColor="var(--constelacion-sun-100)" />
           </radialGradient>
           <radialGradient id="constelacion-hub-glow">
-            <stop offset="0%" stopColor="var(--color-lime)" stopOpacity={0.45} />
-            <stop offset="60%" stopColor="var(--color-lime)" stopOpacity={0.08} />
-            <stop offset="100%" stopColor="var(--color-lime)" stopOpacity={0} />
+            <stop offset="0%" stopColor="var(--constelacion-sun-glow)" stopOpacity={0.45} />
+            <stop offset="60%" stopColor="var(--constelacion-sun-glow)" stopOpacity={0.08} />
+            <stop offset="100%" stopColor="var(--constelacion-sun-glow)" stopOpacity={0} />
           </radialGradient>
           {/*
             Aura reutilizable por color -"currentColor" hereda del `color` en
@@ -2165,7 +2163,7 @@ export function ConstelacionSolMap({
             por segundo solo para mover el fondo decorativo. */}
         <g ref={starGroupRef}>
           {stars.map((star, i) => (
-            <circle key={i} cx={star.x.toFixed(2)} cy={star.y.toFixed(2)} r={star.r.toFixed(2)} fill="var(--color-chalk)" fillOpacity={star.o.toFixed(2)} />
+            <circle key={i} cx={star.x.toFixed(2)} cy={star.y.toFixed(2)} r={star.r.toFixed(2)} fill="var(--color-on-surface)" fillOpacity={star.o.toFixed(2)} />
           ))}
         </g>
 
@@ -2255,7 +2253,7 @@ export function ConstelacionSolMap({
                 }}
                 d={d}
                 fill="none"
-                stroke={toNode ? safeLineColor(toNode) : "rgba(245,247,245,0.22)"}
+                stroke={toNode ? safeLineColor(toNode) : "rgba(var(--on-surface-rgb),0.22)"}
                 strokeOpacity={opacity}
                 strokeWidth={width}
                 strokeLinecap="round"
@@ -2280,7 +2278,7 @@ export function ConstelacionSolMap({
             // el color de la propia rama, ya calculado para el enlace.
             const childId = key.split(">")[1];
             const childNode = childId ? byId.get(childId) : undefined;
-            const pulseColor = childNode ? safeLineColor(childNode) : "var(--color-chalk)";
+            const pulseColor = childNode ? safeLineColor(childNode) : "var(--color-on-surface)";
             return (
               <g
                 key={key}
@@ -2311,9 +2309,9 @@ export function ConstelacionSolMap({
                 toques de cualquier nodo raíz cercano que cayera dentro sin que
                 hubiera nada visible ahí -el sol ya es opaco a los toques por su
                 propio núcleo, no le hace falta también el aura. */}
-            <circle className="constelacion-sun-aura-a" r={ESTABLISHMENT_RADIUS * 3.1} fill="url(#constelacion-glow)" fillOpacity={0.1} style={{ color: "var(--color-lime)" }} pointerEvents="none" />
-            <circle className="constelacion-sun-aura-b" r={ESTABLISHMENT_RADIUS * 3.6} fill="url(#constelacion-glow)" fillOpacity={0.07} style={{ color: "var(--color-lime)" }} pointerEvents="none" />
-            <circle className="constelacion-sun-aura-c" r={ESTABLISHMENT_RADIUS * 4.1} fill="url(#constelacion-glow)" fillOpacity={0.05} style={{ color: "var(--color-lime)" }} pointerEvents="none" />
+            <circle className="constelacion-sun-aura-a" r={ESTABLISHMENT_RADIUS * 3.1} fill="url(#constelacion-glow)" fillOpacity={0.1} style={{ color: "var(--constelacion-sun-glow)" }} pointerEvents="none" />
+            <circle className="constelacion-sun-aura-b" r={ESTABLISHMENT_RADIUS * 3.6} fill="url(#constelacion-glow)" fillOpacity={0.07} style={{ color: "var(--constelacion-sun-glow)" }} pointerEvents="none" />
+            <circle className="constelacion-sun-aura-c" r={ESTABLISHMENT_RADIUS * 4.1} fill="url(#constelacion-glow)" fillOpacity={0.05} style={{ color: "var(--constelacion-sun-glow)" }} pointerEvents="none" />
             <circle cx={0} cy={0} r={ESTABLISHMENT_RADIUS * 2.5} fill="url(#constelacion-hub-glow)" pointerEvents="none" />
             {/* Sin nombre del local escrito encima -eso es justo lo que este mapa cambia
                 respecto a ConstelacionMap-: el núcleo es solo el sol, el nombre vive
@@ -2411,7 +2409,7 @@ export function ConstelacionSolMap({
                     className="constelacion-alert-ring"
                     r={displayRadius + 6}
                     fill="none"
-                    stroke="var(--color-coral)"
+                    stroke="var(--constelacion-ring-urgent)"
                     strokeWidth={1}
                     pointerEvents="none"
                   />
@@ -2421,7 +2419,7 @@ export function ConstelacionSolMap({
                     r={displayRadius * 2.1}
                     fill="url(#constelacion-glow)"
                     fillOpacity={0.16}
-                    style={{ color: "var(--color-amber)" }}
+                    style={{ color: "var(--constelacion-ring-best)" }}
                     pointerEvents="none"
                   />
                 ) : null}
@@ -2434,7 +2432,7 @@ export function ConstelacionSolMap({
                   <circle
                     r={displayRadius + 4.5}
                     fill="none"
-                    stroke="var(--color-chalk)"
+                    stroke="var(--color-on-surface)"
                     strokeWidth={1.3}
                     strokeOpacity={0.92}
                     pointerEvents="none"
@@ -2483,7 +2481,7 @@ export function ConstelacionSolMap({
                     textAnchor="middle"
                     fontSize={6.2}
                     fontWeight={500}
-                    fill="rgba(245,247,245,0.88)"
+                    fill="rgba(var(--on-surface-rgb),0.88)"
                     opacity={showLabel ? 1 : 0}
                     style={{ transition: "opacity 0.2s", pointerEvents: "none" }}
                   >
@@ -2505,8 +2503,8 @@ export function ConstelacionSolMap({
             compartido por las cuatro pantallas del panel en vez de que esta
             vista reinvente el suyo: aquí ya solo queda la placa del local. */}
         <div className="pointer-events-none flex min-w-0 flex-col gap-0.5">
-          <h1 className="truncate text-[1rem] font-extrabold leading-none tracking-[-0.01em] text-chalk">{shopName}</h1>
-          <p className="eyebrow truncate text-[0.625rem] text-chalk/60">
+          <h1 className="truncate text-[1rem] font-extrabold leading-none tracking-[-0.01em] text-on-surface">{shopName}</h1>
+          <p className="eyebrow truncate text-[0.625rem] text-on-surface/60">
             {t.admin.referralMap} · {customerCount} {t.admin.constelacionCustomersLabel}
           </p>
         </div>
@@ -2549,9 +2547,9 @@ export function ConstelacionSolMap({
         style={{ top: "calc(max(1rem,env(safe-area-inset-top)) + 3.5rem)" }}
       >
         <div
-          className="glass-dark flex max-w-[min(24rem,calc(100vw-2.5rem))] items-center gap-3 px-4 py-3 text-left text-[0.8125rem] leading-snug text-chalk transition-[transform,opacity] duration-300 ease-[var(--ease-out-soft)]"
+          className="glass-dark flex max-w-[min(24rem,calc(100vw-2.5rem))] items-center gap-3 px-4 py-3 text-left text-[0.8125rem] leading-snug text-on-surface transition-[transform,opacity] duration-300 ease-[var(--ease-out-soft)]"
           style={{
-            background: "rgba(10,14,13,0.68)",
+            background: "rgba(var(--surface-rgb),0.68)",
             transform: toastEvent ? "translateY(0)" : "translateY(-14px)",
             opacity: toastEvent ? 1 : 0,
           }}
@@ -2600,9 +2598,9 @@ export function ConstelacionSolMap({
         <div className="hidden min-h-0 nav:flex nav:w-64 nav:flex-col nav:self-stretch">
           <div
             className="glass-dark pointer-events-auto flex h-full min-h-0 flex-col p-3"
-            style={{ background: "rgba(10,14,13,0.32)" }}
+            style={{ background: "rgba(var(--surface-rgb),0.32)" }}
           >
-            <p className="eyebrow shrink-0 text-chalk/60">
+            <p className="eyebrow shrink-0 text-on-surface/60">
               {t.admin.constelacionActionFeedTitle}
               {liveEvents.length > 0 ? ` · ${fill(t.admin.constelacionActionFeedCount, { n: liveEvents.length })}` : ""}
             </p>
@@ -2612,7 +2610,7 @@ export function ConstelacionSolMap({
                 por si el propio usuario se había desplazado a leer el historial. */}
             <div ref={liveFeedScrollRef} className="scrollbar-glass mt-2 flex min-h-0 flex-1 flex-col gap-2.5 overflow-y-auto pr-1">
               {liveEvents.length === 0 ? (
-                <p className="text-[0.6875rem] text-chalk/60">{t.admin.constelacionActionFeedEmpty}</p>
+                <p className="text-[0.6875rem] text-on-surface/60">{t.admin.constelacionActionFeedEmpty}</p>
               ) : (
                 liveEvents.map((event) => {
                   const hasName = event.name !== "";
@@ -2627,14 +2625,14 @@ export function ConstelacionSolMap({
                         <span className="relative size-1.5 rounded-full" style={{ background: event.color, boxShadow: `0 0 5px 1px ${event.color}` }} />
                       </span>
                       <div className="min-w-0 flex-1">
-                        <p className={cn("text-[0.6875rem] leading-snug", hasName ? "font-semibold text-chalk/90" : "text-chalk/55")}>
+                        <p className={cn("text-[0.6875rem] leading-snug", hasName ? "font-semibold text-on-surface/90" : "text-on-surface/55")}>
                           {liveEventMessage(event.kind, event.name, t, event.stampNumber)}
                           {" · "}
-                          <span className="font-normal text-chalk/60">
+                          <span className="font-normal text-on-surface/60">
                             {liveEventDetail(event.kind, t, { state: event.state, stampsGoal, stampNumber: event.stampNumber })}
                           </span>
                         </p>
-                        <p className="mt-0.5 text-[0.5625rem] text-chalk/60">{eventTimeLabel(event.ts)}</p>
+                        <p className="mt-0.5 text-[0.5625rem] text-on-surface/60">{eventTimeLabel(event.ts)}</p>
                       </div>
                     </div>
                   );
@@ -2706,13 +2704,18 @@ export function ConstelacionSolMap({
                 nada que pueda salirse del panel. */}
             <div
               className="glass-dark pointer-events-auto flex min-h-0 flex-1 flex-col overflow-hidden"
-              style={{ background: "rgba(10,14,13,0.32)" }}
+              style={{ background: "rgba(var(--surface-rgb),0.32)" }}
             >
             <div className="scrollbar-hidden flex min-h-0 flex-1 flex-col overflow-y-auto p-3">
-              <p className="eyebrow shrink-0 text-chalk/60">{t.admin.constelacionInsightsTitle}</p>
-              <div className="mt-2 shrink-0 rounded-2xl p-3" style={{ background: "rgba(233,255,114,0.1)" }}>
-                <p className="numeral text-[1.75rem] font-extrabold leading-none text-lime">{insights.referredPct}%</p>
-                <p className="mt-1 text-[0.6875rem] leading-snug text-chalk/70">{t.admin.constelacionInsightsReferredPct}</p>
+              <p className="eyebrow shrink-0 text-on-surface/60">{t.admin.constelacionInsightsTitle}</p>
+              <div className="mt-2 shrink-0 rounded-2xl p-3" style={{ background: "var(--constelacion-highlight-bg)" }}>
+                <p
+                  className="numeral text-[1.75rem] font-extrabold leading-none"
+                  style={{ color: "var(--constelacion-highlight-text)" }}
+                >
+                  {insights.referredPct}%
+                </p>
+                <p className="mt-1 text-[0.6875rem] leading-snug text-on-surface/70">{t.admin.constelacionInsightsReferredPct}</p>
               </div>
               <dl className="mt-3 flex flex-col gap-2.5">
                 {[
@@ -2731,10 +2734,10 @@ export function ConstelacionSolMap({
                   { value: insights.referrersToReview, label: t.admin.constelacionInsightsReferrersToReview, desc: t.admin.constelacionInsightsReferrersToReviewDesc },
                 ].map((row, i) => (
                   <div key={i} className="flex items-baseline gap-2.5">
-                    <dd className="numeral shrink-0 text-[1.0625rem] font-bold leading-none text-chalk/90">{row.value}</dd>
+                    <dd className="numeral shrink-0 text-[1.0625rem] font-bold leading-none text-on-surface/90">{row.value}</dd>
                     <div className="min-w-0">
-                      <dt className="text-[0.6875rem] leading-snug text-chalk/80">{row.label}</dt>
-                      <dd className="mt-0.5 text-[0.5625rem] leading-snug text-chalk/60">{row.desc}</dd>
+                      <dt className="text-[0.6875rem] leading-snug text-on-surface/80">{row.label}</dt>
+                      <dd className="mt-0.5 text-[0.5625rem] leading-snug text-on-surface/60">{row.desc}</dd>
                     </div>
                   </div>
                 ))}
@@ -2744,14 +2747,14 @@ export function ConstelacionSolMap({
                   aparte con su propio interruptor: era la misma cuenta por
                   estado que ya vive en `dl` de arriba, repetida en dos
                   sitios distintos de la pantalla. */}
-              <div className="mt-3 shrink-0 border-t border-white/8 pt-3">
-                <p className="eyebrow text-chalk/60">{t.admin.constelacionLegendTitle}</p>
-                <p className="mt-0.5 text-[0.625rem] leading-snug text-chalk/60">{t.admin.constelacionLegendDesc}</p>
+              <div className="mt-3 shrink-0 border-t border-[rgba(var(--on-surface-rgb),.08)] pt-3">
+                <p className="eyebrow text-on-surface/60">{t.admin.constelacionLegendTitle}</p>
+                <p className="mt-0.5 text-[0.625rem] leading-snug text-on-surface/60">{t.admin.constelacionLegendDesc}</p>
                 <div className="mt-2 flex flex-col gap-1.5">
                   {FUNNEL_ORDER.map((state) => {
                     const isMutedRow = CONSTELACION_MUTED_STATES.has(state);
                     return (
-                      <div key={state} className={cn("flex items-center gap-2 text-[0.6875rem]", isMutedRow ? "text-chalk/45" : "text-chalk/75")}>
+                      <div key={state} className={cn("flex items-center gap-2 text-[0.6875rem]", isMutedRow ? "text-on-surface/45" : "text-on-surface/75")}>
                         {/* Mismo tamaño para las 8 -antes a escala real del mapa, ver
                             constelacionSizeLegend más abajo para esa variación-: en
                             una lista tan compacta un swatch que cambia de tamaño fila
@@ -2769,14 +2772,14 @@ export function ConstelacionSolMap({
                           />
                         </span>
                         <span className="min-w-0 flex-1 truncate">{stateBadgeLabel(state, t)}</span>
-                        <span className="numeral text-[0.625rem] text-chalk/60">{funnelCounts.get(state) ?? 0}</span>
+                        <span className="numeral text-[0.625rem] text-on-surface/60">{funnelCounts.get(state) ?? 0}</span>
                       </div>
                     );
                   })}
                 </div>
-                <p className="mt-2.5 border-t border-white/8 pt-2.5 text-[0.5625rem] leading-tight text-chalk/60">{t.admin.constelacionSizeLegend}</p>
-                <p className="mt-1.5 text-[0.5625rem] leading-tight text-chalk/60">{t.admin.constelacionBrightnessLegend}</p>
-                <p className="mt-1.5 text-[0.5625rem] leading-tight text-chalk/60">{t.admin.constelacionHaloLegend}</p>
+                <p className="mt-2.5 border-t border-[rgba(var(--on-surface-rgb),.08)] pt-2.5 text-[0.5625rem] leading-tight text-on-surface/60">{t.admin.constelacionSizeLegend}</p>
+                <p className="mt-1.5 text-[0.5625rem] leading-tight text-on-surface/60">{t.admin.constelacionBrightnessLegend}</p>
+                <p className="mt-1.5 text-[0.5625rem] leading-tight text-on-surface/60">{t.admin.constelacionHaloLegend}</p>
               </div>
             </div>
             </div>
@@ -2794,13 +2797,13 @@ export function ConstelacionSolMap({
               className="glass-dark max-w-[13rem] px-4 py-2.5 text-right transition-transform duration-300 ease-[var(--ease-out-soft)]"
               style={{
                 transform: selectedCategory ? "translateX(0)" : "translateX(130%)",
-                background: "rgba(10,14,13,0.32)",
+                background: "rgba(var(--surface-rgb),0.32)",
               }}
             >
               <p className="numeral text-[1.5rem] font-extrabold leading-none sm:text-[1.75rem]" style={{ color: CONSTELACION_ACCENT_COLOR[lastCategory] }}>
                 {funnelCounts.get(lastCategory) ?? 0}
               </p>
-              <p className="mt-1 text-[0.6875rem] leading-snug text-chalk/70 sm:text-[0.75rem]">{stateBadgeLabel(lastCategory, t)}</p>
+              <p className="mt-1 text-[0.6875rem] leading-snug text-on-surface/70 sm:text-[0.75rem]">{stateBadgeLabel(lastCategory, t)}</p>
             </div>
           ) : null}
         </div>
@@ -2836,7 +2839,7 @@ export function ConstelacionSolMap({
                   opacity: controlsOpen ? 1 : 0,
                 }}
               >
-                <button type="button" onClick={resetView} aria-label={t.admin.resetView} title={t.admin.resetView} className="btn glass-dark size-11 text-chalk">
+                <button type="button" onClick={resetView} aria-label={t.admin.resetView} title={t.admin.resetView} className="btn glass-dark size-11 text-on-surface">
                   <CompassIcon className="size-5" />
                 </button>
                 <button
@@ -2845,7 +2848,7 @@ export function ConstelacionSolMap({
                   aria-pressed={hudVisible}
                   aria-label={t.admin.constelacionToggleHud}
                   title={t.admin.constelacionToggleHud}
-                  className={cn("btn size-11", hudVisible ? "bg-lime text-ink" : "glass-dark text-chalk")}
+                  className={cn("btn size-11", hudVisible ? "bg-lime text-ink" : "glass-dark text-on-surface")}
                 >
                   {hudVisible ? <EyeIcon className="size-5" /> : <EyeOffIcon className="size-5" />}
                 </button>
@@ -2860,7 +2863,7 @@ export function ConstelacionSolMap({
                   aria-pressed={!hideDirectLinks}
                   aria-label={t.admin.constelacionHideDirectLinks}
                   title={t.admin.constelacionHideDirectLinks}
-                  className={cn("btn size-11", !hideDirectLinks ? "bg-lime text-ink" : "glass-dark text-chalk")}
+                  className={cn("btn size-11", !hideDirectLinks ? "bg-lime text-ink" : "glass-dark text-on-surface")}
                 >
                   <SettingsIcon className="size-5" />
                 </button>
@@ -2883,7 +2886,7 @@ export function ConstelacionSolMap({
                   aria-pressed={simulating}
                   aria-label={t.admin.constelacionSimulateToggle}
                   title={t.admin.constelacionSimulateToggle}
-                  className={cn("btn size-11", simulating ? "bg-lime text-ink" : "glass-dark text-chalk")}
+                  className={cn("btn size-11", simulating ? "bg-lime text-ink" : "glass-dark text-on-surface")}
                 >
                   <SparkleIcon className="size-5" />
                 </button>
@@ -2891,7 +2894,7 @@ export function ConstelacionSolMap({
                     inferior -es igualmente "una exploración a pantalla completa, no
                     una tarjeta más"-, así que este icono sigue siendo el camino
                     directo a puertas y señales, juntas en /admin/metricas. */}
-                <Link href="/admin/metricas" prefetch={false} aria-label={t.admin.navMetrics} title={t.admin.navMetrics} className="btn glass-dark size-11 text-chalk">
+                <Link href="/admin/metricas" prefetch={false} aria-label={t.admin.navMetrics} title={t.admin.navMetrics} className="btn glass-dark size-11 text-on-surface">
                   <PulseIcon className="size-5" />
                 </Link>
               </div>
@@ -2902,7 +2905,7 @@ export function ConstelacionSolMap({
             onClick={() => setControlsOpen((v) => !v)}
             aria-expanded={controlsOpen}
             aria-label={t.admin.constelacionToggleControls}
-            className="btn glass-dark size-11 text-chalk"
+            className="btn glass-dark size-11 text-on-surface"
           >
             <ChevronDownIcon className={cn("size-5 transition-transform duration-300 ease-[var(--ease-out-soft)]", controlsOpen ? "rotate-180" : "")} />
           </button>
@@ -2913,7 +2916,7 @@ export function ConstelacionSolMap({
         className="pointer-events-none fixed inset-x-0 bottom-0 z-20 flex flex-col items-center gap-3 px-5 pb-[calc(3.375rem+env(safe-area-inset-bottom)+1.25rem)] nav:pb-[max(1.25rem,env(safe-area-inset-bottom))] nav:pl-[calc(var(--admin-sidebar-width,16rem)+1.25rem)]"
       >
         {!selectedNode && !touched ? (
-          <p className="text-[0.65625rem] text-chalk/32 transition-opacity duration-300">
+          <p className="text-[0.65625rem] text-on-surface/32 transition-opacity duration-300">
             {funnelTotal === 0 ? t.admin.referralMapEmpty : t.admin.referralMapHint}
           </p>
         ) : null}

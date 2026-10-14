@@ -192,7 +192,7 @@ export function ConstelacionSheet({
             type="button"
             onClick={onClose}
             aria-label={t.common.close}
-            className={cn("btn -m-1 shrink-0 text-chalk/55 hover:text-chalk", compact ? "size-7" : "size-9")}
+            className={cn("btn -m-1 shrink-0 text-on-surface/55 hover:text-on-surface", compact ? "size-7" : "size-9")}
           >
             <XIcon className={compact ? "size-3.5" : "size-5"} />
           </button>
@@ -201,27 +201,27 @@ export function ConstelacionSheet({
         <p className={cn("truncate font-extrabold tracking-[-0.025em]", compact ? "mt-1.5 text-[1.125rem]" : "mt-2 text-[1.5rem]")}>
           {isPending ? t.admin.constelacionPendingInvite : shown.name}
         </p>
-        <p className={cn("mt-1 font-semibold uppercase tracking-[0.15em] text-chalk/34", compact ? "text-[0.5625rem]" : "text-[0.6875rem]")}>
+        <p className={cn("mt-1 font-semibold uppercase tracking-[0.15em] text-on-surface/34", compact ? "text-[0.5625rem]" : "text-[0.6875rem]")}>
           {t.admin.attrPadrino} · {snapshot.giftedByName || "—"}
         </p>
 
-        <p className={cn("leading-snug text-chalk/75", compact ? "mt-2 text-[0.6875rem]" : "mt-3 text-[0.8125rem]")}>{sentInvitedLine}</p>
+        <p className={cn("leading-snug text-on-surface/75", compact ? "mt-2 text-[0.6875rem]" : "mt-3 text-[0.8125rem]")}>{sentInvitedLine}</p>
 
         {isPending ? null : (
           <dl className={cn("numeral grid grid-cols-3", compact ? "mt-2 gap-2 text-[0.5625rem]" : "mt-3 gap-3 text-[0.6875rem]")}>
             <div>
-              <dt className="text-chalk/34">{t.admin.attrRedeemed}</dt>
-              <dd className={cn("mt-0.5 font-semibold text-chalk/90", compact ? "text-[0.75rem]" : "text-[0.9375rem]")}>
+              <dt className="text-on-surface/34">{t.admin.attrRedeemed}</dt>
+              <dd className={cn("mt-0.5 font-semibold text-on-surface/90", compact ? "text-[0.75rem]" : "text-[0.9375rem]")}>
                 {shown.redeemedAt ? formatDateTime(shown.redeemedAt, locale) : "—"}
               </dd>
             </div>
             <div>
-              <dt className="text-chalk/34">{t.admin.constelacionConsumptionsLabel}</dt>
-              <dd className={cn("mt-0.5 font-semibold text-chalk/90", compact ? "text-[0.75rem]" : "text-[0.9375rem]")}>{totalConsumed}</dd>
+              <dt className="text-on-surface/34">{t.admin.constelacionConsumptionsLabel}</dt>
+              <dd className={cn("mt-0.5 font-semibold text-on-surface/90", compact ? "text-[0.75rem]" : "text-[0.9375rem]")}>{totalConsumed}</dd>
             </div>
             <div>
-              <dt className="text-chalk/34">{windowOrLastVisitLabel}</dt>
-              <dd className={cn("mt-0.5 font-semibold text-chalk/90", compact ? "text-[0.75rem]" : "text-[0.9375rem]")}>{windowOrLastVisitValue}</dd>
+              <dt className="text-on-surface/34">{windowOrLastVisitLabel}</dt>
+              <dd className={cn("mt-0.5 font-semibold text-on-surface/90", compact ? "text-[0.75rem]" : "text-[0.9375rem]")}>{windowOrLastVisitValue}</dd>
             </div>
           </dl>
         )}
@@ -229,7 +229,7 @@ export function ConstelacionSheet({
         {isPending ? null : (
           <div className={compact ? "mt-2" : "mt-3"}>
             <StampCard stamps={shown.stamps} goal={stampsGoal} tone="dark" />
-            <p className={cn("numeral mt-1.5 text-chalk/40", compact ? "text-[0.5625rem]" : "text-[0.6875rem]")}>
+            <p className={cn("numeral mt-1.5 text-on-surface/40", compact ? "text-[0.5625rem]" : "text-[0.6875rem]")}>
               {fill(t.admin.constelacionCardsCompletedLine, { n: shown.cardsCompleted })}
             </p>
           </div>

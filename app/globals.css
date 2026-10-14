@@ -77,7 +77,12 @@
 
 @layer base {
   :root {
-    color-scheme: light;
+    /* El tema por defecto es el oscuro: los controles nativos del
+       navegador -scrollbar, selector de fecha, <input type="color">- los
+       pinta el propio sistema operativo, no el CSS, así que hay que
+       decirle con qué esquema pintarlos. `light` aquí era al revés -un
+       scrollbar claro sobre un panel oscuro-, nunca corregido hasta ahora. */
+    color-scheme: dark;
     /* Ancho del sidebar de escritorio del panel -leído por las pantallas
        del panel para su propio padding izquierdo, ver BottomNav.tsx-.
        El valor de aquí es el colapsado -el que se ve en el primer
@@ -103,27 +108,30 @@
       radial-gradient(100% 75% at 98% 8%, rgba(251, 113, 133, 0.22) 0%, transparent 58%),
       radial-gradient(120% 95% at 50% 108%, rgba(167, 139, 250, 0.34) 0%, transparent 62%),
       linear-gradient(155deg, #12131c 0%, #1a1530 48%, #0d1420 100%);
-  }
 
-  /* Vuelta explícita al oscuro para un nodo anidado dentro de un
-     ancestro `[data-theme="light"]` -ConstelacionSolMap.tsx: el cielo
-     estelar es, a propósito, siempre nocturno, sea cual sea el tema del
-     local, porque redibujar esa paleta de datos para el claro
-     reescribiría el componente entero-. Mismos valores que `:root`: solo
-     existe para ganarle en cascada a un `[data-theme="light"]` más
-     arriba en el árbol. */
-  [data-theme="dark"] {
-    --color-surface: #0e1211;
-    --color-surface-2: #171c1a;
-    --color-on-surface: #f5f7f5;
-    --surface-rgb: 14, 18, 17;
-    --on-surface-rgb: 245, 247, 245;
-    --aurora-night-bg: #070908;
-    --aurora-night-image:
-      radial-gradient(115% 85% at 2% 0%, rgba(129, 140, 248, 0.38) 0%, transparent 55%),
-      radial-gradient(100% 75% at 98% 8%, rgba(251, 113, 133, 0.22) 0%, transparent 58%),
-      radial-gradient(120% 95% at 50% 108%, rgba(167, 139, 250, 0.34) 0%, transparent 62%),
-      linear-gradient(155deg, #12131c 0%, #1a1530 48%, #0d1420 100%);
+    /* Paleta propia de ConstelacionSolMap.tsx -los 8 estados del embudo,
+       el sol y su resplandor-, calibrada para brillar sobre el fondo casi
+       negro de .aurora-night: valores vivos/neón. `opened`/`claimed`
+       referencian los acentos compartidos en vez de duplicar el literal,
+       igual que hacía el componente antes de que esto fuera un token. */
+    --constelacion-sent: #ffffff;
+    --constelacion-opened: var(--color-amber);
+    --constelacion-claimed: var(--color-mint);
+    --constelacion-window: #38e1ff;
+    --constelacion-billable: #ff00f9;
+    --constelacion-direct: #e9ff72;
+    --constelacion-discarded: #000000;
+    --constelacion-expired: #000000;
+    --constelacion-discarded-stroke: rgba(255, 255, 255, 0.85);
+    --constelacion-ring-urgent: var(--color-coral);
+    --constelacion-ring-best: var(--color-amber);
+    --constelacion-highlight-text: var(--color-lime);
+    --constelacion-highlight-bg: rgba(233, 255, 114, 0.1);
+    --constelacion-sun-0: #fbffe8;
+    --constelacion-sun-45: #e9ff72;
+    --constelacion-sun-80: #b9e23a;
+    --constelacion-sun-100: #7fa820;
+    --constelacion-sun-glow: var(--color-lime);
   }
 
   /* Tema claro de las pantallas de trabajo -ver shops.theme en
@@ -133,6 +141,7 @@
      local que preguntar, así que esas pantallas se quedan en el oscuro de
      siempre, el valor por defecto de arriba. */
   [data-theme="light"] {
+    color-scheme: light;
     --color-surface: #fbfcfb;
     --color-surface-2: #f1f3f0;
     --color-on-surface: #12161a;
@@ -144,6 +153,34 @@
       radial-gradient(100% 75% at 98% 8%, rgba(244, 63, 94, 0.1) 0%, transparent 58%),
       radial-gradient(120% 95% at 50% 108%, rgba(139, 92, 246, 0.12) 0%, transparent 62%),
       linear-gradient(155deg, #fdfcf9 0%, #f4eff9 48%, #eef3f6 100%);
+
+    /* Misma paleta de ConstelacionSolMap.tsx, repensada para fondo claro:
+       no es "el mismo color más apagado", son valores propios -planos,
+       profundos- elegidos por contraste real contra --color-surface
+       (#fbfcfb). El neón del oscuro (billable #FF00F9, direct #E9FF72,
+       window #38E1FF...) cae entre 1,2:1 y 2,6:1 sobre blanco -por eso el
+       pedido explícito de "colores flat", no un recoloreo mecánico-.
+       `opened`/`claimed` dejan de referenciar --color-amber/--color-mint
+       -esos token-valores fallan igual de mal sobre blanco, 1,6:1- y
+       pasan a su propio tono profundo, solo aquí. */
+    --constelacion-sent: #7c8694; /* 3,6:1 — nodo mudo/decorativo, no texto */
+    --constelacion-opened: #b45309; /* 4,9:1 */
+    --constelacion-claimed: #0f766e; /* 5,3:1 */
+    --constelacion-window: #0369a1; /* 5,8:1 */
+    --constelacion-billable: #a21caf; /* 6,2:1 — sigue siendo el de más contraste del mapa */
+    --constelacion-direct: #4d7c0f; /* 4,9:1 */
+    --constelacion-discarded: #000000;
+    --constelacion-expired: #000000;
+    --constelacion-discarded-stroke: rgba(var(--on-surface-rgb), 0.3);
+    --constelacion-ring-urgent: #dc2626; /* 4,7:1 — --color-coral falla sobre blanco (2,6:1) */
+    --constelacion-ring-best: #b45309; /* mismo tono que opened */
+    --constelacion-highlight-text: #4d7c0f; /* text-lime (#D2FB4F) da 1,16:1 sobre blanco */
+    --constelacion-highlight-bg: rgba(77, 124, 15, 0.1);
+    --constelacion-sun-0: #f4ffc9;
+    --constelacion-sun-45: #c6e94a;
+    --constelacion-sun-80: #8fbf1e;
+    --constelacion-sun-100: #4d6b12;
+    --constelacion-sun-glow: #4d6b12; /* un resplandor claro sobre blanco no se ve: aquí es sombra, no luz */
   }
 
   * {
