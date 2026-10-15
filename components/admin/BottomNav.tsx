@@ -183,8 +183,8 @@ export function BottomNav({
               onFocus={() => prefetchOnIntent(router, item.href)}
               onTouchStart={() => prefetchOnIntent(router, item.href)}
               className={cn(
-                "flex min-w-0 flex-1 flex-col items-center gap-1 px-1 py-2.5 transition-colors",
-                active === item.key ? "text-lime" : "text-on-surface/45 hover:text-on-surface/70",
+                "flex min-w-0 flex-1 flex-col items-center gap-1 rounded-2xl px-1 py-2.5 transition-colors",
+                active === item.key ? "bg-lime text-ink" : "text-on-surface/45 hover:text-on-surface/70",
               )}
             >
               {item.icon}
@@ -249,7 +249,7 @@ export function BottomNav({
               "flex items-center gap-3 rounded-xl px-3 py-2.5 text-[0.875rem] font-semibold transition-colors",
               collapsed && "justify-center px-0",
               active === item.key
-                ? "bg-lime/12 text-lime"
+                ? "bg-lime text-ink"
                 : "text-on-surface/55 hover:bg-[rgba(var(--on-surface-rgb),.06)] hover:text-on-surface",
             )}
           >

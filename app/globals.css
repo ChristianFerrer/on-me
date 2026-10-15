@@ -34,13 +34,20 @@
   --color-paper: #fbfcfb;
   --color-slate: #5d6b64;
 
-  /* --- acentos --------------------------------------------------------- */
-  --color-lime: #d2fb4f;
-  --color-mint: #4ade80;
-  --color-teal: #2dd4bf;
-  --color-azure: #60a5fa;
-  --color-amber: #fbbf24;
-  --color-coral: #fb7185;
+  /* --- acentos -----------------------------------------------------------
+     Paleta "Flat UI Colors 2" (flatuicolors.com/palette/ca), a pedido: los
+     mismos seis roles de siempre -primario, positivo secundario, estado
+     "alta directa", informativo, aviso, error-, valores nuevos. Se
+     excluyen a propósito los tonos oscuros/apagados de esa paleta (gris
+     azulado, púrpura oscuro, gris pizarra, azul casi negro): son acentos,
+     tienen que leerse como plano y vivo sobre `bg-ink`/`bg-surface-2`, no
+     como un tono apagado más. */
+  --color-lime: #1dd1a1; /* Wild Caribbean Green */
+  --color-mint: #00d2d3; /* Jade Dust */
+  --color-teal: #0abde3; /* Cyanite */
+  --color-azure: #54a0ff; /* Joust Blue */
+  --color-amber: #feca57; /* Casandora Yellow */
+  --color-coral: #ff6b6b; /* Pastel Red */
 
   /* --- superficie de trabajo --------------------------------------------
      Fondo y texto de las pantallas de trabajo -panel, barra- y de la
@@ -109,29 +116,24 @@
       radial-gradient(120% 95% at 50% 108%, rgba(167, 139, 250, 0.34) 0%, transparent 62%),
       linear-gradient(155deg, #12131c 0%, #1a1530 48%, #0d1420 100%);
 
-    /* Paleta propia de ConstelacionSolMap.tsx -los 8 estados del embudo,
-       el sol y su resplandor-, calibrada para brillar sobre el fondo casi
-       negro de .aurora-night: valores vivos/neón. `opened`/`claimed`
-       referencian los acentos compartidos en vez de duplicar el literal,
-       igual que hacía el componente antes de que esto fuera un token. */
+    /* Paleta propia de ConstelacionSolMap.tsx -los 8 estados del embudo-:
+       `opened`/`claimed`/`direct` referencian los acentos compartidos
+       -arriba-, el resto son valores propios porque no hay un acento
+       compartido para ellos. El sol ya no es un degradado con aura -ver
+       ConstelacionSolMap.tsx-: una sola superficie plana, `--color-lime`. */
     --constelacion-sent: #ffffff;
     --constelacion-opened: var(--color-amber);
     --constelacion-claimed: var(--color-mint);
     --constelacion-window: #38e1ff;
     --constelacion-billable: #ff00f9;
-    --constelacion-direct: #e9ff72;
+    --constelacion-direct: var(--color-teal);
     --constelacion-discarded: #000000;
     --constelacion-expired: #000000;
     --constelacion-discarded-stroke: rgba(255, 255, 255, 0.85);
     --constelacion-ring-urgent: var(--color-coral);
     --constelacion-ring-best: var(--color-amber);
     --constelacion-highlight-text: var(--color-lime);
-    --constelacion-highlight-bg: rgba(233, 255, 114, 0.1);
-    --constelacion-sun-0: #fbffe8;
-    --constelacion-sun-45: #e9ff72;
-    --constelacion-sun-80: #b9e23a;
-    --constelacion-sun-100: #7fa820;
-    --constelacion-sun-glow: var(--color-lime);
+    --constelacion-highlight-bg: rgba(29, 209, 161, 0.1);
   }
 
   /* Tema claro de las pantallas de trabajo -ver shops.theme en
@@ -154,33 +156,24 @@
       radial-gradient(120% 95% at 50% 108%, rgba(139, 92, 246, 0.12) 0%, transparent 62%),
       linear-gradient(155deg, #fdfcf9 0%, #f4eff9 48%, #eef3f6 100%);
 
-    /* Misma paleta de ConstelacionSolMap.tsx, repensada para fondo claro:
-       no es "el mismo color más apagado", son valores propios -planos,
-       profundos- elegidos por contraste real contra --color-surface
-       (#fbfcfb). El neón del oscuro (billable #FF00F9, direct #E9FF72,
-       window #38E1FF...) cae entre 1,2:1 y 2,6:1 sobre blanco -por eso el
-       pedido explícito de "colores flat", no un recoloreo mecánico-.
-       `opened`/`claimed` dejan de referenciar --color-amber/--color-mint
-       -esos token-valores fallan igual de mal sobre blanco, 1,6:1- y
-       pasan a su propio tono profundo, solo aquí. */
-    --constelacion-sent: #7c8694; /* 3,6:1 — nodo mudo/decorativo, no texto */
-    --constelacion-opened: #b45309; /* 4,9:1 */
-    --constelacion-claimed: #0f766e; /* 5,3:1 */
-    --constelacion-window: #0369a1; /* 5,8:1 */
-    --constelacion-billable: #a21caf; /* 6,2:1 — sigue siendo el de más contraste del mapa */
-    --constelacion-direct: #4d7c0f; /* 4,9:1 */
-    --constelacion-discarded: #000000;
-    --constelacion-expired: #000000;
+    /* Misma paleta Flat UI de arriba, para los tres estados sin acento
+       compartido: Light Blue Ballerina para los dos mudos -sent/discarded/
+       expired, se distinguen por su borde, no por el relleno- y Megaman
+       para "en ventana", con el billable -Amour- como el único rojo del
+       mapa, para que siga siendo el de más atención de los ocho. */
+    --constelacion-sent: #c8d6e5; /* Light Blue Ballerina */
+    --constelacion-opened: var(--color-amber);
+    --constelacion-claimed: var(--color-mint);
+    --constelacion-window: #48dbfb; /* Megaman */
+    --constelacion-billable: #ee5253; /* Amour */
+    --constelacion-direct: var(--color-teal);
+    --constelacion-discarded: #c8d6e5; /* Light Blue Ballerina */
+    --constelacion-expired: #c8d6e5; /* Light Blue Ballerina */
     --constelacion-discarded-stroke: rgba(var(--on-surface-rgb), 0.3);
-    --constelacion-ring-urgent: #dc2626; /* 4,7:1 — --color-coral falla sobre blanco (2,6:1) */
-    --constelacion-ring-best: #b45309; /* mismo tono que opened */
-    --constelacion-highlight-text: #4d7c0f; /* text-lime (#D2FB4F) da 1,16:1 sobre blanco */
-    --constelacion-highlight-bg: rgba(77, 124, 15, 0.1);
-    --constelacion-sun-0: #f4ffc9;
-    --constelacion-sun-45: #c6e94a;
-    --constelacion-sun-80: #8fbf1e;
-    --constelacion-sun-100: #4d6b12;
-    --constelacion-sun-glow: #4d6b12; /* un resplandor claro sobre blanco no se ve: aquí es sombra, no luz */
+    --constelacion-ring-urgent: var(--color-coral);
+    --constelacion-ring-best: var(--color-amber);
+    --constelacion-highlight-text: #01a3a4; /* Aqua Velvet */
+    --constelacion-highlight-bg: rgba(1, 163, 164, 0.1);
   }
 
   * {

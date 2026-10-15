@@ -2032,42 +2032,13 @@ export function ConstelacionSolMap({
         @keyframes constelacion-alert-pulse { 0%, 100% { transform: scale(1); opacity: 0.12; } 50% { transform: scale(1.2); opacity: 0.4; } }
         @keyframes constelacion-billable-glow { 0%, 100% { transform: scale(1); opacity: 0.22; } 50% { transform: scale(1.08); opacity: 0.32; } }
         @keyframes constelacion-window-blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.42; } }
-        /* Aura de sol tenue: picos a porcentajes irregulares -no 0/50/100%- para que
-           el vaivén parezca aleatorio en vez de un "respirar" simétrico en bloque;
-           cada capa además dura un número de segundos no múltiplo de las otras
-           -ver más abajo-, así las tres nunca laten a la vez. */
-        @keyframes constelacion-sun-aura-a {
-          0%, 100% { transform: scale(1) translate(0, 0); opacity: 0.09; }
-          22% { transform: scale(1.07) translate(1.1%, -0.6%); opacity: 0.13; }
-          41% { transform: scale(0.97) translate(-0.7%, 0.9%); opacity: 0.07; }
-          63% { transform: scale(1.1) translate(0.5%, 1.2%); opacity: 0.14; }
-          78% { transform: scale(1.02) translate(-1%, -0.4%); opacity: 0.08; }
-        }
-        @keyframes constelacion-sun-aura-b {
-          0%, 100% { transform: scale(1.03) translate(-0.6%, 0.5%); opacity: 0.07; }
-          18% { transform: scale(0.96) translate(0.8%, -1%); opacity: 0.05; }
-          47% { transform: scale(1.09) translate(-1%, -0.5%); opacity: 0.1; }
-          69% { transform: scale(0.99) translate(1%, 0.8%); opacity: 0.06; }
-          86% { transform: scale(1.05) translate(0.4%, -0.9%); opacity: 0.09; }
-        }
-        @keyframes constelacion-sun-aura-c {
-          0%, 100% { transform: scale(0.98) translate(0.5%, -0.4%); opacity: 0.05; }
-          27% { transform: scale(1.06) translate(-0.9%, 0.7%); opacity: 0.08; }
-          52% { transform: scale(0.95) translate(0.6%, 1%); opacity: 0.04; }
-          74% { transform: scale(1.04) translate(-0.5%, -0.8%); opacity: 0.07; }
-          91% { transform: scale(1) translate(0.9%, 0.3%); opacity: 0.05; }
-        }
         .constelacion-alert-ring { transform-origin: center; transform-box: fill-box; animation: constelacion-alert-pulse 2.6s ease-in-out infinite; }
         .constelacion-billable-glow { transform-origin: center; transform-box: fill-box; animation: constelacion-billable-glow 5s ease-in-out infinite; }
         .constelacion-window-blink { animation: constelacion-window-blink 3s ease-in-out infinite; }
-        .constelacion-sun-aura-a { transform-origin: center; transform-box: fill-box; animation: constelacion-sun-aura-a 11.3s ease-in-out infinite; }
-        .constelacion-sun-aura-b { transform-origin: center; transform-box: fill-box; animation: constelacion-sun-aura-b 8.7s ease-in-out infinite 0.6s; }
-        .constelacion-sun-aura-c { transform-origin: center; transform-box: fill-box; animation: constelacion-sun-aura-c 14.1s ease-in-out infinite 1.3s; }
         @keyframes constelacion-star-twinkle { 0%, 100% { opacity: 1; } 50% { opacity: var(--twinkle-min, 0.55); } }
         .constelacion-star-twinkle { animation: constelacion-star-twinkle var(--twinkle-s, 4s) ease-in-out infinite; animation-delay: var(--twinkle-delay, 0s); }
         @media (prefers-reduced-motion: reduce) {
           .constelacion-alert-ring, .constelacion-billable-glow, .constelacion-window-blink,
-          .constelacion-sun-aura-a, .constelacion-sun-aura-b, .constelacion-sun-aura-c,
           .constelacion-star-twinkle { animation: none; }
         }
       `}</style>
@@ -2126,20 +2097,6 @@ export function ConstelacionSolMap({
         aria-label={t.admin.referralMap}
       >
         <defs>
-          {/* El núcleo es un sol de verdad -degradado radial, no un color plano-,
-              pero en el lima de siempre de la marca: casi blanco en el centro,
-              hacia el lima vivo y un lima más oscuro y verdoso en el borde. */}
-          <radialGradient id="constelacion-sun-core">
-            <stop offset="0%" stopColor="var(--constelacion-sun-0)" />
-            <stop offset="45%" stopColor="var(--constelacion-sun-45)" />
-            <stop offset="80%" stopColor="var(--constelacion-sun-80)" />
-            <stop offset="100%" stopColor="var(--constelacion-sun-100)" />
-          </radialGradient>
-          <radialGradient id="constelacion-hub-glow">
-            <stop offset="0%" stopColor="var(--constelacion-sun-glow)" stopOpacity={0.45} />
-            <stop offset="60%" stopColor="var(--constelacion-sun-glow)" stopOpacity={0.08} />
-            <stop offset="100%" stopColor="var(--constelacion-sun-glow)" stopOpacity={0} />
-          </radialGradient>
           {/*
             Aura reutilizable por color -"currentColor" hereda del `color` en
             línea del propio elemento-, en vez del `filter="url(#constelacion-soft)"`
@@ -2296,27 +2253,12 @@ export function ConstelacionSolMap({
           })}
 
           <g data-node-id={graph.establishment.id} className="cursor-pointer">
-            {/* Aura de sol, tenue y sin rayos: tres círculos difuminados en el mismo
-                lima del núcleo, cada uno con su propio período -no múltiplo del de
-                los otros, para que nunca se sincronicen- y su propia secuencia de
-                picos a porcentajes irregulares -22/41/63/78%, no 0/50/100%-, así el
-                borde ondula con un vaivén de aspecto aleatorio en vez de "respirar"
-                de forma pareja en bloque. Movimiento e intensidad deliberadamente
-                sutiles: es un aura, no un foco. */}
-            {/* pointerEvents="none" en toda el aura -mismo motivo que en las
-                estrellas, ver el comentario en el bucle de nodos más abajo-: la del
-                destello llega a 5x ESTABLISHMENT_RADIUS, y sin esto se comía los
-                toques de cualquier nodo raíz cercano que cayera dentro sin que
-                hubiera nada visible ahí -el sol ya es opaco a los toques por su
-                propio núcleo, no le hace falta también el aura. */}
-            <circle className="constelacion-sun-aura-a" r={ESTABLISHMENT_RADIUS * 3.1} fill="url(#constelacion-glow)" fillOpacity={0.1} style={{ color: "var(--constelacion-sun-glow)" }} pointerEvents="none" />
-            <circle className="constelacion-sun-aura-b" r={ESTABLISHMENT_RADIUS * 3.6} fill="url(#constelacion-glow)" fillOpacity={0.07} style={{ color: "var(--constelacion-sun-glow)" }} pointerEvents="none" />
-            <circle className="constelacion-sun-aura-c" r={ESTABLISHMENT_RADIUS * 4.1} fill="url(#constelacion-glow)" fillOpacity={0.05} style={{ color: "var(--constelacion-sun-glow)" }} pointerEvents="none" />
-            <circle cx={0} cy={0} r={ESTABLISHMENT_RADIUS * 2.5} fill="url(#constelacion-hub-glow)" pointerEvents="none" />
-            {/* Sin nombre del local escrito encima -eso es justo lo que este mapa cambia
-                respecto a ConstelacionMap-: el núcleo es solo el sol, el nombre vive
-                fuera, en la esquina -ver la placa fija más abajo en el JSX. */}
-            <circle cx={0} cy={0} r={ESTABLISHMENT_RADIUS} fill="url(#constelacion-sun-core)" />
+            {/* Sin aura ni degradado: un sol plano, un solo color -pedido explícito,
+                ver globals.css-. Sin nombre del local escrito encima -eso es justo lo
+                que este mapa cambia respecto a ConstelacionMap-: el núcleo es solo el
+                sol, el nombre vive fuera, en la esquina -ver la placa fija más abajo
+                en el JSX. */}
+            <circle cx={0} cy={0} r={ESTABLISHMENT_RADIUS} fill="var(--color-lime)" />
           </g>
 
           {graph.nodes.map((node) => {
