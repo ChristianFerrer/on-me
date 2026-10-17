@@ -17,6 +17,15 @@ import { cn } from "@/lib/cn";
  * trazo que contraste con su propio fondo y no con `--color-on-surface`,
  * que sigue el tema global y no el de esta tarjeta en particular.
  */
+
+/**
+ * Sombra compartida por las tres caras -antes solo la tenía RealStampCard,
+ * y con un alcance tan grande (`0 18px 40px`) que se notaba encima de los
+ * tres botones de pestaña de abajo, a solo unos pocos píxeles de la
+ * tarjeta-. Más corta y más tenue -`0 6px 16px`-, para que se quede
+ * contenida en el hueco real entre la tarjeta y esos botones.
+ */
+export const CARD_SHADOW = "shadow-[0_6px_16px_rgba(2,6,23,0.3)]";
 export function FlipButton({
   onClick,
   pressed,

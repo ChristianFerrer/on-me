@@ -1,4 +1,4 @@
-import { CardMark, FlipButton } from "@/components/client/CardFaceBits";
+import { CARD_SHADOW, CardMark, FlipButton } from "@/components/client/CardFaceBits";
 import { CoffeeIcon } from "@/components/ui/Icons";
 import { cn } from "@/lib/cn";
 import { fill } from "@/lib/i18n";
@@ -40,7 +40,7 @@ export function RealStampCard({
   const remaining = goal - stamps;
 
   return (
-    <div className="card-scope relative rounded-[20px] border border-white/15 bg-[#0e1a38] p-5 text-white shadow-[0_18px_40px_rgba(2,6,23,0.45)]">
+    <div className={cn("card-scope relative rounded-[20px] border border-white/15 bg-[#0e1a38] p-5 text-white", CARD_SHADOW)}>
       <FlipButton onClick={onFlip} pressed={flipped} label={labels.flipLabel} onLight={false} />
 
       <div className="flex items-center gap-3 pr-9">

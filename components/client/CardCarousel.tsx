@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { CardMark, FlipButton } from "@/components/client/CardFaceBits";
+import { CARD_SHADOW, CardMark, FlipButton } from "@/components/client/CardFaceBits";
 import { CoffeeColdIcon, CoffeeIcon, EyeIcon, EyeOffIcon, GiftIcon, QrIcon, UserIcon } from "@/components/ui/Icons";
 import { RealStampCard } from "@/components/client/RealStampCard";
 import { cn } from "@/lib/cn";
@@ -532,7 +532,7 @@ function DigitalStampPanel({
 }) {
   const remaining = goal - stamps;
   return (
-    <div className={cn("card-scope relative rounded-[22px] border p-[15px] backdrop-blur-[14px]", tone.panel)}>
+    <div className={cn("card-scope relative rounded-[22px] border p-[15px] backdrop-blur-[14px]", tone.panel, CARD_SHADOW)}>
       <FlipButton onClick={onFlip} pressed={flipped} label={labels.flipLabel} onLight={light} />
 
       <div className="pr-8">
@@ -628,6 +628,7 @@ function CardBack({
       className={cn(
         "card-scope relative flex size-full flex-col items-center justify-center gap-2 rounded-[20px] border p-5 text-center",
         isReal ? "border-white/15 bg-[#0e1a38] text-white" : tone.panel,
+        CARD_SHADOW,
       )}
     >
       <FlipButton onClick={onFlip} pressed={flipped} label={labels.flipLabel} onLight={onLight} />
@@ -680,10 +681,7 @@ function CardBack({
  * Giro 3D de la tarjeta -perspective + rotateY-, no un cambio de pestaña:
  * el frente (sellos) y el reverso (perfil, privacidad) son la misma
  * tarjeta física, no dos pantallas distintas, así que el gesto tiene que
- * sentirse como voltear un objeto, no como navegar. El reverso se posiciona
- * `absolute inset-0` sobre el frente -mismo bloque, dos caras-, así que
- * toma el alto que el frente ya estableció en vez de imponer el suyo
- * propio y crear un salto al girar.
+ * sentirse como voltear un objeto, no como navegar.
  *
  * El botón de girar y la marca OnMe viven DENTRO de cada cara -ver
  * FlipButton/CardMark en CardFaceBits.tsx, montados por RealStampCard,
@@ -691,26 +689,38 @@ function CardBack({
  * ambos giran con la tarjeta -son parte del objeto, no de la pantalla- y
  * caen en el mismo punto en el frente y en el reverso, en vez de quedarse
  * fijos en pantalla tapando lo que haya debajo en cada cara.
- * `backface-visibility:hidden` en cada cara -con el prefijo `-webkit-`
- * también- evita que su contenido se vea espejado/atravesando la otra
- * MIENTRAS gira, pero Safari/iOS seguía dejando un fantasma en espejo de
- * la cara oculta varios segundos después de terminar el giro -el botón
- * de girar del frente, invertido, encima del propio botón del reverso-:
- * un bug de ese motor con `backface-visibility` dentro de contextos 3D
- * anidados como este. Se probó primero un `visibility: hidden` con
- * `transition-delay` -puro CSS-, y el fantasma seguía tardando "unos
- * segundos" en irse: ese delay declarativo depende de la propia cuenta
- * del motor, que en Safari parece ir más lenta de lo que el CSS dice dentro
- * de este contexto 3D. Por eso ahora el cambio lo dispara JS, no CSS: al
- * terminar la rotación -`onTransitionEnd` sobre el propio `transform`,
- * la señal real del navegador, no un número fijo- `settled` pasa a
- * `true` y la cara inactiva pasa a `visibility: hidden` de un render a
- * otro, sin transición de por medio que pueda volver a demorarse.
- * No `display: none` -se probó, y colapsaba el alto de la tarjeta: el
- * frente, al dejar de participar en el flujo normal, deja de darle alto
- * al contenedor que gira, y el reverso -`absolute`- nunca se lo da por
- * su cuenta-. `visibility: hidden` sigue reservando su espacio en el
- * flujo, así que el alto de la tarjeta no se mueve.
+ *
+ * Tres intentos previos -prefijo `-webkit-backface-visibility`, después
+ * `visibility: hidden` por CSS con `transition-delay`, después ese mismo
+ * cambio disparado por JS en vez de CSS- y Safari/iOS seguía dejando un
+ * fantasma en espejo de la cara oculta -el botón de girar del frente,
+ * invertido, en la esquina opuesta del reverso- incluso ya asentado el
+ * giro. Da igual cuánto se demore el cambio: el problema no es el
+ * *timing*, es que ese motor, dentro de este tipo de contexto 3D
+ * anidado, a veces sigue pintando algo de la cara que debería estar
+ * oculta aunque backface-visibility/visibility digan que no debería.
+ * Ninguna propiedad CSS que la deje en el DOM -por oculta que diga
+ * estar- parece bastar.
+ *
+ * Por eso esta vez la cara inactiva se saca del DOM del todo en cuanto
+ * el giro termina -`settled`, con `onTransitionEnd` sobre el propio
+ * `transform` como señal real de que terminó, no un número fijo-: nada
+ * que un motor pueda pintar mal si no está montado. El problema que ya
+ * se encontró con esto -`display: none` en el frente colapsaba el alto
+ * de la tarjeta, porque es quien se lo da al contenedor que gira,
+ * mientras el reverso, `absolute`, nunca se lo da por su cuenta- se
+ * resuelve con un tercer elemento, `sizer`: una copia del frente,
+ * siempre montada, `invisible` -ocupa su lugar en el flujo pero no se ve
+ * ni se puede tocar- y ajena al giro. El contenedor que gira pasa a ser
+ * `absolute inset-0` sobre ese `sizer`, así que el frente y el reverso
+ * pueden montarse y desmontarse libremente sin que la tarjeta cambie de
+ * alto.
+ *
+ * El contenedor que gira -con `perspective`, `transform-style:preserve-3d`
+ * y la propia transición- se queda montado siempre, sin condición: si su
+ * `transform` cambiara de valor en el mismo render en que recién se
+ * monta, no habría un fotograma anterior del que partir y el giro no se
+ * vería, saltaría directo al final.
  */
 function CardFlip({
   front,
@@ -737,35 +747,43 @@ function CardFlip({
     setSettled(false);
   }, [flipped]);
 
+  const showFront = !settled || !flipped;
+  const showBack = !settled || flipped;
+
   return (
     <div className="relative mx-4 flex-none" style={{ perspective: "1600px" }}>
+      <div aria-hidden="true" className="invisible">
+        {front}
+      </div>
       <div
-        className="relative transition-transform duration-700 ease-[cubic-bezier(.4,0,.2,1)] [transform-style:preserve-3d] [-webkit-transform-style:preserve-3d]"
+        className="absolute inset-0 transition-transform duration-700 ease-[cubic-bezier(.4,0,.2,1)] [transform-style:preserve-3d] [-webkit-transform-style:preserve-3d]"
         style={{ transform: flipped ? "rotateY(180deg)" : "rotateY(0deg)" }}
         onTransitionEnd={(event) => {
           if (event.propertyName === "transform") setSettled(true);
         }}
       >
-        <div
-          aria-hidden={flipped}
-          className={cn(
-            "[backface-visibility:hidden] [-webkit-backface-visibility:hidden]",
-            flipped && "pointer-events-none",
-          )}
-          style={{ visibility: settled && flipped ? "hidden" : "visible" }}
-        >
-          {front}
-        </div>
-        <div
-          aria-hidden={!flipped}
-          className={cn(
-            "absolute inset-0 [backface-visibility:hidden] [-webkit-backface-visibility:hidden] [transform:rotateY(180deg)]",
-            !flipped && "pointer-events-none",
-          )}
-          style={{ visibility: settled && !flipped ? "hidden" : "visible" }}
-        >
-          {back}
-        </div>
+        {showFront ? (
+          <div
+            aria-hidden={flipped}
+            className={cn(
+              "absolute inset-0 [backface-visibility:hidden] [-webkit-backface-visibility:hidden]",
+              flipped && "pointer-events-none",
+            )}
+          >
+            {front}
+          </div>
+        ) : null}
+        {showBack ? (
+          <div
+            aria-hidden={!flipped}
+            className={cn(
+              "absolute inset-0 [backface-visibility:hidden] [-webkit-backface-visibility:hidden] [transform:rotateY(180deg)]",
+              !flipped && "pointer-events-none",
+            )}
+          >
+            {back}
+          </div>
+        ) : null}
       </div>
     </div>
   );

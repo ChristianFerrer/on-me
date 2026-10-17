@@ -4,6 +4,7 @@ import { OfflineBadge } from "@/components/client/OfflineBadge";
 import { ButtonLink } from "@/components/ui/Button";
 import { QrCode } from "@/components/ui/QrCode";
 import { Screen, Slab } from "@/components/ui/Screen";
+import { Starfield } from "@/components/ui/Starfield";
 import { TopBar } from "@/components/ui/TopBar";
 import { cn } from "@/lib/cn";
 import { loadCard } from "@/lib/card";
@@ -76,12 +77,21 @@ export default async function CardPage() {
       data-theme={shop.theme}
       data-bg={shop.card_background}
       className={cn(
-        "card-scope aurora flex h-svh w-full flex-col text-ink",
+        "card-scope aurora relative flex h-svh w-full flex-col text-ink",
         outfit.variable,
         plexMono.variable,
       )}
       lang={locale}
     >
+      {/* Puntos tipo galaxia -mismo lenguaje que /admin/constelacion-sol,
+          ver Starfield.tsx-, solo con fondo "blanco": en los demás -lima,
+          vivo, oscuro- el propio degradado ya aporta textura, este es el
+          único que la necesitaba de otro lado. `aria-hidden` ya lo pone
+          el propio componente. */}
+      {shop.theme === "light" && shop.card_background === "blanco" ? (
+        <Starfield className="pointer-events-none absolute inset-0 size-full text-ink" />
+      ) : null}
+
       <OfflineBadge label={t.card.offline} />
 
       <main className="flex min-h-0 flex-1 flex-col gap-[clamp(8px,1.8vh,14px)] py-[clamp(10px,2.2vh,16px)] pb-3">
