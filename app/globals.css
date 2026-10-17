@@ -286,12 +286,20 @@
       linear-gradient(155deg, #fdfdf6 0%, #f3fbe9 48%, #eaf6fa 100%);
   }
 
-  /* Blanco liso: el degradado de gris ya no hace falta, los puntos tipo
-     galaxia -Starfield.tsx, montado aparte en app/c/page.tsx, no CSS-
-     son los que le dan textura ahora. */
+  /* Degradado gris -mismo patrón de tres focos radiales + diagonal de
+     base que 'lima'/'vivo', solo que sin color-, no blanco liso: la
+     pantalla de /admin/constelacion-sol, la referencia que se pidió
+     igualar, tampoco es un fondo plano con puntos encima -es
+     `.aurora-night`, un degradado de verdad, más los puntos del
+     Starfield montados aparte en app/c/page.tsx-. Blanco liso con
+     puntos se probó primero y se sentía vacío, sin el fondo. */
   .aurora[data-theme="light"][data-bg="blanco"] {
     background-color: #ffffff;
-    background-image: none;
+    background-image:
+      radial-gradient(115% 85% at 2% 0%, rgba(17, 24, 23, 0.045) 0%, transparent 52%),
+      radial-gradient(100% 75% at 98% 8%, rgba(17, 24, 23, 0.03) 0%, transparent 58%),
+      radial-gradient(120% 95% at 50% 108%, rgba(17, 24, 23, 0.055) 0%, transparent 62%),
+      linear-gradient(155deg, #ffffff 0%, #f7f8f6 48%, #edeeec 100%);
   }
 
   /* 'vivo': el mismo degradado saturado de siempre -el que usa `.aurora`

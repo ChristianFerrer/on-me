@@ -23,12 +23,12 @@ const SCROLL_MS = 220;
 const SETTLE_DEBOUNCE_MS = 60;
 /**
  * `useLayoutEffect` de verdad en el navegador -corre antes de que pinte,
- * así React nunca llega a pintar el fotograma intermedio donde `flipped`
- * ya cambió pero `settled` todavía no, que escondería de golpe la cara
- * saliente de CardFlip antes de que termine de girar-; `useEffect` en el
- * servidor, donde `useLayoutEffect` no corre y React avisa por consola si
- * se usa igual -el componente sí se renderiza en el servidor, "use client"
- * y todo, para el HTML inicial-.
+ * así React nunca llega a pintar un fotograma intermedio donde una prop
+ * ya cambió pero el estado que depende de ella en un efecto todavía no,
+ * como el arranque del encogimiento de CardFlip más abajo-; `useEffect`
+ * en el servidor, donde `useLayoutEffect` no corre y React avisa por
+ * consola si se usa igual -el componente sí se renderiza en el servidor,
+ * "use client" y todo, para el HTML inicial-.
  */
 const useIsomorphicLayoutEffect = typeof window !== "undefined" ? useLayoutEffect : useEffect;
 
@@ -64,7 +64,10 @@ function surfaceTone(light: boolean) {
         panel: "border-ink/10 bg-white/70 text-ink",
         panelMuted: "text-ink/55",
         dotEmpty: "border-ink/15 text-ink/25",
-        tabInactive: "border-ink/10 bg-white/70 text-ink/45",
+        // Sólido -no `bg-white/70`-: traslúcido sobre el fondo claro nuevo
+        // -liso o con puntos, ver globals.css- se leía como "transparente",
+        // sin el contraste que tenía contra el degradado saturado de antes.
+        tabInactive: "border-ink/10 bg-[#f1f2ef] text-ink/45",
         subtle60: "text-ink/60",
         subtle40: "text-ink/40",
       }
@@ -678,50 +681,37 @@ function CardBack({
 }
 
 /**
- * Giro 3D de la tarjeta -perspective + rotateY-, no un cambio de pestaña:
- * el frente (sellos) y el reverso (perfil, privacidad) son la misma
- * tarjeta física, no dos pantallas distintas, así que el gesto tiene que
- * sentirse como voltear un objeto, no como navegar.
+ * Giro de la tarjeta -no un cambio de pestaña-: el frente (sellos) y el
+ * reverso (perfil, privacidad) son la misma tarjeta física, no dos
+ * pantallas distintas, así que el gesto tiene que sentirse como voltear
+ * un objeto, no como navegar.
  *
- * El botón de girar y la marca OnMe viven DENTRO de cada cara -ver
- * FlipButton/CardMark en CardFaceBits.tsx, montados por RealStampCard,
- * DigitalStampPanel y CardBack-, no como overlay de este wrapper: así
- * ambos giran con la tarjeta -son parte del objeto, no de la pantalla- y
- * caen en el mismo punto en el frente y en el reverso, en vez de quedarse
- * fijos en pantalla tapando lo que haya debajo en cada cara.
+ * Cuatro intentos con un giro 3D de verdad -perspective + rotateY +
+ * backface-visibility, cada vez con más capas (prefijo `-webkit-`,
+ * `visibility:hidden`, desmontar del DOM del todo con un `sizer`
+ * invisible aparte para no perder el alto)- y Safari/iOS seguía dejando
+ * un fantasma en espejo de la cara oculta -el botón de girar del
+ * frente, invertido, en la esquina opuesta del reverso-, incluso con la
+ * cara realmente ausente del DOM. Eso último es lo que descarta que sea
+ * un problema de *timing* o de qué propiedad CSS usar: si ni sacar el
+ * nodo del documento lo arregla, el fantasma no viene de lo que hay
+ * montado, viene de una capa compuesta que ese motor deja huérfana al
+ * animar `rotateY` dentro de un `perspective`/`preserve-3d` anidado así,
+ * y no la suelta sola.
  *
- * Tres intentos previos -prefijo `-webkit-backface-visibility`, después
- * `visibility: hidden` por CSS con `transition-delay`, después ese mismo
- * cambio disparado por JS en vez de CSS- y Safari/iOS seguía dejando un
- * fantasma en espejo de la cara oculta -el botón de girar del frente,
- * invertido, en la esquina opuesta del reverso- incluso ya asentado el
- * giro. Da igual cuánto se demore el cambio: el problema no es el
- * *timing*, es que ese motor, dentro de este tipo de contexto 3D
- * anidado, a veces sigue pintando algo de la cara que debería estar
- * oculta aunque backface-visibility/visibility digan que no debería.
- * Ninguna propiedad CSS que la deje en el DOM -por oculta que diga
- * estar- parece bastar.
- *
- * Por eso esta vez la cara inactiva se saca del DOM del todo en cuanto
- * el giro termina -`settled`, con `onTransitionEnd` sobre el propio
- * `transform` como señal real de que terminó, no un número fijo-: nada
- * que un motor pueda pintar mal si no está montado. El problema que ya
- * se encontró con esto -`display: none` en el frente colapsaba el alto
- * de la tarjeta, porque es quien se lo da al contenedor que gira,
- * mientras el reverso, `absolute`, nunca se lo da por su cuenta- se
- * resuelve con un tercer elemento, `sizer`: una copia del frente,
- * siempre montada, `invisible` -ocupa su lugar en el flujo pero no se ve
- * ni se puede tocar- y ajena al giro. El contenedor que gira pasa a ser
- * `absolute inset-0` sobre ese `sizer`, así que el frente y el reverso
- * pueden montarse y desmontarse libremente sin que la tarjeta cambie de
- * alto.
- *
- * El contenedor que gira -con `perspective`, `transform-style:preserve-3d`
- * y la propia transición- se queda montado siempre, sin condición: si su
- * `transform` cambiara de valor en el mismo render en que recién se
- * monta, no habría un fotograma anterior del que partir y el giro no se
- * vería, saltaría directo al final.
+ * La única forma de no toparse con ese bug es no usar ese mecanismo:
+ * nada de `perspective`, `rotateY`, `preserve-3d` ni `backface-visibility`
+ * aquí. El giro se finge en 2D -`scaleX` de 1 a 0 y de 0 a 1 de nuevo-,
+ * la misma idea que un naipe visto de canto: a mitad de camino, con la
+ * tarjeta encogida a una línea vertical, es cuando el contenido real
+ * cambia de frente a reverso -`shown`-, así que el cambio es invisible
+ * -no hay ancho en ese instante- en vez de un salto. Una sola cara
+ * montada a la vez, en flujo normal -nada de `absolute`/`inset-0`-, así
+ * que la tarjeta ya no necesita ningún truco aparte para mantener su
+ * alto: lo da, sin más, la que esté mostrando en cada momento.
  */
+const FLIP_HALF_MS = 260;
+
 function CardFlip({
   front,
   back,
@@ -731,59 +721,34 @@ function CardFlip({
   back: React.ReactNode;
   flipped: boolean;
 }) {
-  const [settled, setSettled] = useState(true);
+  const [shown, setShown] = useState(flipped);
+  const [squeezed, setSqueezed] = useState(false);
   const mounted = useRef(false);
+  const swapTimer = useRef<number | undefined>(undefined);
 
   useIsomorphicLayoutEffect(() => {
     // El primer disparo es el propio montaje, no un giro real -`flipped`
-    // "cambia" de nada a su valor inicial-: si contara, `settled` se
-    // quedaría en `false` para siempre, porque el `transform` no cambia
-    // de verdad en el montaje y `onTransitionEnd` nunca llega a disparar
-    // para volver a ponerlo en `true`.
+    // "cambia" de nada a su valor inicial-, así que no hace falta animar nada.
     if (!mounted.current) {
       mounted.current = true;
       return;
     }
-    setSettled(false);
+    window.clearTimeout(swapTimer.current);
+    setSqueezed(true);
+    swapTimer.current = window.setTimeout(() => {
+      setShown(flipped);
+      setSqueezed(false);
+    }, FLIP_HALF_MS);
+    return () => window.clearTimeout(swapTimer.current);
   }, [flipped]);
 
-  const showFront = !settled || !flipped;
-  const showBack = !settled || flipped;
-
   return (
-    <div className="relative mx-4 flex-none" style={{ perspective: "1600px" }}>
-      <div aria-hidden="true" className="invisible">
-        {front}
-      </div>
+    <div className="relative mx-4 flex-none">
       <div
-        className="absolute inset-0 transition-transform duration-700 ease-[cubic-bezier(.4,0,.2,1)] [transform-style:preserve-3d] [-webkit-transform-style:preserve-3d]"
-        style={{ transform: flipped ? "rotateY(180deg)" : "rotateY(0deg)" }}
-        onTransitionEnd={(event) => {
-          if (event.propertyName === "transform") setSettled(true);
-        }}
+        className="transition-transform ease-[cubic-bezier(.4,0,.2,1)]"
+        style={{ transform: squeezed ? "scaleX(0)" : "scaleX(1)", transitionDuration: `${FLIP_HALF_MS}ms` }}
       >
-        {showFront ? (
-          <div
-            aria-hidden={flipped}
-            className={cn(
-              "absolute inset-0 [backface-visibility:hidden] [-webkit-backface-visibility:hidden]",
-              flipped && "pointer-events-none",
-            )}
-          >
-            {front}
-          </div>
-        ) : null}
-        {showBack ? (
-          <div
-            aria-hidden={!flipped}
-            className={cn(
-              "absolute inset-0 [backface-visibility:hidden] [-webkit-backface-visibility:hidden] [transform:rotateY(180deg)]",
-              !flipped && "pointer-events-none",
-            )}
-          >
-            {back}
-          </div>
-        ) : null}
+        {shown ? back : front}
       </div>
     </div>
   );
