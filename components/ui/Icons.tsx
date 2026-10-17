@@ -147,8 +147,9 @@ export function ArrowUpRightIcon(props: IconProps) {
 export function HomeIcon(props: IconProps) {
   return (
     <svg {...base(props)}>
-      <path d="m4 11 8-7 8 7" />
-      <path d="M6 9.5V20a1 1 0 0 0 1 1h3v-6h4v6h3a1 1 0 0 0 1-1V9.5" />
+      <path d="M4 10.5 12 4l8 6.5" />
+      <path d="M5.5 9.5V21h13V9.5" />
+      <rect x="9.75" y="13.5" width="4.5" height="7.5" rx="0.75" />
     </svg>
   );
 }
@@ -221,6 +222,24 @@ export function OrbitIcon(props: IconProps) {
       <circle cx="12" cy="12" r="2.25" />
       <ellipse cx="12" cy="12" rx="9.5" ry="4.25" transform="rotate(-28 12 12)" />
       <circle cx="20.5" cy="8.3" r="1.15" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
+/** Red de puntos -nodos conectados por líneas-, para la constelación: se
+    parece de verdad a un grafo de clientes, a diferencia de OrbitIcon -un
+    planeta con una luna-, que no lo representaba bien. Tres puntos, no
+    cinco: a 20px de icono -el tamaño real en BottomNav-, más de tres
+    puntos pequeños se leen como una X, no como una red; con solo tres,
+    bien grandes, se puede permitir ese tamaño y seguir leyéndose como
+    puntos de verdad. */
+export function NetworkIcon(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M6 12 17.5 5.5M6 12l11.5 6.5" />
+      <circle cx="6" cy="12" r="2.75" fill="currentColor" stroke="none" />
+      <circle cx="18" cy="5.5" r="2.75" fill="currentColor" stroke="none" />
+      <circle cx="18" cy="18.5" r="2.75" fill="currentColor" stroke="none" />
     </svg>
   );
 }

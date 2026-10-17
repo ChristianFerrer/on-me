@@ -2,23 +2,24 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ArrowLeftIcon,
   ArrowRightIcon,
-  ChartIcon,
   HomeIcon,
   LogOutIcon,
-  OrbitIcon,
+  NetworkIcon,
   PulseIcon,
-  TabletIcon,
+  SettingsIcon,
 } from "@/components/ui/Icons";
 import { Logo, Mark } from "@/components/ui/Logo";
 import { cn } from "@/lib/cn";
 import type { Dict } from "@/lib/i18n";
 
 type AdminDict = Dict["admin"];
-export type AdminSection = "constelacion" | "metricas" | "dispositivos" | "atribuciones";
+export type AdminSection = "constelacion" | "metricas" | "dispositivos" | "atribuciones" | "ajustes" | "usuarios";
+/** Las cuatro secciones que viven dentro del botón de configuración -ver CONFIG_ITEMS más abajo-, no sueltas en la barra. */
+const CONFIG_SECTIONS: AdminSection[] = ["atribuciones", "dispositivos", "ajustes", "usuarios"];
 
 /** Ancho del sidebar de escritorio expandido -ver también el valor estático en globals.css-. */
 export const ADMIN_SIDEBAR_WIDTH = "16rem";
@@ -34,9 +35,16 @@ function applySidebarWidth(collapsed: boolean) {
 }
 
 /**
- * Navegación fija del panel: cuatro páginas de verdad, no anclas — cada una
- * hace su propia comprobación de sesión, así que basta con enlazar a la
- * ruta y dejar que la propia página decida si hay que enseñar el login.
+ * Navegación fija del panel: páginas de verdad, no anclas — cada una hace
+ * su propia comprobación de sesión, así que basta con enlazar a la ruta y
+ * dejar que la propia página decida si hay que enseñar el login.
+ *
+ * Dos entradas sueltas -constelación, métricas- y un botón de
+ * configuración que abre un menú con las otras cuatro -visitas,
+ * dispositivos, ajustes, usuarios-: esas cuatro no se usan a diario como
+ * las dos primeras, así que vivir detrás de un solo ítem deja la barra
+ * legible en vez de ocho iconos apretados. CONFIG_SECTIONS dice cuáles
+ * `active` cuentan como "el grupo de configuración está abierto".
  *
  * En móvil -y tablet vertical, hasta 1000px- sigue siendo una barra
  * inferior tipo pestañas de app -el pulgar manda-; a partir de 1000px se
@@ -58,14 +66,16 @@ function applySidebarWidth(collapsed: boolean) {
  *
  * Los enlaces van con `prefetch={false}`: el valor por defecto de `Link`
  * precarga en cuanto el enlace entra en el viewport -no solo al pasar el
- * ratón por encima-, y aquí las cinco entradas del panel están todas a la
- * vista a la vez, así que ese "por defecto" dispara cinco páginas enteras
+ * ratón por encima-, y aquí las entradas de la barra están todas a la
+ * vista a la vez, así que ese "por defecto" dispara varias páginas enteras
  * -sesión + datos- de golpe nada más pintarse cualquiera de ellas. Los
  * logs de Vercel lo confirmaron: un montón de peticiones simultáneas justo
  * al entrar a cualquier pantalla del panel, no al pulsar. En su lugar,
  * `prefetchOnIntent` de aquí abajo pide la precarga a mano, una sola ruta
  * cada vez, solo cuando de verdad hay intención de ir -encima con el
- * ratón, foco de teclado, o el dedo tocando en móvil-.
+ * ratón, foco de teclado, o el dedo tocando en móvil-. Los cuatro del menú
+ * de configuración no están en el DOM hasta que se abre, así que ese
+ * problema no se repite ahí: abrir el menú ya es la señal de intención.
  */
 function prefetchOnIntent(router: ReturnType<typeof useRouter>, href: string) {
   router.prefetch(href);
@@ -93,6 +103,57 @@ export function BottomNav({
 }) {
   const router = useRouter();
   const [collapsed, setCollapsed] = useState(true);
+  const [configOpen, setConfigOpen] = useState(false);
+  const configMobileRef = useRef<HTMLDivElement>(null);
+  const configDesktopRef = useRef<HTMLDivElement>(null);
+  const configDesktopBtnRef = useRef<HTMLButtonElement>(null);
+  // Posición del menú de escritorio, calculada al abrir -no con CSS puro-:
+  // el propio <nav> del sidebar lleva overflow-hidden, imprescindible para
+  // que el ancho no deje ver el texto a medio recortar durante la
+  // animación de plegado/expansión (ver más abajo), así que un menú
+  // `absolute` anclado dentro de ese <nav> quedaría cortado por el mismo
+  // overflow. En su lugar, el menú se pinta `fixed` como hermano del
+  // <nav>, con la posición que tenía el botón en pantalla en el momento
+  // de abrirlo.
+  const [desktopConfigPos, setDesktopConfigPos] = useState<{ top: number; left: number } | null>(null);
+  const isConfigActive = active != null && CONFIG_SECTIONS.includes(active);
+
+  function toggleMobileConfig() {
+    setConfigOpen((v) => !v);
+  }
+
+  function toggleDesktopConfig() {
+    setConfigOpen((v) => {
+      if (v) return false;
+      const rect = configDesktopBtnRef.current?.getBoundingClientRect();
+      if (rect) setDesktopConfigPos({ top: rect.top, left: rect.right + 8 });
+      return true;
+    });
+  }
+
+  // Cerrar al tocar fuera o con Escape -mismo patrón que cualquier menú
+  // flotante-: el menú no vive dentro de ninguno de los dos <nav>, cada uno
+  // con su propio contenedor con position:relative, así que hace falta
+  // comprobar los dos refs, no solo uno -nunca están los dos montados con
+  // contenido real a la vez, pero sí los dos <div> vacíos que los sostienen.
+  useEffect(() => {
+    if (!configOpen) return;
+    function onPointerDown(event: PointerEvent) {
+      const target = event.target as Node;
+      if (configMobileRef.current?.contains(target)) return;
+      if (configDesktopRef.current?.contains(target)) return;
+      setConfigOpen(false);
+    }
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") setConfigOpen(false);
+    }
+    document.addEventListener("pointerdown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [configOpen]);
 
   useEffect(() => {
     function readStoredPreference() {
@@ -123,20 +184,15 @@ export function BottomNav({
   }
 
   const items: { key: AdminSection; href: string; label: string; icon: React.ReactNode }[] = [
-    { key: "constelacion", href: "/admin/constelacion-sol", label: t.referralMap, icon: <OrbitIcon className="size-5" /> },
+    { key: "constelacion", href: "/admin/constelacion-sol", label: t.referralMap, icon: <NetworkIcon className="size-5" /> },
     { key: "metricas", href: "/admin/metricas", label: t.navMetrics, icon: <PulseIcon className="size-5" /> },
-    {
-      key: "dispositivos",
-      href: "/admin/dispositivos",
-      label: t.devices,
-      icon: <TabletIcon className="size-5" />,
-    },
-    {
-      key: "atribuciones",
-      href: "/admin/atribuciones",
-      label: t.attributions,
-      icon: <ChartIcon className="size-5" />,
-    },
+  ];
+
+  const configItems: { key: AdminSection; href: string; label: string }[] = [
+    { key: "atribuciones", href: "/admin/atribuciones", label: t.attributions },
+    { key: "dispositivos", href: "/admin/dispositivos", label: t.devices },
+    { key: "ajustes", href: "/admin/ajustes", label: t.settingsNav },
+    { key: "usuarios", href: "/admin/usuarios", label: t.usersNav },
   ];
 
   return (
@@ -193,6 +249,47 @@ export function BottomNav({
               </span>
             </Link>
           ))}
+          <div ref={configMobileRef} className="relative flex min-w-0 flex-1">
+            <button
+              type="button"
+              onClick={toggleMobileConfig}
+              aria-expanded={configOpen}
+              aria-haspopup="menu"
+              className={cn(
+                "flex w-full min-w-0 flex-col items-center gap-1 rounded-2xl px-1 py-2.5 transition-colors",
+                isConfigActive ? "bg-lime text-ink" : "text-on-surface/45 hover:text-on-surface/70",
+              )}
+            >
+              <SettingsIcon className="size-5" />
+              <span className="w-full truncate text-center text-[0.625rem] font-semibold leading-none">
+                {t.navSettings}
+              </span>
+            </button>
+            {configOpen ? (
+              <div
+                role="menu"
+                className="glass-dark absolute bottom-full right-0 mb-2 flex w-48 flex-col gap-0.5 rounded-2xl p-1.5 shadow-[0_1rem_3rem_rgba(0,0,0,0.35)]"
+              >
+                {configItems.map((item) => (
+                  <Link
+                    key={item.key}
+                    href={item.href}
+                    prefetch={false}
+                    role="menuitem"
+                    onClick={() => setConfigOpen(false)}
+                    className={cn(
+                      "rounded-xl px-3 py-2.5 text-[0.8125rem] font-medium transition-colors",
+                      active === item.key
+                        ? "bg-lime text-ink"
+                        : "text-on-surface/70 hover:bg-[rgba(var(--on-surface-rgb),.08)] hover:text-on-surface",
+                    )}
+                  >
+                    {item.label}
+                  </Link>
+                ))}
+              </div>
+            ) : null}
+          </div>
         </div>
       </nav>
 
@@ -258,6 +355,26 @@ export function BottomNav({
           </Link>
         ))}
 
+        <button
+          ref={configDesktopBtnRef}
+          type="button"
+          onClick={toggleDesktopConfig}
+          aria-expanded={configOpen}
+          aria-haspopup="menu"
+          title={collapsed ? t.navSettings : undefined}
+          aria-label={t.navSettings}
+          className={cn(
+            "flex items-center gap-3 rounded-xl px-3 py-2.5 text-[0.875rem] font-semibold transition-colors",
+            collapsed && "justify-center px-0",
+            isConfigActive
+              ? "bg-lime text-ink"
+              : "text-on-surface/55 hover:bg-[rgba(var(--on-surface-rgb),.06)] hover:text-on-surface",
+          )}
+        >
+          <SettingsIcon className="size-5" />
+          {!collapsed ? <span className="whitespace-nowrap">{t.navSettings}</span> : null}
+        </button>
+
         {email ? (
           <div className={cn("mt-auto flex flex-col gap-2 pt-4", collapsed ? "items-center" : "px-1")}>
             {!collapsed ? <p className="truncate px-2 text-[0.75rem] text-on-surface/40">{email}</p> : null}
@@ -277,6 +394,33 @@ export function BottomNav({
           </div>
         ) : null}
       </nav>
+
+      {configOpen && desktopConfigPos ? (
+        <div
+          ref={configDesktopRef}
+          role="menu"
+          style={{ top: desktopConfigPos.top, left: desktopConfigPos.left }}
+          className="glass-dark fixed z-50 flex w-48 flex-col gap-0.5 rounded-2xl p-1.5 shadow-[0_1rem_3rem_rgba(0,0,0,0.35)]"
+        >
+          {configItems.map((item) => (
+            <Link
+              key={item.key}
+              href={item.href}
+              prefetch={false}
+              role="menuitem"
+              onClick={() => setConfigOpen(false)}
+              className={cn(
+                "rounded-xl px-3 py-2.5 text-[0.8125rem] font-medium transition-colors",
+                active === item.key
+                  ? "bg-lime text-ink"
+                  : "text-on-surface/70 hover:bg-[rgba(var(--on-surface-rgb),.08)] hover:text-on-surface",
+              )}
+            >
+              {item.label}
+            </Link>
+          ))}
+        </div>
+      ) : null}
     </>
   );
 }

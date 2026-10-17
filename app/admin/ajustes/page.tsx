@@ -8,10 +8,10 @@ import { getAdminContext } from "@/lib/auth/admin";
 import { getI18n } from "@/lib/i18n/server";
 
 /**
- * Ajustes del local: no es una quinta pestaña del BottomNav -esa barra son
- * "cuatro páginas de verdad", ver BottomNav.tsx-, así que se llega aquí
- * desde el enlace en la cabecera de /admin/dispositivos, igual que
- * /admin/usuarios.
+ * Ajustes del local: vive dentro del menú de configuración del BottomNav
+ * -ver CONFIG_SECTIONS en BottomNav.tsx-, no suelta en la barra; también
+ * se llega aquí desde el enlace en la cabecera de /admin/dispositivos,
+ * igual que /admin/usuarios.
  */
 export default async function SettingsPage() {
   const ctx = await getAdminContext();
@@ -52,7 +52,7 @@ export default async function SettingsPage() {
       >
         {header}
         <p className="text-[0.9375rem] text-on-surface/55">{t.admin.settingsAccessDenied}</p>
-        <BottomNav t={t.admin} email={ctx.email} />
+        <BottomNav t={t.admin} active="ajustes" email={ctx.email} />
       </Screen>
     );
   }
@@ -74,7 +74,7 @@ export default async function SettingsPage() {
         logoUrl={ctx.shop.logo_url}
       />
 
-      <BottomNav t={t.admin} email={ctx.email} />
+      <BottomNav t={t.admin} active="ajustes" email={ctx.email} />
     </Screen>
   );
 }

@@ -9,11 +9,11 @@ import { loadShopMembers } from "@/lib/auth/userAdmin";
 import { getI18n } from "@/lib/i18n/server";
 
 /**
- * Gestión de admins del local: no es una quinta pestaña del BottomNav -esa
- * barra son "cuatro páginas de verdad", ver BottomNav.tsx-, así que se
- * llega aquí desde el enlace en la cabecera de /admin/dispositivos -el
- * otro sitio del panel donde se da o se quita acceso a algo-, no desde la
- * navegación principal.
+ * Gestión de admins del local: vive dentro del menú de configuración del
+ * BottomNav -ver CONFIG_SECTIONS en BottomNav.tsx-, no suelta en la barra;
+ * también se llega aquí desde el enlace en la cabecera de
+ * /admin/dispositivos -el otro sitio del panel donde se da o se quita
+ * acceso a algo.
  */
 export default async function UsersPage() {
   const ctx = await getAdminContext();
@@ -54,7 +54,7 @@ export default async function UsersPage() {
       >
         {header}
         <p className="text-[0.9375rem] text-on-surface/55">{t.admin.usersAccessDenied}</p>
-        <BottomNav t={t.admin} email={ctx.email} />
+        <BottomNav t={t.admin} active="usuarios" email={ctx.email} />
       </Screen>
     );
   }
@@ -71,7 +71,7 @@ export default async function UsersPage() {
 
       <UserManager t={t.admin} members={members} currentUserId={ctx.userId} locale={locale} />
 
-      <BottomNav t={t.admin} email={ctx.email} />
+      <BottomNav t={t.admin} active="usuarios" email={ctx.email} />
     </Screen>
   );
 }

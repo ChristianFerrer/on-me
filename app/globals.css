@@ -35,21 +35,17 @@
   --color-slate: #5d6b64;
 
   /* --- acentos -----------------------------------------------------------
-     Paleta "Flat UI Colors 2" (flatuicolors.com/palette/ca), valor por
-     defecto -oscuro-: los seis roles de siempre -primario, positivo
-     secundario, estado "alta directa", informativo, aviso, error-. El
-     claro usa una paleta propia -Material Design-, ver [data-theme="light"]
-     en @layer base: por pedido explícito, no son los mismos valores en los
-     dos temas. Se excluyen a propósito los tonos oscuros/apagados de la de
-     aquí (gris azulado, púrpura oscuro, gris pizarra, azul casi negro): son
-     acentos, tienen que leerse como plano y vivo sobre `bg-ink`/
-     `bg-surface-2`, no como un tono apagado más. */
-  --color-lime: #1dd1a1; /* Wild Caribbean Green */
-  --color-mint: #00d2d3; /* Jade Dust */
-  --color-teal: #0abde3; /* Cyanite */
-  --color-azure: #54a0ff; /* Joust Blue */
-  --color-amber: #feca57; /* Casandora Yellow */
-  --color-coral: #ff6b6b; /* Pastel Red */
+     Colores originales de la marca, valor por defecto -oscuro-: a pedido,
+     vuelven a ser los de antes de las dos paletas que se probaron después
+     (Flat UI, Material). El claro sigue teniendo los suyos propios -ver
+     [data-theme="light"] en @layer base-, más vivos que estos: por pedido
+     explícito, los dos temas no comparten valor en ningún acento. */
+  --color-lime: #d2fb4f;
+  --color-mint: #4ade80;
+  --color-teal: #2dd4bf;
+  --color-azure: #60a5fa;
+  --color-amber: #fbbf24;
+  --color-coral: #fb7185;
 
   /* --- superficie de trabajo --------------------------------------------
      Fondo y texto de las pantallas de trabajo -panel, barra- y de la
@@ -158,16 +154,17 @@
       radial-gradient(120% 95% at 50% 108%, rgba(139, 92, 246, 0.12) 0%, transparent 62%),
       linear-gradient(155deg, #fdfcf9 0%, #f4eff9 48%, #eef3f6 100%);
 
-    /* Paleta propia del tema claro, a pedido -Material Design, no la Flat
-       UI del oscuro de arriba-. Elegidos por contraste como texto/relleno
-       de tinta encima -`bg-X text-ink`, el patrón de todo botón de acento-,
-       no por nombre: LIME/AMBER son los de mejor contraste con tinta
-       encima (12,5:1/11,5:1), así ganaron esos dos roles por delante de
-       colores con el mismo nombre que el token. */
+    /* Paleta propia del tema claro, a pedido -Material Design, no la del
+       oscuro de arriba-. Los tonos "500" de Material ya son los más vivos
+       de cada familia -no hay una versión "más viva" de Light Blue dentro
+       de la misma paleta-, así que "más vivos" se resuelve eligiendo, de
+       las dos opciones de azul de la imagen, la más saturada -Blue, no
+       Light Blue- en vez de por contraste con tinta encima como la
+       primera vez. */
     --color-lime: #cedb4f; /* Lime */
     --color-mint: #25b158; /* Green */
     --color-teal: #01bfd5; /* Sky */
-    --color-azure: #00abf3; /* Light Blue */
+    --color-azure: #0298ef; /* Blue */
     --color-amber: #ffbf37; /* Amber */
     --color-coral: #fb0165; /* Pink */
 
@@ -189,8 +186,8 @@
     --constelacion-discarded-stroke: rgba(var(--on-surface-rgb), 0.3);
     --constelacion-ring-urgent: var(--color-coral);
     --constelacion-ring-best: var(--color-amber);
-    --constelacion-highlight-text: #029686; /* Teal */
-    --constelacion-highlight-bg: rgba(2, 150, 134, 0.1);
+    --constelacion-highlight-text: var(--color-mint);
+    --constelacion-highlight-bg: rgba(37, 177, 88, 0.1);
   }
 
   * {

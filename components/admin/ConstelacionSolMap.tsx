@@ -2696,7 +2696,6 @@ export function ConstelacionSolMap({
                 </div>
                 <p className="mt-2.5 border-t border-[rgba(var(--on-surface-rgb),.08)] pt-2.5 text-[0.5625rem] leading-tight text-on-surface/60">{t.admin.constelacionSizeLegend}</p>
                 <p className="mt-1.5 text-[0.5625rem] leading-tight text-on-surface/60">{t.admin.constelacionBrightnessLegend}</p>
-                <p className="mt-1.5 text-[0.5625rem] leading-tight text-on-surface/60">{t.admin.constelacionHaloLegend}</p>
               </div>
             </div>
             </div>
