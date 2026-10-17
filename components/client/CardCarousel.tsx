@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { CARD_SHADOW, CardMark, FlipButton } from "@/components/client/CardFaceBits";
 import { CoffeeColdIcon, CoffeeIcon, EyeIcon, EyeOffIcon, GiftIcon, QrIcon, UserIcon } from "@/components/ui/Icons";
 import { RealStampCard } from "@/components/client/RealStampCard";
@@ -21,17 +21,6 @@ const SCROLL_MS = 220;
 /** Debounce tras un swipe con el dedo antes de fijar la pestaña activa -spec
  * §5-: lo justo para no disparar con cada frame del scroll nativo. */
 const SETTLE_DEBOUNCE_MS = 60;
-/**
- * `useLayoutEffect` de verdad en el navegador -corre antes de que pinte,
- * así React nunca llega a pintar un fotograma intermedio donde una prop
- * ya cambió pero el estado que depende de ella en un efecto todavía no,
- * como el arranque del encogimiento de CardFlip más abajo-; `useEffect`
- * en el servidor, donde `useLayoutEffect` no corre y React avisa por
- * consola si se usa igual -el componente sí se renderiza en el servidor,
- * "use client" y todo, para el HTML inicial-.
- */
-const useIsomorphicLayoutEffect = typeof window !== "undefined" ? useLayoutEffect : useEffect;
-
 // "profile" ya no es una pestaña del carrusel: vive en el reverso de la
 // propia tarjeta -ver CardFlip más abajo-, junto con el enlace de
 // privacidad que antes era el pie de app/c/page.tsx. Tres pestañas, no
@@ -61,13 +50,14 @@ function surfaceTone(light: boolean) {
         body: "text-ink/65",
         ghostBtn: "border-ink/10 bg-ink/5 text-ink hover:brightness-95",
         disabledBtn: "cursor-not-allowed bg-ink/5 text-ink/30",
-        panel: "border-ink/10 bg-white/70 text-ink",
+        panel: "border-ink/10 bg-white/90 text-ink",
         panelMuted: "text-ink/55",
         dotEmpty: "border-ink/15 text-ink/25",
-        // Sólido -no `bg-white/70`-: traslúcido sobre el fondo claro nuevo
-        // -liso o con puntos, ver globals.css- se leía como "transparente",
-        // sin el contraste que tenía contra el degradado saturado de antes.
-        tabInactive: "border-ink/10 bg-[#f1f2ef] text-ink/45",
+        // Sólido y con más contraste -ni `bg-white/70` ni `text-ink/45`-:
+        // sobre el fondo claro nuevo seguían leyéndose como transparentes,
+        // de fondo Y de trazo, sin el contraste que tenían contra el
+        // degradado saturado de antes.
+        tabInactive: "border-ink/20 bg-[#e8eae5] text-ink/70 shadow-[0_1px_3px_rgba(2,6,23,0.08)]",
         subtle60: "text-ink/60",
         subtle40: "text-ink/40",
       }
@@ -77,7 +67,7 @@ function surfaceTone(light: boolean) {
         body: "text-white/72",
         ghostBtn: "border-white/[.09] bg-white/10 text-white hover:brightness-110",
         disabledBtn: "cursor-not-allowed bg-white/10 text-chalk/30",
-        panel: "border-white/[.09] bg-black/60 text-chalk",
+        panel: "border-white/[.09] bg-black/75 text-chalk",
         panelMuted: "text-chalk/55",
         dotEmpty: "border-white/15 text-chalk/22",
         tabInactive: "border-white/[.09] bg-black/60 text-chalk/45",
@@ -511,6 +501,13 @@ export function CardCarousel({
  * rejilla de abajo ya enseña el progreso, y ese número era lo que tapaba
  * el botón de girar en la versión "real"-: el dato que faltaba, "te falta
  * N cafés", baja al pie junto a la marca, igual que en RealStampCard.
+ *
+ * Sin `backdrop-blur` -lo tenía antes-: WebKit tiene un bug confirmado
+ * -bugs.webkit.org #249952- donde `backdrop-filter` y
+ * `backface-visibility: hidden` en el mismo elemento rompen el segundo,
+ * justo la propiedad de la que depende CardFlip para que no se vea el
+ * reverso de cada cara mientras gira. `tone.panel` sube de opacidad para
+ * compensar -ya no hay nada que desenfocar detrás-.
  */
 function DigitalStampPanel({
   shopName,
@@ -535,7 +532,7 @@ function DigitalStampPanel({
 }) {
   const remaining = goal - stamps;
   return (
-    <div className={cn("card-scope relative rounded-[22px] border p-[15px] backdrop-blur-[14px]", tone.panel, CARD_SHADOW)}>
+    <div className={cn("card-scope relative rounded-[22px] border p-[15px]", tone.panel, CARD_SHADOW)}>
       <FlipButton onClick={onFlip} pressed={flipped} label={labels.flipLabel} onLight={light} />
 
       <div className="pr-8">
@@ -681,37 +678,36 @@ function CardBack({
 }
 
 /**
- * Giro de la tarjeta -no un cambio de pestaña-: el frente (sellos) y el
- * reverso (perfil, privacidad) son la misma tarjeta física, no dos
- * pantallas distintas, así que el gesto tiene que sentirse como voltear
- * un objeto, no como navegar.
+ * Giro 3D de la tarjeta -perspective + rotateY-, no un cambio de pestaña:
+ * el frente (sellos) y el reverso (perfil, privacidad) son la misma
+ * tarjeta física, no dos pantallas distintas, así que el gesto tiene que
+ * sentirse como voltear un objeto, no como navegar.
  *
- * Cuatro intentos con un giro 3D de verdad -perspective + rotateY +
- * backface-visibility, cada vez con más capas (prefijo `-webkit-`,
- * `visibility:hidden`, desmontar del DOM del todo con un `sizer`
- * invisible aparte para no perder el alto)- y Safari/iOS seguía dejando
- * un fantasma en espejo de la cara oculta -el botón de girar del
- * frente, invertido, en la esquina opuesta del reverso-, incluso con la
- * cara realmente ausente del DOM. Eso último es lo que descarta que sea
- * un problema de *timing* o de qué propiedad CSS usar: si ni sacar el
- * nodo del documento lo arregla, el fantasma no viene de lo que hay
- * montado, viene de una capa compuesta que ese motor deja huérfana al
- * animar `rotateY` dentro de un `perspective`/`preserve-3d` anidado así,
- * y no la suelta sola.
+ * Se probó también un giro falso en 2D -`scaleX` a 0 y de nuevo a 1,
+ * cambiando el contenido a mitad de camino- para esquivar un fantasma
+ * que dejaba Safari/iOS en el reverso con el 3D de verdad. Se volvió
+ * atrás: además de verse peor -el "encogimiento" lee como que la
+ * tarjeta cambia de tamaño, no como que gira-, no hacía falta. Investigando
+ * el bug de Safari -bugs.webkit.org #249952- apareció la causa real:
+ * un elemento no puede tener `backdrop-filter` Y `backface-visibility:
+ * hidden` a la vez, rompe la segunda por completo. DigitalStampPanel
+ * tenía `backdrop-blur` -ver más arriba, ya se le sacó-. Además, otro
+ * reporte sobre este mismo tipo de bug recomienda `preserve-3d` también
+ * en el elemento que lleva `perspective` -antes solo estaba en el que
+ * gira, un nivel más adentro- y, por si la detección de qué cara mirar
+ * se confundía con el orden de pintado del DOM, `z-index` explícito en
+ * las dos caras, no solo el orden en el que aparecen.
  *
- * La única forma de no toparse con ese bug es no usar ese mecanismo:
- * nada de `perspective`, `rotateY`, `preserve-3d` ni `backface-visibility`
- * aquí. El giro se finge en 2D -`scaleX` de 1 a 0 y de 0 a 1 de nuevo-,
- * la misma idea que un naipe visto de canto: a mitad de camino, con la
- * tarjeta encogida a una línea vertical, es cuando el contenido real
- * cambia de frente a reverso -`shown`-, así que el cambio es invisible
- * -no hay ancho en ese instante- en vez de un salto. Una sola cara
- * montada a la vez, en flujo normal -nada de `absolute`/`inset-0`-, así
- * que la tarjeta ya no necesita ningún truco aparte para mantener su
- * alto: lo da, sin más, la que esté mostrando en cada momento.
+ * El botón de girar y la marca OnMe viven DENTRO de cada cara -ver
+ * FlipButton/CardMark en CardFaceBits.tsx, montados por RealStampCard,
+ * DigitalStampPanel y CardBack-, no como overlay de este wrapper: así
+ * ambos giran con la tarjeta -son parte del objeto, no de la pantalla- y
+ * caen en el mismo punto en el frente y en el reverso.
+ *
+ * El reverso se posiciona `absolute inset-0` sobre el frente -mismo
+ * bloque, dos caras-, así que toma el alto que el frente ya estableció
+ * en vez de imponer el suyo propio y crear un salto al girar.
  */
-const FLIP_HALF_MS = 260;
-
 function CardFlip({
   front,
   back,
@@ -721,34 +717,33 @@ function CardFlip({
   back: React.ReactNode;
   flipped: boolean;
 }) {
-  const [shown, setShown] = useState(flipped);
-  const [squeezed, setSqueezed] = useState(false);
-  const mounted = useRef(false);
-  const swapTimer = useRef<number | undefined>(undefined);
-
-  useIsomorphicLayoutEffect(() => {
-    // El primer disparo es el propio montaje, no un giro real -`flipped`
-    // "cambia" de nada a su valor inicial-, así que no hace falta animar nada.
-    if (!mounted.current) {
-      mounted.current = true;
-      return;
-    }
-    window.clearTimeout(swapTimer.current);
-    setSqueezed(true);
-    swapTimer.current = window.setTimeout(() => {
-      setShown(flipped);
-      setSqueezed(false);
-    }, FLIP_HALF_MS);
-    return () => window.clearTimeout(swapTimer.current);
-  }, [flipped]);
-
   return (
-    <div className="relative mx-4 flex-none">
+    <div
+      className="relative mx-4 flex-none [transform-style:preserve-3d] [-webkit-transform-style:preserve-3d]"
+      style={{ perspective: "1600px" }}
+    >
       <div
-        className="transition-transform ease-[cubic-bezier(.4,0,.2,1)]"
-        style={{ transform: squeezed ? "scaleX(0)" : "scaleX(1)", transitionDuration: `${FLIP_HALF_MS}ms` }}
+        className="relative transition-transform duration-700 ease-[cubic-bezier(.4,0,.2,1)] [transform-style:preserve-3d] [-webkit-transform-style:preserve-3d]"
+        style={{ transform: flipped ? "rotateY(180deg)" : "rotateY(0deg)" }}
       >
-        {shown ? back : front}
+        <div
+          aria-hidden={flipped}
+          className={cn(
+            "relative z-[1] [backface-visibility:hidden] [-webkit-backface-visibility:hidden]",
+            flipped && "pointer-events-none",
+          )}
+        >
+          {front}
+        </div>
+        <div
+          aria-hidden={!flipped}
+          className={cn(
+            "absolute inset-0 z-[2] [backface-visibility:hidden] [-webkit-backface-visibility:hidden] [transform:rotateY(180deg)]",
+            !flipped && "pointer-events-none",
+          )}
+        >
+          {back}
+        </div>
       </div>
     </div>
   );

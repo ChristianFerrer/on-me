@@ -296,10 +296,10 @@
   .aurora[data-theme="light"][data-bg="blanco"] {
     background-color: #ffffff;
     background-image:
-      radial-gradient(115% 85% at 2% 0%, rgba(17, 24, 23, 0.045) 0%, transparent 52%),
-      radial-gradient(100% 75% at 98% 8%, rgba(17, 24, 23, 0.03) 0%, transparent 58%),
-      radial-gradient(120% 95% at 50% 108%, rgba(17, 24, 23, 0.055) 0%, transparent 62%),
-      linear-gradient(155deg, #ffffff 0%, #f7f8f6 48%, #edeeec 100%);
+      radial-gradient(115% 85% at 2% 0%, rgba(17, 24, 23, 0.1) 0%, transparent 52%),
+      radial-gradient(100% 75% at 98% 8%, rgba(17, 24, 23, 0.07) 0%, transparent 58%),
+      radial-gradient(120% 95% at 50% 108%, rgba(17, 24, 23, 0.13) 0%, transparent 62%),
+      linear-gradient(155deg, #ffffff 0%, #eef0ec 48%, #d9dcd6 100%);
   }
 
   /* 'vivo': el mismo degradado saturado de siempre -el que usa `.aurora`
