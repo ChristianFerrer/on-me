@@ -227,18 +227,29 @@ export function CardCarousel({
     },
   ];
 
+  // Sellos a la vista solo en la pestaña del código -la tarjeta completa
+  // repetida, idéntica, en las otras tres no añadía nada a "cuánto te
+  // falta para el próximo regalo", "cuántos cafés gratis tenés para
+  // regalar" ni "tu perfil"; y en pantallas de poca altura empujaba el
+  // botón de esas tarjetas fuera del viewport. Una barra compacta -mismo
+  // logo, mismo número, un toque para volver al código- ocupa una
+  // fracción de la altura y sigue dejando ver de un vistazo cuántos
+  // sellos llevás sin salir de la pestaña en la que estás.
+  const showFullCard = idx === 0;
+
   return (
     <>
-      {cardStyle === "real" ? (
-        <RealStampCard
-          shopName={shopName}
-          logoUrl={logoUrl}
-          stamps={stamps}
-          goal={goal}
-          rewardsPendingCount={rewardsPendingCount}
-          labels={labels}
-        />
-      ) : (
+      {showFullCard ? (
+        cardStyle === "real" ? (
+          <RealStampCard
+            shopName={shopName}
+            logoUrl={logoUrl}
+            stamps={stamps}
+            goal={goal}
+            rewardsPendingCount={rewardsPendingCount}
+            labels={labels}
+          />
+        ) : (
         <div
           className={cn(
             "card-scope mx-4 flex-none rounded-[22px] border p-[15px] backdrop-blur-[14px]",
@@ -289,6 +300,39 @@ export function CardCarousel({
             })}
           </div>
         </div>
+        )
+      ) : (
+        <button
+          type="button"
+          onClick={() => goTo(0)}
+          className={cn(
+            "card-scope mx-4 flex flex-none items-center gap-2.5 rounded-full border px-4 py-2.5 text-left transition-[filter] active:scale-[0.98]",
+            cardStyle === "real"
+              ? "border-white/15 bg-[#0e1a38] text-white hover:brightness-110"
+              : cn(tone.panel, "hover:brightness-95"),
+          )}
+        >
+          <span
+            className={cn(
+              "flex size-7 shrink-0 items-center justify-center overflow-hidden rounded-full border",
+              cardStyle === "real" ? "border-white/30 bg-white/5" : tone.dotEmpty,
+            )}
+          >
+            {logoUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={logoUrl} alt="" className="size-full object-cover" />
+            ) : (
+              <CoffeeIcon className="size-[60%]" />
+            )}
+          </span>
+          <span className="min-w-0 flex-1 truncate text-[0.8125rem] font-bold uppercase tracking-[0.03em]">
+            {shopName}
+          </span>
+          <span className="numeral shrink-0 text-[1.0625rem] font-extrabold leading-none">
+            {stamps}
+            <span className="opacity-45">/{goal}</span>
+          </span>
+        </button>
       )}
 
       <div
