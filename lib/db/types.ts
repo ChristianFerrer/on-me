@@ -159,7 +159,7 @@ export type AttributionRow = {
   created_at: string;
 };
 
-/** Check-in del cliente con el QR fijo de barra, ver migración 0006 y lib/arrivals.ts. */
+/** Check-in del cliente con el QR fijo de barra, ver migración 0008 y lib/arrivals.ts. */
 export type ArrivalRow = {
   id: string;
   shop_id: string;

@@ -4,7 +4,7 @@ import { firstName } from "@/lib/scan-service";
 
 /**
  * Llegadas: el cliente escanea el QR fijo de barra con su propio móvil y la
- * barra lo ve en su lista, sin que nadie coja un móvil -ver migración 0006-.
+ * barra lo ve en su lista, sin que nadie coja un móvil -ver migración 0008-.
  *
  * Una llegada es un aviso, no un sello. El QR es estático y se puede
  * fotografiar, así que no prueba que el cliente esté delante: eso lo prueba
