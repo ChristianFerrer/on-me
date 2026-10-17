@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { registerArrival } from "@/lib/arrivals";
 import { db } from "@/lib/db/client";
 import { newToken, normalizePhone } from "@/lib/crypto";
 import { LOCALES } from "@/lib/i18n";
@@ -51,13 +52,14 @@ export async function POST(request: Request) {
   // de altas —el denominador de la puerta P1— dejaría de significar nada.
   const { data: existing } = await db()
     .from("customers")
-    .select("token")
+    .select("id, token")
     .eq("shop_id", shop.id)
     .eq("phone_hash", normalized.hash)
     .maybeSingle();
 
   if (existing) {
     await writeCustomerCookie(existing.token);
+    await registerArrival(shop.id, existing.id);
     return NextResponse.json({ token: existing.token, existing: true });
   }
 
@@ -84,6 +86,11 @@ export async function POST(request: Request) {
 
   await db().from("passes").insert({ customer_id: customer.id });
   await writeCustomerCookie(token);
+
+  // El alta se hace con el QR de barra, así que quien la completa está en
+  // el mostrador: su primer sello ya le espera en la lista de llegadas,
+  // sin tener que volver a escanear nada.
+  await registerArrival(shop.id, customer.id);
 
   // El teléfono en claro no viaja de vuelta al navegador -no hace falta,
   // el token ya identifica al cliente-, pero sí queda guardado: ver la

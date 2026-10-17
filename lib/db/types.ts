@@ -147,6 +147,16 @@ export type AttributionRow = {
   created_at: string;
 };
 
+/** Check-in del cliente con el QR fijo de barra, ver migración 0006 y lib/arrivals.ts. */
+export type ArrivalRow = {
+  id: string;
+  shop_id: string;
+  customer_id: string;
+  created_at: string;
+  expires_at: string;
+  handled_at: string | null;
+};
+
 /** Forma que espera supabase-js para tipar consultas de punta a punta. */
 type Table<Row> = {
   Row: Row;
@@ -167,6 +177,7 @@ export type Database = {
       invitations: Table<InvitationRow>;
       scans: Table<ScanRow>;
       attributions: Table<AttributionRow>;
+      arrivals: Table<ArrivalRow>;
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;

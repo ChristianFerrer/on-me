@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { CoffeeIcon, HomeIcon, QrIcon, SearchIcon, UserIcon } from "@/components/ui/Icons";
 import { cn } from "@/lib/cn";
 import { fill, type Dict } from "@/lib/i18n";
+import { ArrivalsTray } from "./ArrivalsTray";
 import { PinPad } from "./PinPad";
 import { useQrScanner } from "./useQrScanner";
 import { useScanFlow } from "./useScanFlow";
@@ -195,6 +196,8 @@ export function Scanner({
             <Target active={phase.step === "idle" && !blocked && quantityChosen} />
           )}
         </div>
+
+        <ArrivalsTray t={t} pinRequired={pinRequired} hidden={phase.step !== "idle"} />
 
         <footer className="px-5 pb-[max(1.75rem,env(safe-area-inset-bottom))]">
           {blocked ? (

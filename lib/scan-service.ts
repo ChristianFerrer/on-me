@@ -1,3 +1,4 @@
+import { resolveArrivals } from "@/lib/arrivals";
 import { db } from "@/lib/db/client";
 import type { CustomerRow, PassRow, ScanKind } from "@/lib/db/types";
 import type { DeviceContext } from "@/lib/auth/device";
@@ -110,6 +111,10 @@ export async function runScan(
       });
     }
 
+    // Atendido: si estaba en la lista de llegadas, sale de ella aunque el
+    // barista haya acabado escaneando el móvil en vez de tocar su nombre.
+    await resolveArrivals(shop.id, customer.id);
+
     return {
       status: "ok",
       result: {
@@ -182,6 +187,7 @@ export async function runScan(
       rewardsPending: pass.reward_pending_count,
     });
     await db().from("passes").update({ stamps: next.stamps }).eq("id", pass.id);
+    await resolveArrivals(shop.id, customer.id);
 
     return {
       status: "ok",
@@ -210,6 +216,7 @@ export async function runScan(
     .eq("id", pass.id);
 
   await logScan(ctx, customer.id, "redeem_reward", options);
+  await resolveArrivals(shop.id, customer.id);
 
   return {
     status: "ok",
