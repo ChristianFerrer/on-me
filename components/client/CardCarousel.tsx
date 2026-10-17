@@ -683,11 +683,21 @@ function CardBack({
  * fijos en pantalla tapando lo que haya debajo en cada cara.
  * `backface-visibility:hidden` en cada cara evita que su contenido se vea
  * espejado/atravesando la otra mientras gira -con el prefijo `-webkit-`
- * también, no solo la propiedad estándar: sin él, Safari/iOS deja
- * asomar un fantasma en espejo de la cara oculta -el botón de girar del
- * frente, invertido, por encima del propio botón del reverso-, el bug
- * que se vio reportado en producción con la versión sin prefijo.
+ * también, no solo la propiedad estándar-, pero Safari/iOS seguía
+ * dejando asomar un fantasma en espejo de la cara oculta -el botón de
+ * girar del frente, invertido, por encima del propio botón del
+ * reverso- incluso con el prefijo puesto: es un bug de ese motor con
+ * `backface-visibility` dentro de contextos 3D anidados como este, no
+ * algo que un prefijo más arregle del todo. Por eso, además, la cara que
+ * no se ve pasa a `visibility: hidden` -eso si lo respeta cualquier
+ * motor, a diferencia de backface-visibility- con un `transition-delay`
+ * igual a `FLIP_MS`: se queda `visible` mientras gira -si no, desaparecería
+ * de golpe a mitad de giro, antes de llegar a su propio canto- y solo se
+ * oculta del todo una vez termina, momento en el que ya no debería hacer
+ * falta pero así nunca deja fantasma alguno al asentarse.
  */
+const FLIP_MS = 700;
+
 function CardFlip({
   front,
   back,
@@ -706,18 +716,26 @@ function CardFlip({
         <div
           aria-hidden={flipped}
           className={cn(
-            "[backface-visibility:hidden] [-webkit-backface-visibility:hidden]",
+            "[backface-visibility:hidden] [-webkit-backface-visibility:hidden] transition-[visibility]",
             flipped && "pointer-events-none",
           )}
+          style={{
+            visibility: flipped ? "hidden" : "visible",
+            transitionDelay: flipped ? `${FLIP_MS}ms` : "0ms",
+          }}
         >
           {front}
         </div>
         <div
           aria-hidden={!flipped}
           className={cn(
-            "absolute inset-0 [backface-visibility:hidden] [-webkit-backface-visibility:hidden] [transform:rotateY(180deg)]",
+            "absolute inset-0 [backface-visibility:hidden] [-webkit-backface-visibility:hidden] [transform:rotateY(180deg)] transition-[visibility]",
             !flipped && "pointer-events-none",
           )}
+          style={{
+            visibility: flipped ? "visible" : "hidden",
+            transitionDelay: !flipped ? `${FLIP_MS}ms` : "0ms",
+          }}
         >
           {back}
         </div>

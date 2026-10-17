@@ -59,11 +59,13 @@ export default async function CardPage() {
     // Fondo verde -`aurora`, el mismo degradado que usaba esta pantalla
     // antes del carrusel-, no el morado oscuro de la spec original: es la
     // identidad de color de /c en el resto de la app; con `data-theme`
-    // ahora sí cambia de verdad entre los dos temas del local -ver
-    // [data-theme="light"] .aurora en globals.css-, no solo las
-    // superficies que flotan encima. `text-ink`, a juego -convención de
-    // Screen.tsx-, para lo poco que queda directamente sobre el
-    // degradado; las superficies oscuras (tarjeta, iconos) fijan su
+    // cambia de verdad entre los dos temas del local, y con `data-bg`
+    // -solo importa junto a theme='light'- entre las dos variantes de
+    // fondo claro -ver .aurora[data-theme="light"][data-bg="…"] en
+    // globals.css-, no solo las superficies que flotan encima. `text-ink`,
+    // a juego -convención de Screen.tsx-, para lo poco que queda
+    // directamente sobre el degradado; las superficies oscuras (tarjeta,
+    // iconos) fijan su
     // propio `text-chalk`, igual que ya hace `.slab` en el resto de la
     // app, así que no dependen de este valor para leerse bien. Sin
     // cabecera ni pie propios -la marca y el enlace de privacidad viven
@@ -72,6 +74,7 @@ export default async function CardPage() {
     // bloque superior, sin ceder una fila entera solo para un logo chico.
     <div
       data-theme={shop.theme}
+      data-bg={shop.card_background}
       className={cn(
         "card-scope aurora flex h-svh w-full flex-col text-ink",
         outfit.variable,

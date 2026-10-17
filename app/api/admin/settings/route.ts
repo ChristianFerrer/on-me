@@ -10,6 +10,7 @@ const Body = z
     maxStampsPerScan: z.number().int().min(1).max(20).optional(),
     theme: z.enum(["dark", "light"]).optional(),
     cardStyle: z.enum(["digital", "real"]).optional(),
+    cardBackground: z.enum(["lima", "blanco"]).optional(),
     defaultLocale: z.enum(LOCALES).optional(),
   })
   .refine((data) => Object.keys(data).length > 0, { message: "empty" });
@@ -26,11 +27,12 @@ export async function PATCH(request: Request) {
   }
 
   const update: Partial<
-    Pick<ShopRow, "max_stamps_per_scan" | "theme" | "card_style" | "default_locale">
+    Pick<ShopRow, "max_stamps_per_scan" | "theme" | "card_style" | "card_background" | "default_locale">
   > = {};
   if (parsed.data.maxStampsPerScan !== undefined) update.max_stamps_per_scan = parsed.data.maxStampsPerScan;
   if (parsed.data.theme !== undefined) update.theme = parsed.data.theme;
   if (parsed.data.cardStyle !== undefined) update.card_style = parsed.data.cardStyle;
+  if (parsed.data.cardBackground !== undefined) update.card_background = parsed.data.cardBackground;
   if (parsed.data.defaultLocale !== undefined) update.default_locale = parsed.data.defaultLocale;
 
   const { error } = await db().from("shops").update(update).eq("id", ctx.shop.id);

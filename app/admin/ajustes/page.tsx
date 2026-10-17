@@ -70,6 +70,7 @@ export default async function SettingsPage() {
         maxStampsPerScan={ctx.shop.max_stamps_per_scan}
         theme={ctx.shop.theme}
         cardStyle={ctx.shop.card_style}
+        cardBackground={ctx.shop.card_background}
         defaultLocale={ctx.shop.default_locale}
         logoUrl={ctx.shop.logo_url}
       />
