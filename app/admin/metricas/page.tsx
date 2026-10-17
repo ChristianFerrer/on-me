@@ -498,10 +498,10 @@ export default async function MetricsPage({
           </div>
         </section>
 
-        {/* fila 8 · operativas de barra, 6 tarjetas */}
+        {/* fila 8 · operativas de barra, 8 tarjetas */}
         <section className="col-span-12 flex flex-col gap-3">
           <MetricsSectionHeader title={m.sectionBarTitle} question={m.sectionBarQuestion} />
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 min-[1400px]:grid-cols-6">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             <Signal
               label={m.barScanTime}
               value={data.barSignals.avgScanMs === null ? "—" : `${(data.barSignals.avgScanMs / 1000).toFixed(1)} s`}
@@ -516,6 +516,22 @@ export default async function MetricsPage({
             <Signal label={m.barStreak} value={String(data.barSignals.redeemStreakDays)} />
             <Signal label={m.barTotalScans} value={String(data.barSignals.totalScans)} />
             <Signal label={m.barExpired} value={String(data.barSignals.expiredInvites)} />
+            <Signal label={m.barArrivals} value={String(data.barSignals.arrivals)} />
+            <Signal
+              label={m.barArrivalsUnattended}
+              value={
+                data.barSignals.arrivalsUnattended.value === null
+                  ? `${data.barSignals.arrivalsUnattended.numerator}/${data.barSignals.arrivalsUnattended.denominator}`
+                  : `${Math.round(data.barSignals.arrivalsUnattended.value * 100)}%`
+              }
+              // Un aviso sin atender es alguien que se fue de la cola o una
+              // foto del cartel usada desde fuera: más de uno de cada cinco
+              // ya no es ruido.
+              alarm={
+                data.barSignals.arrivalsUnattended.value !== null &&
+                data.barSignals.arrivalsUnattended.value > 0.2
+              }
+            />
           </div>
         </section>
       </div>

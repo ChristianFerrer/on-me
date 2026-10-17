@@ -236,6 +236,9 @@ export const es = {
     arrivalsFreeCoffee: "café gratis",
     arrivalsSeconds: "hace {n} s",
     arrivalsMinutes: "hace {n} min",
+    identifyInvitationTitle: "invitado por {padrino}",
+    identifyInvitationBody: "su café de bienvenida. cuenta como primer sello de su tarjeta.",
+    identifyClosingInvitationRedeemed: "invitación de {padrino} canjeada",
     results: {
       stampTitle: "sello {n} de {goal}",
       stampFor: "para {name}",
@@ -641,6 +644,8 @@ export const es = {
     barStreak: "racha de días con canje",
     barTotalScans: "sellos registrados",
     barExpired: "invitaciones caducadas",
+    barArrivals: "avisos en barra",
+    barArrivalsUnattended: "avisos sin atender",
   },
 
   home: {
@@ -975,6 +980,9 @@ export const en: Dict = {
     arrivalsFreeCoffee: "free coffee",
     arrivalsSeconds: "{n}s ago",
     arrivalsMinutes: "{n} min ago",
+    identifyInvitationTitle: "invited by {padrino}",
+    identifyInvitationBody: "their welcome coffee. it counts as the first stamp on their card.",
+    identifyClosingInvitationRedeemed: "{padrino}'s invite redeemed",
     results: {
       stampTitle: "stamp {n} of {goal}",
       stampFor: "for {name}",
@@ -1380,6 +1388,8 @@ export const en: Dict = {
     barStreak: "consecutive days with a redemption",
     barTotalScans: "stamps logged",
     barExpired: "expired invites",
+    barArrivals: "counter check-ins",
+    barArrivalsUnattended: "unattended check-ins",
   },
 
   home: {
@@ -1707,6 +1717,9 @@ export const fr: Dict = {
     arrivalsFreeCoffee: "café offert",
     arrivalsSeconds: "il y a {n} s",
     arrivalsMinutes: "il y a {n} min",
+    identifyInvitationTitle: "invité par {padrino}",
+    identifyInvitationBody: "son café de bienvenue. il compte comme premier tampon de sa carte.",
+    identifyClosingInvitationRedeemed: "invitation de {padrino} échangée",
     results: {
       stampTitle: "tampon {n} sur {goal}",
       stampFor: "pour {name}",
@@ -2112,6 +2125,8 @@ export const fr: Dict = {
     barStreak: "jours consécutifs avec un échange",
     barTotalScans: "tampons enregistrés",
     barExpired: "invitations expirées",
+    barArrivals: "signalements au comptoir",
+    barArrivalsUnattended: "signalements non traités",
   },
 
   home: {
@@ -2439,6 +2454,9 @@ export const de: Dict = {
     arrivalsFreeCoffee: "gratis-kaffee",
     arrivalsSeconds: "vor {n} s",
     arrivalsMinutes: "vor {n} min",
+    identifyInvitationTitle: "eingeladen von {padrino}",
+    identifyInvitationBody: "sein Willkommenskaffee. zählt als erster Stempel auf der Karte.",
+    identifyClosingInvitationRedeemed: "Einladung von {padrino} eingelöst",
     results: {
       stampTitle: "Stempel {n} von {goal}",
       stampFor: "für {name}",
@@ -2844,6 +2862,8 @@ export const de: Dict = {
     barStreak: "aufeinanderfolgende Tage mit Einlösung",
     barTotalScans: "erfasste Stempel",
     barExpired: "abgelaufene Einladungen",
+    barArrivals: "Anmeldungen an der Theke",
+    barArrivalsUnattended: "unbeachtete Anmeldungen",
   },
 
   home: {

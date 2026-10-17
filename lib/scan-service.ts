@@ -1,6 +1,6 @@
 import { resolveArrivals } from "@/lib/arrivals";
 import { db } from "@/lib/db/client";
-import type { CustomerRow, PassRow, ScanKind } from "@/lib/db/types";
+import type { CustomerRow, InvitationRow, PassRow, ScanKind } from "@/lib/db/types";
 import type { DeviceContext } from "@/lib/auth/device";
 import { checkPin } from "@/lib/auth/device";
 import { claimedInvitationFor, createInvitation } from "@/lib/invitations";
@@ -9,6 +9,7 @@ import {
   applyRewardRedeem,
   applyStampBatch,
   decideScan,
+  type PassState,
   type ScanResponse,
 } from "@/lib/scan";
 
@@ -159,33 +160,12 @@ export async function runScan(
 
   // --------------------------------------------------- canje de invitación
   if (decision.action === "redeem_invitation" && invitation) {
-    const scanId = await logScan(ctx, customer.id, "redeem_invitation", options);
-    const redeemedAt = new Date().toISOString();
-
-    await db()
-      .from("invitations")
-      .update({ state: "redeemed", redeemed_at: redeemedAt })
-      .eq("id", invitation.id);
-
-    if (scanId) {
-      // La atribución nace aquí, en estado 'window'. No factura todavía: un
-      // canje solo prueba que alguien vino a por algo gratis.
-      await db().from("attributions").insert({
-        shop_id: shop.id,
-        invitation_id: invitation.id,
-        padrino_id: invitation.padrino_id,
-        ahijado_id: customer.id,
-        redeemed_at: redeemedAt,
-        redeem_scan_id: scanId,
-        state: "window",
-      });
-    }
-
-    const next = applyInvitationRedeem({
+    const before: PassState = {
       stamps: pass.stamps,
       cardsCompleted: pass.cards_completed,
       rewardsPending: pass.reward_pending_count,
-    });
+    };
+    const next = await redeemInvitation(ctx, customer.id, invitation, before, options);
     await db().from("passes").update({ stamps: next.stamps }).eq("id", pass.id);
     await resolveArrivals(shop.id, customer.id);
 
@@ -226,6 +206,48 @@ export async function runScan(
       pending: false,
     },
   };
+}
+
+/**
+ * Efectos de canjear la invitación de un invitado: deja rastro en `scans`,
+ * cierra la invitación y abre su atribución en 'window'. Devuelve el pase
+ * tal como queda -el café de invitación cuenta como primer sello-, pero no
+ * lo escribe: cada flujo lo guarda junto con lo demás que cambie.
+ *
+ * Lo comparten el flujo clásico (runScan) y la ficha del cliente
+ * (lib/identify-service.ts): canjear una invitación tiene que significar
+ * exactamente lo mismo venga de donde venga, o la puerta P2 mide dos cosas.
+ */
+export async function redeemInvitation(
+  ctx: DeviceContext,
+  customerId: string,
+  invitation: InvitationRow,
+  pass: PassState,
+  options: ScanOptions = {},
+): Promise<PassState> {
+  const scanId = await logScan(ctx, customerId, "redeem_invitation", options);
+  const redeemedAt = new Date().toISOString();
+
+  await db()
+    .from("invitations")
+    .update({ state: "redeemed", redeemed_at: redeemedAt })
+    .eq("id", invitation.id);
+
+  if (scanId) {
+    // La atribución nace aquí, en estado 'window'. No factura todavía: un
+    // canje solo prueba que alguien vino a por algo gratis.
+    await db().from("attributions").insert({
+      shop_id: ctx.shop.id,
+      invitation_id: invitation.id,
+      padrino_id: invitation.padrino_id,
+      ahijado_id: customerId,
+      redeemed_at: redeemedAt,
+      redeem_scan_id: scanId,
+      state: "window",
+    });
+  }
+
+  return applyInvitationRedeem(pass);
 }
 
 // ----------------------------------------------------------------- helpers
@@ -326,7 +348,7 @@ export async function getVisitStats(customerId: string): Promise<VisitStats> {
   };
 }
 
-async function padrinoName(padrinoId: string): Promise<string> {
+export async function padrinoName(padrinoId: string): Promise<string> {
   const { data } = await db()
     .from("customers")
     .select("name")

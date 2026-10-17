@@ -64,7 +64,9 @@ export function CustomerVisit({
         profile={phase.profile}
         busy={phase.step === "applying"}
         onCancel={() => router.replace(backHref)}
-        onConfirm={(addStamps, redeemCount) => apply(phase.profile, addStamps, redeemCount)}
+        onConfirm={(addStamps, redeemCount, redeemInvitation) =>
+            apply(phase.profile, addStamps, redeemCount, redeemInvitation)
+          }
         onUpdateProfile={(name, phone) => updateProfile(phase.profile.customerId, name, phone)}
       />
     );

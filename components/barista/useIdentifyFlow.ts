@@ -41,6 +41,7 @@ export function useIdentifyFlow(pinRequired: boolean, initialProfile?: IdentifyP
     customerId: string;
     addStamps: number;
     redeemCount: number;
+    redeemInvitation: boolean;
   } | null>(null);
   const busyRef = useRef(false);
 
@@ -141,13 +142,13 @@ export function useIdentifyFlow(pinRequired: boolean, initialProfile?: IdentifyP
   );
 
   const apply = useCallback(
-    (profile: IdentifyProfile, addStamps: number, redeemCount: number) => {
-      applyPayloadRef.current = { customerId: profile.customerId, addStamps, redeemCount };
+    (profile: IdentifyProfile, addStamps: number, redeemCount: number, redeemInvitation = false) => {
+      applyPayloadRef.current = { customerId: profile.customerId, addStamps, redeemCount, redeemInvitation };
 
       // Si de verdad va a canjear algo y este dispositivo tiene PIN, mejor
       // pedirlo ya -sin gastar un viaje al servidor solo para que conteste
       // que hace falta-, igual que confirm() en useScanFlow.ts.
-      if (redeemCount > 0 && pinRequired) {
+      if ((redeemCount > 0 || redeemInvitation) && pinRequired) {
         setPhase({ step: "pin", wrong: false, busy: false });
         return;
       }

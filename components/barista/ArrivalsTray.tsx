@@ -5,9 +5,6 @@ import { useRouter } from "next/navigation";
 import { CoffeeIcon, GiftIcon } from "@/components/ui/Icons";
 import { fill, type Dict } from "@/lib/i18n";
 import type { ArrivalItem } from "@/lib/arrivals";
-import { PinPad } from "./PinPad";
-import { useScanFlow } from "./useScanFlow";
-import { Verdict } from "./Verdict";
 
 type BaristaDict = Dict["barista"];
 
@@ -19,22 +16,13 @@ const POLL_MS = 3_000;
  * lib/arrivals.ts-. El barista toca el nombre de quien tiene delante y se
  * abre su ficha: ni cámara, ni coger el móvil de nadie.
  *
- * Un invitado con canje pendiente no va a la ficha: el canje de invitación
- * solo lo hace el flujo clásico (lib/scan-service.ts), así que se resuelve
- * aquí mismo con su veredicto y su PIN, igual que si le hubieran escaneado.
+ * Todos van a la misma ficha, invitados incluidos: es la que sella, canjea
+ * cafés gratis y canjea invitaciones, con su PIN cuando toca.
  *
  * Vive en las dos cámaras -sellador e identificador- y se oculta mientras
  * la cámara enseña su propio resultado, para no tapar nada.
  */
-export function ArrivalsTray({
-  t,
-  pinRequired,
-  hidden = false,
-}: {
-  t: BaristaDict;
-  pinRequired: boolean;
-  hidden?: boolean;
-}) {
+export function ArrivalsTray({ t, hidden = false }: { t: BaristaDict; hidden?: boolean }) {
   const router = useRouter();
   const [arrivals, setArrivals] = useState<ArrivalItem[]>([]);
   const [now, setNow] = useState(() => Date.now());
@@ -51,12 +39,6 @@ export function ArrivalsTray({
     }
   }, []);
 
-  const { phase, submit, confirm, reset } = useScanFlow({
-    endpoint: "/api/scan/manual",
-    pinRequired,
-    onReset: () => void refresh(),
-  });
-
   useEffect(() => {
     // El primer sondeo va diferido como los demás: así ningún setState
     // ocurre dentro del propio efecto.
@@ -71,58 +53,38 @@ export function ArrivalsTray({
   }, [refresh]);
 
   function attend(arrival: ArrivalItem) {
-    if (arrival.invited) {
-      void submit({ customerId: arrival.customerId });
-      return;
-    }
     router.push(`/s/cliente/${arrival.customerId}?from=llegadas`);
   }
 
+  if (hidden || arrivals.length === 0) return null;
+
   return (
-    <>
-      {!hidden && arrivals.length > 0 ? (
-        <section aria-label={t.arrivalsTitle} className="px-4 pb-3">
-          <p className="eyebrow mb-2 px-1 text-on-surface/55">
-            {t.arrivalsTitle} · {arrivals.length}
-          </p>
-          <ul className="flex gap-2 overflow-x-auto pb-1">
-            {arrivals.map((arrival) => (
-              <li key={arrival.id} className="shrink-0">
-                <button
-                  type="button"
-                  onClick={() => attend(arrival)}
-                  aria-label={fill(t.arrivalsAttend, { name: arrival.name })}
-                  className="btn glass-dark flex min-h-16 flex-col items-start gap-1 rounded-2xl px-4 py-3 text-left text-on-surface"
-                >
-                  <span className="flex items-baseline gap-2">
-                    <span className="text-[1.0625rem] font-bold leading-tight">{arrival.name}</span>
-                    <span className="numeral text-[0.8125rem] text-on-surface/50">·{arrival.phoneLast4}</span>
-                  </span>
-                  <span className="flex items-center gap-2 text-[0.75rem] font-semibold">
-                    <Badge arrival={arrival} t={t} />
-                    <span className="text-on-surface/45">{ago(arrival.createdAt, now, t)}</span>
-                  </span>
-                </button>
-              </li>
-            ))}
-          </ul>
-        </section>
-      ) : null}
-
-      {phase.step === "result" ? (
-        <Verdict result={phase.result} t={t} onClose={reset} onConfirm={() => void confirm()} />
-      ) : null}
-
-      {phase.step === "pin" ? (
-        <PinPad
-          t={t}
-          wrong={phase.wrong}
-          busy={phase.busy}
-          onSubmit={(pin) => void confirm(pin)}
-          onCancel={reset}
-        />
-      ) : null}
-    </>
+    <section aria-label={t.arrivalsTitle} className="px-4 pb-3">
+      <p className="eyebrow mb-2 px-1 text-on-surface/55">
+        {t.arrivalsTitle} · {arrivals.length}
+      </p>
+      <ul className="flex gap-2 overflow-x-auto pb-1">
+        {arrivals.map((arrival) => (
+          <li key={arrival.id} className="shrink-0">
+            <button
+              type="button"
+              onClick={() => attend(arrival)}
+              aria-label={fill(t.arrivalsAttend, { name: arrival.name })}
+              className="btn glass-dark flex min-h-16 flex-col items-start gap-1 rounded-2xl px-4 py-3 text-left text-on-surface"
+            >
+              <span className="flex items-baseline gap-2">
+                <span className="text-[1.0625rem] font-bold leading-tight">{arrival.name}</span>
+                <span className="numeral text-[0.8125rem] text-on-surface/50">·{arrival.phoneLast4}</span>
+              </span>
+              <span className="flex items-center gap-2 text-[0.75rem] font-semibold">
+                <Badge arrival={arrival} t={t} />
+                <span className="text-on-surface/45">{ago(arrival.createdAt, now, t)}</span>
+              </span>
+            </button>
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }
 

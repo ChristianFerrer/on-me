@@ -119,7 +119,7 @@ export function IdentifyScanner({
           <Target active={phase.step === "scanning" && !blocked} />
         </div>
 
-        <ArrivalsTray t={t} pinRequired={pinRequired} hidden={phase.step !== "scanning"} />
+        <ArrivalsTray t={t} hidden={phase.step !== "scanning"} />
 
         <footer className="px-5 pb-[max(1.75rem,env(safe-area-inset-bottom))]">
           {blocked ? (
@@ -159,7 +159,9 @@ export function IdentifyScanner({
           profile={phase.profile}
           busy={phase.step === "applying"}
           onCancel={reset}
-          onConfirm={(addStamps, redeemCount) => apply(phase.profile, addStamps, redeemCount)}
+          onConfirm={(addStamps, redeemCount, redeemInvitation) =>
+            apply(phase.profile, addStamps, redeemCount, redeemInvitation)
+          }
           onUpdateProfile={(name, phone) => updateProfile(phase.profile.customerId, name, phone)}
         />
       ) : null}

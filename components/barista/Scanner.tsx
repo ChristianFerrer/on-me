@@ -204,7 +204,7 @@ export function Scanner({
           )}
         </div>
 
-        <ArrivalsTray t={t} pinRequired={pinRequired} hidden={phase.step !== "idle"} />
+        <ArrivalsTray t={t} hidden={phase.step !== "idle"} />
 
         <footer className="px-5 pb-[max(1.75rem,env(safe-area-inset-bottom))]">
           {blocked ? (

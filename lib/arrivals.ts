@@ -26,6 +26,31 @@ export function arrivalStatus(
   return Date.parse(row.expires_at) > now ? "pending" : "expired";
 }
 
+export type ArrivalSummary = {
+  total: number;
+  handled: number;
+  /** Caducados sin que nadie los atendiera: la señal de abuso del cartel. */
+  unattended: number;
+};
+
+/**
+ * Lógica pura: resumen de avisos para /admin/metricas. Los vivos todavía
+ * no cuentan ni como atendidos ni como sin atender: no ha pasado su tiempo.
+ */
+export function summarizeArrivals(
+  rows: Pick<ArrivalRow, "expires_at" | "handled_at">[],
+  now: number = Date.now(),
+): ArrivalSummary {
+  let handled = 0;
+  let unattended = 0;
+  for (const row of rows) {
+    const status = arrivalStatus(row, now);
+    if (status === "handled") handled += 1;
+    else if (status === "expired") unattended += 1;
+  }
+  return { total: rows.length, handled, unattended };
+}
+
 /** Lo que pinta la lista de barra por cada aviso vivo. */
 export type ArrivalItem = {
   id: string;
@@ -35,7 +60,7 @@ export type ArrivalItem = {
   stamps: number;
   goal: number;
   rewardsPending: number;
-  /** Tiene una invitación reclamada sin canjear: se atiende por el flujo clásico, que es el que la canjea. */
+  /** Tiene una invitación reclamada sin canjear: su ficha la enseña primero, para canjearla. */
   invited: boolean;
   /** Nunca ha tenido un sello: acaba de darse de alta. */
   isNew: boolean;
