@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { CardMark, FlipButton } from "@/components/client/CardFaceBits";
 import { CoffeeColdIcon, CoffeeIcon, EyeIcon, EyeOffIcon, GiftIcon, QrIcon, UserIcon } from "@/components/ui/Icons";
 import { RealStampCard } from "@/components/client/RealStampCard";
@@ -21,6 +21,16 @@ const SCROLL_MS = 220;
 /** Debounce tras un swipe con el dedo antes de fijar la pestaña activa -spec
  * §5-: lo justo para no disparar con cada frame del scroll nativo. */
 const SETTLE_DEBOUNCE_MS = 60;
+/**
+ * `useLayoutEffect` de verdad en el navegador -corre antes de que pinte,
+ * así React nunca llega a pintar el fotograma intermedio donde `flipped`
+ * ya cambió pero `settled` todavía no, que escondería de golpe la cara
+ * saliente de CardFlip antes de que termine de girar-; `useEffect` en el
+ * servidor, donde `useLayoutEffect` no corre y React avisa por consola si
+ * se usa igual -el componente sí se renderiza en el servidor, "use client"
+ * y todo, para el HTML inicial-.
+ */
+const useIsomorphicLayoutEffect = typeof window !== "undefined" ? useLayoutEffect : useEffect;
 
 // "profile" ya no es una pestaña del carrusel: vive en el reverso de la
 // propia tarjeta -ver CardFlip más abajo-, junto con el enlace de
@@ -681,23 +691,27 @@ function CardBack({
  * ambos giran con la tarjeta -son parte del objeto, no de la pantalla- y
  * caen en el mismo punto en el frente y en el reverso, en vez de quedarse
  * fijos en pantalla tapando lo que haya debajo en cada cara.
- * `backface-visibility:hidden` en cada cara evita que su contenido se vea
- * espejado/atravesando la otra mientras gira -con el prefijo `-webkit-`
- * también, no solo la propiedad estándar-, pero Safari/iOS seguía
- * dejando asomar un fantasma en espejo de la cara oculta -el botón de
- * girar del frente, invertido, por encima del propio botón del
- * reverso- incluso con el prefijo puesto: es un bug de ese motor con
- * `backface-visibility` dentro de contextos 3D anidados como este, no
- * algo que un prefijo más arregle del todo. Por eso, además, la cara que
- * no se ve pasa a `visibility: hidden` -eso si lo respeta cualquier
- * motor, a diferencia de backface-visibility- con un `transition-delay`
- * igual a `FLIP_MS`: se queda `visible` mientras gira -si no, desaparecería
- * de golpe a mitad de giro, antes de llegar a su propio canto- y solo se
- * oculta del todo una vez termina, momento en el que ya no debería hacer
- * falta pero así nunca deja fantasma alguno al asentarse.
+ * `backface-visibility:hidden` en cada cara -con el prefijo `-webkit-`
+ * también- evita que su contenido se vea espejado/atravesando la otra
+ * MIENTRAS gira, pero Safari/iOS seguía dejando un fantasma en espejo de
+ * la cara oculta varios segundos después de terminar el giro -el botón
+ * de girar del frente, invertido, encima del propio botón del reverso-:
+ * un bug de ese motor con `backface-visibility` dentro de contextos 3D
+ * anidados como este. Se probó primero un `visibility: hidden` con
+ * `transition-delay` -puro CSS-, y el fantasma seguía tardando "unos
+ * segundos" en irse: ese delay declarativo depende de la propia cuenta
+ * del motor, que en Safari parece ir más lenta de lo que el CSS dice dentro
+ * de este contexto 3D. Por eso ahora el cambio lo dispara JS, no CSS: al
+ * terminar la rotación -`onTransitionEnd` sobre el propio `transform`,
+ * la señal real del navegador, no un número fijo- `settled` pasa a
+ * `true` y la cara inactiva pasa a `visibility: hidden` de un render a
+ * otro, sin transición de por medio que pueda volver a demorarse.
+ * No `display: none` -se probó, y colapsaba el alto de la tarjeta: el
+ * frente, al dejar de participar en el flujo normal, deja de darle alto
+ * al contenedor que gira, y el reverso -`absolute`- nunca se lo da por
+ * su cuenta-. `visibility: hidden` sigue reservando su espacio en el
+ * flujo, así que el alto de la tarjeta no se mueve.
  */
-const FLIP_MS = 700;
-
 function CardFlip({
   front,
   back,
@@ -707,35 +721,48 @@ function CardFlip({
   back: React.ReactNode;
   flipped: boolean;
 }) {
+  const [settled, setSettled] = useState(true);
+  const mounted = useRef(false);
+
+  useIsomorphicLayoutEffect(() => {
+    // El primer disparo es el propio montaje, no un giro real -`flipped`
+    // "cambia" de nada a su valor inicial-: si contara, `settled` se
+    // quedaría en `false` para siempre, porque el `transform` no cambia
+    // de verdad en el montaje y `onTransitionEnd` nunca llega a disparar
+    // para volver a ponerlo en `true`.
+    if (!mounted.current) {
+      mounted.current = true;
+      return;
+    }
+    setSettled(false);
+  }, [flipped]);
+
   return (
     <div className="relative mx-4 flex-none" style={{ perspective: "1600px" }}>
       <div
         className="relative transition-transform duration-700 ease-[cubic-bezier(.4,0,.2,1)] [transform-style:preserve-3d] [-webkit-transform-style:preserve-3d]"
         style={{ transform: flipped ? "rotateY(180deg)" : "rotateY(0deg)" }}
+        onTransitionEnd={(event) => {
+          if (event.propertyName === "transform") setSettled(true);
+        }}
       >
         <div
           aria-hidden={flipped}
           className={cn(
-            "[backface-visibility:hidden] [-webkit-backface-visibility:hidden] transition-[visibility]",
+            "[backface-visibility:hidden] [-webkit-backface-visibility:hidden]",
             flipped && "pointer-events-none",
           )}
-          style={{
-            visibility: flipped ? "hidden" : "visible",
-            transitionDelay: flipped ? `${FLIP_MS}ms` : "0ms",
-          }}
+          style={{ visibility: settled && flipped ? "hidden" : "visible" }}
         >
           {front}
         </div>
         <div
           aria-hidden={!flipped}
           className={cn(
-            "absolute inset-0 [backface-visibility:hidden] [-webkit-backface-visibility:hidden] [transform:rotateY(180deg)] transition-[visibility]",
+            "absolute inset-0 [backface-visibility:hidden] [-webkit-backface-visibility:hidden] [transform:rotateY(180deg)]",
             !flipped && "pointer-events-none",
           )}
-          style={{
-            visibility: flipped ? "visible" : "hidden",
-            transitionDelay: !flipped ? `${FLIP_MS}ms` : "0ms",
-          }}
+          style={{ visibility: settled && !flipped ? "hidden" : "visible" }}
         >
           {back}
         </div>

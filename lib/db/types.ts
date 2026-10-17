@@ -24,14 +24,16 @@ export type ShopTheme = "dark" | "light";
 /** 'digital': el carrusel de siempre. 'real': copia de la tarjeta de cartón física, ver RealStampCard.tsx. */
 export type ShopCardStyle = "digital" | "real";
 /**
- * Fondo de /c en tema claro -ver [data-theme="light"] .aurora en
- * globals.css-: 'lima' son los mismos lavados de color que siempre tuvo
- * ese fondo, 'blanco' el degradado de blanco a gris muy claro, mismo
- * patrón de focos radiales, sin color. En tema oscuro no se nota -el
- * oscuro sigue fijo en el degradado de siempre, ver CLAUDE.md de esta
- * sesión-, así que el selector solo importa junto a `theme: 'light'`.
+ * Fondo de /c en tema claro -ver .aurora[data-theme="light"][data-bg="…"]
+ * en globals.css-: 'lima' es el lavado pastel de lima/turquesa/azul,
+ * 'blanco' el degradado de blanco a gris muy claro -mismo patrón de
+ * focos radiales que los otros dos, sin color-, 'vivo' el degradado
+ * saturado de siempre -el mismo que usa el tema oscuro-, elegible
+ * también con tema claro. En tema oscuro no se nota -el oscuro sigue
+ * fijo en su degradado de siempre-, así que el selector solo importa
+ * junto a `theme: 'light'`.
  */
-export type ShopCardBackground = "lima" | "blanco";
+export type ShopCardBackground = "lima" | "blanco" | "vivo";
 
 export type ShopRow = {
   id: string;

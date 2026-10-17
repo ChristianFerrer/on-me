@@ -10,7 +10,7 @@ const Body = z
     maxStampsPerScan: z.number().int().min(1).max(20).optional(),
     theme: z.enum(["dark", "light"]).optional(),
     cardStyle: z.enum(["digital", "real"]).optional(),
-    cardBackground: z.enum(["lima", "blanco"]).optional(),
+    cardBackground: z.enum(["lima", "blanco", "vivo"]).optional(),
     defaultLocale: z.enum(LOCALES).optional(),
   })
   .refine((data) => Object.keys(data).length > 0, { message: "empty" });

@@ -152,12 +152,20 @@ export function ShopSettingsForm({
         <div>
           <p className="text-[0.9375rem] font-semibold text-on-surface">{t.settingsBackgroundLabel}</p>
           <p className="mt-1 text-[0.8125rem] text-on-surface/50">{t.settingsBackgroundBody}</p>
-          <div className="mt-3 flex gap-2.5">
+          <div className="mt-3 flex flex-wrap gap-2.5">
             <Toggle
               active={cardBackgroundValue === "lima"}
               label={t.settingsBackgroundLima}
               onClick={() => {
                 setCardBackgroundValue("lima");
+                setSaved(false);
+              }}
+            />
+            <Toggle
+              active={cardBackgroundValue === "vivo"}
+              label={t.settingsBackgroundVivo}
+              onClick={() => {
+                setCardBackgroundValue("vivo");
                 setSaved(false);
               }}
             />

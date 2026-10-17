@@ -295,6 +295,21 @@
       linear-gradient(155deg, #ffffff 0%, #f7f8f6 48%, #edeeec 100%);
   }
 
+  /* 'vivo': el mismo degradado saturado de siempre -el que usa `.aurora`
+     sin más, en tema oscuro-, pero elegible también con tema claro: a
+     pedido explícito, tras una confusión sobre a cuál de los dos "lima"
+     -este, o el lavado pastel de arriba- se refería el pedido original.
+     Se guardan los dos como opciones distintas en vez de que uno
+     reemplace al otro. */
+  .aurora[data-theme="light"][data-bg="vivo"] {
+    background-color: #7fe3a0;
+    background-image:
+      radial-gradient(115% 85% at 2% 0%, #e9ff72 0%, transparent 52%),
+      radial-gradient(100% 75% at 98% 8%, #35d6c4 0%, transparent 58%),
+      radial-gradient(120% 95% at 50% 108%, #4fb3f0 0%, transparent 62%),
+      linear-gradient(155deg, #c9f45a 0%, #57df8c 48%, #33b9d8 100%);
+  }
+
   /* Variante apagada, para pantallas donde el contenido manda. */
   .aurora-quiet {
     background-color: #eef3ee;
