@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import type { ShopCardStyle, ShopTheme } from "@/lib/db/types";
+import type { ShopCardBackground, ShopCardStyle, ShopTheme } from "@/lib/db/types";
 import { LOCALES, type Dict, type Locale } from "@/lib/i18n";
 
 type AdminDict = Dict["admin"];
@@ -28,6 +28,7 @@ export function ShopSettingsForm({
   maxStampsPerScan,
   theme,
   cardStyle,
+  cardBackground,
   defaultLocale,
   logoUrl,
 }: {
@@ -35,6 +36,7 @@ export function ShopSettingsForm({
   maxStampsPerScan: number;
   theme: ShopTheme;
   cardStyle: ShopCardStyle;
+  cardBackground: ShopCardBackground;
   defaultLocale: Locale;
   logoUrl: string | null;
 }) {
@@ -42,6 +44,7 @@ export function ShopSettingsForm({
   const [maxStamps, setMaxStamps] = useState(maxStampsPerScan);
   const [themeValue, setThemeValue] = useState<ShopTheme>(theme);
   const [cardStyleValue, setCardStyleValue] = useState<ShopCardStyle>(cardStyle);
+  const [cardBackgroundValue, setCardBackgroundValue] = useState<ShopCardBackground>(cardBackground);
   const [localeValue, setLocaleValue] = useState<Locale>(defaultLocale);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -62,6 +65,7 @@ export function ShopSettingsForm({
           maxStampsPerScan: maxStamps,
           theme: themeValue,
           cardStyle: cardStyleValue,
+          cardBackground: cardBackgroundValue,
           defaultLocale: localeValue,
         }),
       });
@@ -139,6 +143,37 @@ export function ShopSettingsForm({
               label={t.settingsCardStyleReal}
               onClick={() => {
                 setCardStyleValue("real");
+                setSaved(false);
+              }}
+            />
+          </div>
+        </div>
+
+        <div>
+          <p className="text-[0.9375rem] font-semibold text-on-surface">{t.settingsBackgroundLabel}</p>
+          <p className="mt-1 text-[0.8125rem] text-on-surface/50">{t.settingsBackgroundBody}</p>
+          <div className="mt-3 flex flex-wrap gap-2.5">
+            <Toggle
+              active={cardBackgroundValue === "lima"}
+              label={t.settingsBackgroundLima}
+              onClick={() => {
+                setCardBackgroundValue("lima");
+                setSaved(false);
+              }}
+            />
+            <Toggle
+              active={cardBackgroundValue === "vivo"}
+              label={t.settingsBackgroundVivo}
+              onClick={() => {
+                setCardBackgroundValue("vivo");
+                setSaved(false);
+              }}
+            />
+            <Toggle
+              active={cardBackgroundValue === "blanco"}
+              label={t.settingsBackgroundBlanco}
+              onClick={() => {
+                setCardBackgroundValue("blanco");
                 setSaved(false);
               }}
             />

@@ -1,3 +1,4 @@
+import { CARD_SHADOW, CardMark, FlipButton } from "@/components/client/CardFaceBits";
 import { CoffeeIcon } from "@/components/ui/Icons";
 import { cn } from "@/lib/cn";
 import { fill } from "@/lib/i18n";
@@ -7,7 +8,9 @@ import { fill } from "@/lib/i18n";
  * del local -azul marino, el logo arriba, sellos circulares en vez de
  * cuadrados-, no una variante de tema. Un objeto físico no "cambia a modo
  * claro" cuando el resto de la app lo hace, así que este componente no
- * recibe `light`: el azul marino es fijo, da igual el tema del local.
+ * recibe `light`: el azul marino es fijo, da igual el tema del local -por
+ * eso `FlipButton`/`CardMark` reciben `onLight={false}` siempre, no un
+ * valor derivado del tema-.
  */
 export function RealStampCard({
   shopName,
@@ -15,6 +18,8 @@ export function RealStampCard({
   stamps,
   goal,
   rewardsPendingCount,
+  flipped,
+  onFlip,
   labels,
 }: {
   shopName: string;
@@ -22,18 +27,23 @@ export function RealStampCard({
   stamps: number;
   goal: number;
   rewardsPendingCount: number;
+  flipped: boolean;
+  onFlip: () => void;
   labels: {
-    ofGoal: string;
     oneToGo: string;
     nToGo: string;
     readyHint: string;
+    tagline: string;
+    flipLabel: string;
   };
 }) {
   const remaining = goal - stamps;
 
   return (
-    <div className="card-scope mx-4 flex-none rounded-[20px] border border-white/15 bg-[#0e1a38] p-5 text-white shadow-[0_18px_40px_rgba(2,6,23,0.45)]">
-      <div className="flex items-center gap-3">
+    <div className={cn("card-scope relative rounded-[20px] border border-white/15 bg-[#0e1a38] p-5 text-white", CARD_SHADOW)}>
+      <FlipButton onClick={onFlip} pressed={flipped} label={labels.flipLabel} onLight={false} />
+
+      <div className="flex items-center gap-3 pr-9">
         <span className="flex size-11 shrink-0 items-center justify-center overflow-hidden rounded-full border border-white/30 bg-white/5">
           {logoUrl ? (
             // Logo del local, subido desde /admin/ajustes: URL externa de
@@ -46,9 +56,8 @@ export function RealStampCard({
         </span>
         <div className="min-w-0 flex-1">
           <p className="truncate text-[0.9375rem] font-extrabold uppercase tracking-[0.04em]">{shopName}</p>
-          <p className="numeral text-[0.75rem] text-white/50">{fill(labels.ofGoal, { goal })}</p>
+          <p className="truncate text-[0.6875rem] text-white/45">{labels.tagline}</p>
         </div>
-        <span className="numeral shrink-0 text-[1.5rem] font-extrabold leading-none text-white">{stamps}</span>
       </div>
 
       <div className="mt-4 grid grid-cols-5 gap-x-3 gap-y-3.5">
@@ -68,9 +77,12 @@ export function RealStampCard({
         })}
       </div>
 
-      <p className="mt-3.5 text-center text-[0.75rem] text-white/50">
-        {rewardsPendingCount > 0 ? labels.readyHint : remaining === 1 ? labels.oneToGo : fill(labels.nToGo, { n: remaining })}
-      </p>
+      <div className="mt-3.5 flex items-center justify-between gap-2">
+        <CardMark onLight={false} />
+        <p className="text-right text-[0.75rem] leading-[1.3] text-white/50">
+          {rewardsPendingCount > 0 ? labels.readyHint : remaining === 1 ? labels.oneToGo : fill(labels.nToGo, { n: remaining })}
+        </p>
+      </div>
     </div>
   );
 }

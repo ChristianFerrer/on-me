@@ -35,19 +35,17 @@
   --color-slate: #5d6b64;
 
   /* --- acentos -----------------------------------------------------------
-     Paleta "Flat UI Colors 2" (flatuicolors.com/palette/ca), a pedido: los
-     mismos seis roles de siempre -primario, positivo secundario, estado
-     "alta directa", informativo, aviso, error-, valores nuevos. Se
-     excluyen a propósito los tonos oscuros/apagados de esa paleta (gris
-     azulado, púrpura oscuro, gris pizarra, azul casi negro): son acentos,
-     tienen que leerse como plano y vivo sobre `bg-ink`/`bg-surface-2`, no
-     como un tono apagado más. */
-  --color-lime: #1dd1a1; /* Wild Caribbean Green */
-  --color-mint: #00d2d3; /* Jade Dust */
-  --color-teal: #0abde3; /* Cyanite */
-  --color-azure: #54a0ff; /* Joust Blue */
-  --color-amber: #feca57; /* Casandora Yellow */
-  --color-coral: #ff6b6b; /* Pastel Red */
+     Colores originales de la marca, valor por defecto -oscuro-: a pedido,
+     vuelven a ser los de antes de las dos paletas que se probaron después
+     (Flat UI, Material). El claro sigue teniendo los suyos propios -ver
+     [data-theme="light"] en @layer base-, más vivos que estos: por pedido
+     explícito, los dos temas no comparten valor en ningún acento. */
+  --color-lime: #d2fb4f;
+  --color-mint: #4ade80;
+  --color-teal: #2dd4bf;
+  --color-azure: #60a5fa;
+  --color-amber: #fbbf24;
+  --color-coral: #fb7185;
 
   /* --- superficie de trabajo --------------------------------------------
      Fondo y texto de las pantallas de trabajo -panel, barra- y de la
@@ -156,24 +154,40 @@
       radial-gradient(120% 95% at 50% 108%, rgba(139, 92, 246, 0.12) 0%, transparent 62%),
       linear-gradient(155deg, #fdfcf9 0%, #f4eff9 48%, #eef3f6 100%);
 
-    /* Misma paleta Flat UI de arriba, para los tres estados sin acento
-       compartido: Light Blue Ballerina para los dos mudos -sent/discarded/
-       expired, se distinguen por su borde, no por el relleno- y Megaman
-       para "en ventana", con el billable -Amour- como el único rojo del
-       mapa, para que siga siendo el de más atención de los ocho. */
-    --constelacion-sent: #c8d6e5; /* Light Blue Ballerina */
+    /* Paleta propia del tema claro, a pedido -Material Design, no la del
+       oscuro de arriba-. Los tonos "500" de Material ya son los más vivos
+       de cada familia -no hay una versión "más viva" de Light Blue dentro
+       de la misma paleta-, así que "más vivos" se resuelve eligiendo, de
+       las dos opciones de azul de la imagen, la más saturada -Blue, no
+       Light Blue- en vez de por contraste con tinta encima como la
+       primera vez. */
+    --color-lime: #cedb4f; /* Lime */
+    --color-mint: #25b158; /* Green */
+    --color-teal: #01bfd5; /* Sky */
+    --color-azure: #0298ef; /* Blue */
+    --color-amber: #ffbf37; /* Amber */
+    --color-coral: #fb0165; /* Pink */
+
+    /* Misma paleta Material del claro, para los tres estados de la
+       constelación sin acento compartido: Deep Purple para billable -el
+       de más atención de los ocho, antes era el único rojo, ahora el de
+       mejor contraste del lote-, Indigo para "en ventana", Light Green
+       para "enviada". discarded/expired se quedan neutros -gris sobre
+       `--on-surface-rgb», no un color de la paleta: son la ausencia de
+       estado, igual que el negro que usan en oscuro, no un estado más. */
+    --constelacion-sent: #81c357; /* Light Green */
     --constelacion-opened: var(--color-amber);
     --constelacion-claimed: var(--color-mint);
-    --constelacion-window: #48dbfb; /* Megaman */
-    --constelacion-billable: #ee5253; /* Amour */
+    --constelacion-window: #3551b2; /* Indigo */
+    --constelacion-billable: #663db5; /* Deep Purple */
     --constelacion-direct: var(--color-teal);
-    --constelacion-discarded: #c8d6e5; /* Light Blue Ballerina */
-    --constelacion-expired: #c8d6e5; /* Light Blue Ballerina */
+    --constelacion-discarded: rgba(var(--on-surface-rgb), 0.25);
+    --constelacion-expired: rgba(var(--on-surface-rgb), 0.25);
     --constelacion-discarded-stroke: rgba(var(--on-surface-rgb), 0.3);
     --constelacion-ring-urgent: var(--color-coral);
     --constelacion-ring-best: var(--color-amber);
-    --constelacion-highlight-text: #01a3a4; /* Aqua Velvet */
-    --constelacion-highlight-bg: rgba(1, 163, 164, 0.1);
+    --constelacion-highlight-text: var(--color-mint);
+    --constelacion-highlight-bg: rgba(37, 177, 88, 0.1);
   }
 
   * {
@@ -228,6 +242,73 @@
      ========================================================================== */
 
   .aurora {
+    background-color: #7fe3a0;
+    background-image:
+      radial-gradient(115% 85% at 2% 0%, #e9ff72 0%, transparent 52%),
+      radial-gradient(100% 75% at 98% 8%, #35d6c4 0%, transparent 58%),
+      radial-gradient(120% 95% at 50% 108%, #4fb3f0 0%, transparent 62%),
+      linear-gradient(155deg, #c9f45a 0%, #57df8c 48%, #33b9d8 100%);
+  }
+
+  /* Tema claro de /c -ver shops.theme y shops.card_background en
+     /admin/ajustes-: dos variantes a elegir, no una fija. Mismo
+     combinador compuesto -sin espacio- en las dos, no `[data-theme="light"]
+     .aurora`: `data-theme`/`data-bg` y la clase `aurora` van en el MISMO
+     div en app/c/page.tsx, no en un ancestro, así que un selector
+     descendiente nunca llegaría a matchear -el fondo claro no cambió de
+     verdad hasta que se corrigió esto-.
+
+     'lima' -por defecto-: los mismos tres focos de color -lima, turquesa,
+     azul- que siempre tuvo este fondo, en lavados pastel sobre una base
+     casi blanca. 'blanco': mismo patrón -tres focos radiales más un
+     degradado diagonal de base-, pero en blanco y gris muy claro, sin
+     color: a pedido explícito, tras probar un blanco liso que "funcionaba"
+     pero perdía la sensación de profundidad que da el patrón. */
+  /* Respaldo si `data-bg` faltara -no debería, `card_background` en
+     ShopRow siempre trae un valor-: igual el lima de siempre, nunca el
+     degradado oscuro de `.aurora` sin más, que no pega con el contraste
+     claro del resto de la pantalla. */
+  .aurora[data-theme="light"] {
+    background-color: #fbfcf4;
+    background-image:
+      radial-gradient(115% 85% at 2% 0%, rgba(233, 255, 114, 0.55) 0%, transparent 52%),
+      radial-gradient(100% 75% at 98% 8%, rgba(53, 214, 196, 0.35) 0%, transparent 58%),
+      radial-gradient(120% 95% at 50% 108%, rgba(79, 179, 240, 0.3) 0%, transparent 62%),
+      linear-gradient(155deg, #fdfdf6 0%, #f3fbe9 48%, #eaf6fa 100%);
+  }
+
+  .aurora[data-theme="light"][data-bg="lima"] {
+    background-color: #fbfcf4;
+    background-image:
+      radial-gradient(115% 85% at 2% 0%, rgba(233, 255, 114, 0.55) 0%, transparent 52%),
+      radial-gradient(100% 75% at 98% 8%, rgba(53, 214, 196, 0.35) 0%, transparent 58%),
+      radial-gradient(120% 95% at 50% 108%, rgba(79, 179, 240, 0.3) 0%, transparent 62%),
+      linear-gradient(155deg, #fdfdf6 0%, #f3fbe9 48%, #eaf6fa 100%);
+  }
+
+  /* Degradado gris -mismo patrón de tres focos radiales + diagonal de
+     base que 'lima'/'vivo', solo que sin color-, no blanco liso: la
+     pantalla de /admin/constelacion-sol, la referencia que se pidió
+     igualar, tampoco es un fondo plano con puntos encima -es
+     `.aurora-night`, un degradado de verdad, más los puntos del
+     Starfield montados aparte en app/c/page.tsx-. Blanco liso con
+     puntos se probó primero y se sentía vacío, sin el fondo. */
+  .aurora[data-theme="light"][data-bg="blanco"] {
+    background-color: #ffffff;
+    background-image:
+      radial-gradient(115% 85% at 2% 0%, rgba(17, 24, 23, 0.1) 0%, transparent 52%),
+      radial-gradient(100% 75% at 98% 8%, rgba(17, 24, 23, 0.07) 0%, transparent 58%),
+      radial-gradient(120% 95% at 50% 108%, rgba(17, 24, 23, 0.13) 0%, transparent 62%),
+      linear-gradient(155deg, #ffffff 0%, #eef0ec 48%, #d9dcd6 100%);
+  }
+
+  /* 'vivo': el mismo degradado saturado de siempre -el que usa `.aurora`
+     sin más, en tema oscuro-, pero elegible también con tema claro: a
+     pedido explícito, tras una confusión sobre a cuál de los dos "lima"
+     -este, o el lavado pastel de arriba- se refería el pedido original.
+     Se guardan los dos como opciones distintas en vez de que uno
+     reemplace al otro. */
+  .aurora[data-theme="light"][data-bg="vivo"] {
     background-color: #7fe3a0;
     background-image:
       radial-gradient(115% 85% at 2% 0%, #e9ff72 0%, transparent 52%),

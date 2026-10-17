@@ -130,13 +130,16 @@ export function Scanner({
             >
               <QrIcon className="size-5" />
             </Link>
+            {/* Icono solo, no la pastilla con texto que tenía -"buscar"-: le
+                quitaba tanto ancho a la fila que la pastilla del local, a la
+                izquierda, se quedaba sin espacio y se cortaba a "The …". */}
             <Link
               href="/s/buscar"
               prefetch={false}
-              className="btn glass-dark items-center gap-2 rounded-full px-5 py-3 text-[0.875rem] text-on-surface"
+              aria-label={t.search}
+              className="btn glass-dark size-11 rounded-full text-on-surface"
             >
-              <SearchIcon className="size-4" />
-              {t.search}
+              <SearchIcon className="size-5" />
             </Link>
             {onSwitchMode ? (
               <button
@@ -189,7 +192,11 @@ export function Scanner({
 
         <div className="flex flex-1 items-center justify-center px-10">
           {phase.step === "idle" && !blocked && !quantityChosen ? (
-            <p className="display-tight hyphens-auto break-words text-center text-[clamp(1.875rem,9vw,3.25rem)] leading-[1.1] text-on-surface">
+            // `glass-dark` -mismo material que la pastilla del local y la del
+            // selector de arriba-, no texto suelto encima de la cámara: sin
+            // nada detrás se perdía contra lo que estuviera enfocando en ese
+            // momento, de ahí que se viera "casi transparente".
+            <p className="glass-dark display-tight hyphens-auto break-words rounded-[2rem] px-8 py-7 text-center text-[clamp(1.5rem,7vw,2.75rem)] leading-[1.15] text-on-surface">
               {t.quantityPrompt}
             </p>
           ) : (
