@@ -362,10 +362,10 @@ export function LogOutIcon(props: IconProps) {
 export function FlipIcon(props: IconProps) {
   return (
     <svg {...base(props)}>
-      <path d="M7 7h7.5A3.5 3.5 0 0 1 18 10.5V12" />
-      <path d="m15 4 3 3-3 3" />
-      <path d="M17 17H9.5A3.5 3.5 0 0 1 6 13.5V12" />
-      <path d="m9 20-3-3 3-3" />
+      <path d="M4 12a8 8 0 0 1 13.9-5.4L20 8.5" />
+      <path d="M20 4.5v4h-4" />
+      <path d="M20 12a8 8 0 0 1-13.9 5.4L4 15.5" />
+      <path d="M4 19.5v-4h4" />
     </svg>
   );
 }

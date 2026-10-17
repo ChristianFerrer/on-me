@@ -682,7 +682,11 @@ function CardBack({
  * caen en el mismo punto en el frente y en el reverso, en vez de quedarse
  * fijos en pantalla tapando lo que haya debajo en cada cara.
  * `backface-visibility:hidden` en cada cara evita que su contenido se vea
- * espejado/atravesando la otra mientras gira.
+ * espejado/atravesando la otra mientras gira -con el prefijo `-webkit-`
+ * también, no solo la propiedad estándar: sin él, Safari/iOS deja
+ * asomar un fantasma en espejo de la cara oculta -el botón de girar del
+ * frente, invertido, por encima del propio botón del reverso-, el bug
+ * que se vio reportado en producción con la versión sin prefijo.
  */
 function CardFlip({
   front,
@@ -696,16 +700,22 @@ function CardFlip({
   return (
     <div className="relative mx-4 flex-none" style={{ perspective: "1600px" }}>
       <div
-        className="relative transition-transform duration-700 ease-[cubic-bezier(.4,0,.2,1)] [transform-style:preserve-3d]"
+        className="relative transition-transform duration-700 ease-[cubic-bezier(.4,0,.2,1)] [transform-style:preserve-3d] [-webkit-transform-style:preserve-3d]"
         style={{ transform: flipped ? "rotateY(180deg)" : "rotateY(0deg)" }}
       >
-        <div aria-hidden={flipped} className={cn("[backface-visibility:hidden]", flipped && "pointer-events-none")}>
+        <div
+          aria-hidden={flipped}
+          className={cn(
+            "[backface-visibility:hidden] [-webkit-backface-visibility:hidden]",
+            flipped && "pointer-events-none",
+          )}
+        >
           {front}
         </div>
         <div
           aria-hidden={!flipped}
           className={cn(
-            "absolute inset-0 [backface-visibility:hidden] [transform:rotateY(180deg)]",
+            "absolute inset-0 [backface-visibility:hidden] [-webkit-backface-visibility:hidden] [transform:rotateY(180deg)]",
             !flipped && "pointer-events-none",
           )}
         >
