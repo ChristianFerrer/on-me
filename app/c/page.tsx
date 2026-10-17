@@ -85,6 +85,7 @@ export default async function CardPage() {
         <CardCarousel
           customerFullName={card.customer.name}
           phoneLast4={card.customer.phone_last4}
+          phone={card.customer.phone}
           shopName={shop.name}
           logoUrl={shop.logo_url}
           goal={shop.stamps_goal}
@@ -104,7 +105,6 @@ export default async function CardPage() {
             returnedGuests: card.returnedGuests,
           }}
           labels={{
-            ofGoal: t.card.ofGoal,
             oneToGo: t.card.oneToGo,
             nToGo: t.card.nToGo,
             readyHint: t.card.readyHint,
@@ -124,10 +124,13 @@ export default async function CardPage() {
             guestReturned: t.card.guestReturned,
             guestReturnedBody: t.card.guestReturnedBody,
             profileLabel: t.card.profileLabel,
-            profilePhoneHint: t.join.phoneHint,
+            profilePhoneHint: t.card.profilePhoneHint,
             eyebrow: t.card.eyebrow,
             consentLink: t.join.consentLink,
             flipLabel: t.card.flipLabel,
+            tagline: t.card.tagline,
+            showPhoneLabel: t.card.showPhoneLabel,
+            hidePhoneLabel: t.card.hidePhoneLabel,
           }}
         />
       </main>

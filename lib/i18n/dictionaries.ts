@@ -85,6 +85,10 @@ export const es = {
     giftChoose: "elegir a quién",
     profileLabel: "perfil",
     flipLabel: "ver perfil y privacidad",
+    tagline: "Specialty Coffee Shop",
+    profilePhoneHint: "lo usamos solo para identificarte y gestionar tu tarjeta.",
+    showPhoneLabel: "ver número completo",
+    hidePhoneLabel: "ocultar número completo",
   },
 
   invite: {
@@ -793,6 +797,10 @@ export const en: Dict = {
     giftChoose: "choose who",
     profileLabel: "profile",
     flipLabel: "view profile and privacy",
+    tagline: "Specialty Coffee Shop",
+    profilePhoneHint: "we use it only to identify you and manage your card.",
+    showPhoneLabel: "show full number",
+    hidePhoneLabel: "hide full number",
   },
 
   invite: {
@@ -1494,6 +1502,10 @@ export const fr: Dict = {
     giftChoose: "choisir qui",
     profileLabel: "profil",
     flipLabel: "voir le profil et la confidentialité",
+    tagline: "Specialty Coffee Shop",
+    profilePhoneHint: "on l'utilise uniquement pour t'identifier et gérer ta carte.",
+    showPhoneLabel: "afficher le numéro complet",
+    hidePhoneLabel: "masquer le numéro complet",
   },
 
   invite: {
@@ -2195,6 +2207,10 @@ export const de: Dict = {
     giftChoose: "wen wählen",
     profileLabel: "profil",
     flipLabel: "profil und datenschutz ansehen",
+    tagline: "Specialty Coffee Shop",
+    profilePhoneHint: "wir nutzen sie nur, um dich zu identifizieren und deine Karte zu verwalten.",
+    showPhoneLabel: "vollständige Nummer anzeigen",
+    hidePhoneLabel: "vollständige Nummer ausblenden",
   },
 
   invite: {

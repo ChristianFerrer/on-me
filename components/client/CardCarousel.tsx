@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { CoffeeColdIcon, CoffeeIcon, FlipIcon, GiftIcon, QrIcon, UserIcon } from "@/components/ui/Icons";
+import { CardMark, FlipButton } from "@/components/client/CardFaceBits";
+import { CoffeeColdIcon, CoffeeIcon, EyeIcon, EyeOffIcon, GiftIcon, QrIcon, UserIcon } from "@/components/ui/Icons";
 import { RealStampCard } from "@/components/client/RealStampCard";
 import { cn } from "@/lib/cn";
 import { fill } from "@/lib/i18n";
@@ -13,6 +14,13 @@ const POLL_INTERVAL_MS = 8000;
 const AUTO_BACK_MS = 150_000;
 /** Mismo valor que el `gap` real del track -spec §5-: hace falta en JS para calcular `step()`. */
 const TRACK_GAP_PX = 14;
+/** Duración del desplazamiento programático -tocar una pestaña-: scroll nativo
+ * "smooth" no deja fijar cuánto tarda y en móvil suele ir muy lento, de ahí
+ * `animateScrollTo` más abajo en vez de `scrollTo({ behavior: "smooth" })`. */
+const SCROLL_MS = 220;
+/** Debounce tras un swipe con el dedo antes de fijar la pestaña activa -spec
+ * §5-: lo justo para no disparar con cada frame del scroll nativo. */
+const SETTLE_DEBOUNCE_MS = 60;
 
 // "profile" ya no es una pestaña del carrusel: vive en el reverso de la
 // propia tarjeta -ver CardFlip más abajo-, junto con el enlace de
@@ -67,9 +75,41 @@ function surfaceTone(light: boolean) {
 
 type Tone = ReturnType<typeof surfaceTone>;
 
+/**
+ * Sustituye `scrollTo({ behavior: "smooth" })`: el scroll "smooth" nativo no
+ * deja fijar cuánto tarda -en móvil suele alargarse bastante más de lo que
+ * parece en desktop-, así que para saltar de pestaña con un tacto se anima
+ * `scrollLeft` a mano, con una duración fija y corta (`SCROLL_MS`). Un toque
+ * repetido antes de que termine la anterior cancela esa animación en vez de
+ * sumarse a ella -de ahí `cancelRef`, compartido entre llamadas-.
+ */
+function animateScrollLeft(
+  el: HTMLElement,
+  to: number,
+  duration: number,
+  cancelRef: React.MutableRefObject<number | undefined>,
+) {
+  if (cancelRef.current !== undefined) window.cancelAnimationFrame(cancelRef.current);
+  const from = el.scrollLeft;
+  const delta = to - from;
+  if (Math.abs(delta) < 1) {
+    el.scrollLeft = to;
+    return;
+  }
+  const start = performance.now();
+  function tick(now: number) {
+    const t = Math.min(1, (now - start) / duration);
+    const eased = 1 - (1 - t) ** 3;
+    el.scrollLeft = from + delta * eased;
+    cancelRef.current = t < 1 ? window.requestAnimationFrame(tick) : undefined;
+  }
+  cancelRef.current = window.requestAnimationFrame(tick);
+}
+
 export function CardCarousel({
   customerFullName,
   phoneLast4,
+  phone,
   shopName,
   logoUrl,
   goal,
@@ -82,6 +122,11 @@ export function CardCarousel({
 }: {
   customerFullName: string;
   phoneLast4: string;
+  /** E.164 completo, en claro -`null` en clientes dados de alta antes de la
+   * migración 0003, cuyo hash no se puede deshacer-: ver CustomerRow en
+   * lib/db/types.ts. Sin él, el reverso de la tarjeta no ofrece el ojo que
+   * enseña el número completo -nunca hubo nada que enseñar-. */
+  phone: string | null;
   shopName: string;
   logoUrl: string | null;
   goal: number;
@@ -93,7 +138,6 @@ export function CardCarousel({
   qr: React.ReactNode;
   initial: Status;
   labels: {
-    ofGoal: string;
     oneToGo: string;
     nToGo: string;
     readyHint: string;
@@ -119,6 +163,10 @@ export function CardCarousel({
     consentLink: string;
     /** Texto accesible del botón que voltea la tarjeta. */
     flipLabel: string;
+    /** Subtítulo fijo bajo el nombre del local, frente de la tarjeta. */
+    tagline: string;
+    showPhoneLabel: string;
+    hidePhoneLabel: string;
   };
 }) {
   const [status, setStatus] = useState<Status>(initial);
@@ -129,6 +177,7 @@ export function CardCarousel({
   const trackRef = useRef<HTMLDivElement>(null);
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const scrollDebounce = useRef<number | undefined>(undefined);
+  const scrollAnim = useRef<number | undefined>(undefined);
 
   useEffect(() => {
     let cancelled = false;
@@ -169,7 +218,15 @@ export function CardCarousel({
   function goTo(i: number, behavior: ScrollBehavior = "smooth") {
     const next = Math.max(0, Math.min(SLIDE_IDS.length - 1, i));
     setIdx(next);
-    trackRef.current?.scrollTo({ left: next * step(), behavior });
+    const track = trackRef.current;
+    if (track) {
+      if (behavior === "smooth") {
+        animateScrollLeft(track, next * step(), SCROLL_MS, scrollAnim);
+      } else {
+        if (scrollAnim.current !== undefined) window.cancelAnimationFrame(scrollAnim.current);
+        track.scrollLeft = next * step();
+      }
+    }
     tabRefs.current[next]?.focus();
   }
 
@@ -190,7 +247,7 @@ export function CardCarousel({
       const n = Math.round(track.scrollLeft / step());
       const clamped = Math.max(0, Math.min(SLIDE_IDS.length - 1, n));
       setIdx((current) => (current === clamped ? current : clamped));
-    }, 110);
+    }, SETTLE_DEBOUNCE_MS);
   }
 
   function onTabsKeyDown(event: React.KeyboardEvent) {
@@ -231,12 +288,12 @@ export function CardCarousel({
     },
   ];
 
+  const toggleFlip = () => setFlipped((v) => !v);
+
   return (
     <>
       <CardFlip
         flipped={flipped}
-        onToggle={() => setFlipped((v) => !v)}
-        flipLabel={labels.flipLabel}
         front={
           cardStyle === "real" ? (
             <RealStampCard
@@ -245,6 +302,8 @@ export function CardCarousel({
               stamps={stamps}
               goal={goal}
               rewardsPendingCount={rewardsPendingCount}
+              flipped={flipped}
+              onFlip={toggleFlip}
               labels={labels}
             />
           ) : (
@@ -253,6 +312,9 @@ export function CardCarousel({
               stamps={stamps}
               goal={goal}
               rewardsPendingCount={rewardsPendingCount}
+              flipped={flipped}
+              onFlip={toggleFlip}
+              light={light}
               tone={tone}
               labels={labels}
             />
@@ -263,7 +325,11 @@ export function CardCarousel({
             isReal={cardStyle === "real"}
             tone={tone}
             customerFullName={customerFullName}
+            phone={phone}
             phoneLast4={phoneLast4}
+            flipped={flipped}
+            onFlip={toggleFlip}
+            light={light}
             labels={labels}
           />
         }
@@ -273,7 +339,7 @@ export function CardCarousel({
         role="tablist"
         aria-label={labels.eyebrow}
         onKeyDown={onTabsKeyDown}
-        className="flex flex-none justify-between px-4 py-1"
+        className="flex flex-none items-center justify-center gap-x-[clamp(22px,7vw,40px)] px-4 py-1"
       >
         {icons.map((tab, i) => {
           const active = idx === i;
@@ -293,7 +359,7 @@ export function CardCarousel({
               tabIndex={active ? 0 : -1}
               onClick={() => goTo(i)}
               className={cn(
-                "flex size-[clamp(44px,7.6vh,54px)] items-center justify-center rounded-[17px] border transition-[transform,background,border-color] duration-200 active:scale-[0.92]",
+                "flex size-[clamp(40px,6.8vh,49px)] items-center justify-center rounded-[17px] border transition-[transform,background,border-color] duration-200 active:scale-[0.92]",
                 active
                   ? "border-lime bg-lime text-ink shadow-[0_6px_18px_rgba(210,251,79,0.28)]"
                   : live
@@ -322,7 +388,7 @@ export function CardCarousel({
           onPointerUp={() => setTouching(false)}
           onPointerCancel={() => setTouching(false)}
           onPointerLeave={() => setTouching(false)}
-          className="flex h-full w-full snap-x snap-mandatory gap-3.5 overflow-x-auto overflow-y-hidden scroll-smooth [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          className="flex h-full w-full snap-x snap-mandatory gap-3.5 overflow-x-auto overflow-y-hidden [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         >
           {icons.map((tab, i) => (
             <div
@@ -332,8 +398,8 @@ export function CardCarousel({
               id={`card-slide-${tab.id}`}
               aria-labelledby={`card-tab-${tab.id}`}
               className={cn(
-                "relative h-full w-full flex-none snap-center overflow-hidden rounded-[clamp(18px,3.3vh,26px)] transition-[transform,opacity] duration-300",
-                idx === i ? "scale-100 opacity-100" : "scale-90 opacity-45",
+                "relative h-full w-full flex-none snap-center overflow-hidden rounded-[clamp(18px,3.3vh,26px)] transition-[transform,opacity] duration-150 ease-out",
+                idx === i ? "z-10 scale-100 opacity-100" : "z-0 scale-[0.88] opacity-45",
               )}
             >
               {tab.id === "code" ? (
@@ -347,13 +413,8 @@ export function CardCarousel({
               ) : null}
 
               {tab.id === "free" ? (
-                <div
-                  className={cn(
-                    "card-scope flex size-full flex-col items-center justify-center gap-[clamp(7px,1.4vh,12px)] rounded-[clamp(18px,3.3vh,26px)] border p-[clamp(17px,3vh,26px)] text-center backdrop-blur-[18px]",
-                    tone.slide,
-                  )}
-                >
-                  <p className={cn("eyebrow", tone.eyebrow)}>{tab.label}</p>
+                <div className="flex size-full flex-col items-center justify-center gap-[clamp(7px,1.4vh,12px)] rounded-[clamp(18px,3.3vh,26px)] bg-white p-[clamp(17px,3vh,26px)] text-center text-ink shadow-[0_14px_44px_rgba(0,0,0,.38)]">
+                  <p className="eyebrow text-ink/40">{tab.label}</p>
                   <p className="numeral text-[clamp(36px,8.8vh,56px)] font-medium leading-none tracking-[-0.05em] text-lime">
                     {rewardsPendingCount}
                   </p>
@@ -362,7 +423,7 @@ export function CardCarousel({
                       ? labels.freeCoffeeTitleOne
                       : fill(labels.freeCoffeeTitleMany, { n: rewardsPendingCount })}
                   </h2>
-                  <p className={cn("text-[clamp(11.5px,1.95vh,13.5px)] leading-[1.45]", tone.body)}>
+                  <p className="text-[clamp(11.5px,1.95vh,13.5px)] leading-[1.45] text-ink/65">
                     {labels.freeCoffeeBody}
                   </p>
                   <button
@@ -371,7 +432,9 @@ export function CardCarousel({
                     onClick={() => goTo(0)}
                     className={cn(
                       "mt-1 rounded-full px-[18px] py-[clamp(10px,1.9vh,14px)] text-[clamp(12.5px,2vh,15px)] font-bold transition-[filter]",
-                      rewardsPendingCount === 0 ? tone.disabledBtn : "bg-lime text-ink hover:brightness-110 active:scale-[0.97]",
+                      rewardsPendingCount === 0
+                        ? "cursor-not-allowed bg-ink/5 text-ink/30"
+                        : "bg-lime text-ink hover:brightness-110 active:scale-[0.97]",
                     )}
                   >
                     {labels.showCodeCta}
@@ -381,13 +444,8 @@ export function CardCarousel({
               ) : null}
 
               {tab.id === "gift" ? (
-                <div
-                  className={cn(
-                    "card-scope flex size-full flex-col items-center justify-center gap-[clamp(7px,1.4vh,12px)] rounded-[clamp(18px,3.3vh,26px)] border p-[clamp(17px,3vh,26px)] text-center backdrop-blur-[18px]",
-                    tone.slide,
-                  )}
-                >
-                  <p className={cn("eyebrow", tone.eyebrow)}>{tab.label}</p>
+                <div className="flex size-full flex-col items-center justify-center gap-[clamp(7px,1.4vh,12px)] rounded-[clamp(18px,3.3vh,26px)] bg-white p-[clamp(17px,3vh,26px)] text-center text-ink shadow-[0_14px_44px_rgba(0,0,0,.38)]">
+                  <p className="eyebrow text-ink/40">{tab.label}</p>
                   {returnedGuests > 0 ? <p className="eyebrow text-lime">{labels.guestReturned}</p> : null}
                   <p className="numeral text-[clamp(36px,8.8vh,56px)] font-medium leading-none tracking-[-0.05em] text-lime">
                     {inviteCount}
@@ -395,17 +453,14 @@ export function CardCarousel({
                   <h2 className="text-[clamp(16px,3vh,21px)] font-extrabold leading-[1.16] tracking-[-0.025em]">
                     {inviteCount === 1 ? labels.giftTitleOne : fill(labels.giftTitleMany, { n: inviteCount })}
                   </h2>
-                  <p className={cn("text-[clamp(11.5px,1.95vh,13.5px)] leading-[1.45]", tone.body)}>
+                  <p className="text-[clamp(11.5px,1.95vh,13.5px)] leading-[1.45] text-ink/65">
                     {returnedGuests > 0 ? fill(labels.guestReturnedBody, { n: bonusStamps }) : labels.giftBody}
                   </p>
                   <div className="mt-1 flex w-full gap-2">
                     <button
                       type="button"
                       onClick={() => goTo(0)}
-                      className={cn(
-                        "flex-1 rounded-full border px-[18px] py-[clamp(10px,1.9vh,14px)] text-[clamp(12.5px,2vh,15px)] font-bold transition-[filter] active:scale-[0.97]",
-                        tone.ghostBtn,
-                      )}
+                      className="flex-1 rounded-full border border-ink/10 bg-ink/5 px-[18px] py-[clamp(10px,1.9vh,14px)] text-[clamp(12.5px,2vh,15px)] font-bold text-ink transition-[filter] hover:brightness-95 active:scale-[0.97]"
                     >
                       {labels.giftNotNow}
                     </button>
@@ -419,7 +474,7 @@ export function CardCarousel({
                         {labels.giftChoose}
                       </Link>
                     ) : (
-                      <span aria-disabled="true" className={cn("flex-1 rounded-full px-[18px] py-[clamp(10px,1.9vh,14px)] text-[clamp(12.5px,2vh,15px)] font-bold", tone.disabledBtn)}>
+                      <span aria-disabled="true" className="flex-1 cursor-not-allowed rounded-full bg-ink/5 px-[18px] py-[clamp(10px,1.9vh,14px)] text-[clamp(12.5px,2vh,15px)] font-bold text-ink/30">
                         {labels.giftChoose}
                       </span>
                     )}
@@ -439,13 +494,19 @@ export function CardCarousel({
  * Tarjeta digital -alternativa a RealStampCard-, con el nombre del local
  * como etiqueta propia: antes vivía en la cabecera de app/c/page.tsx, que
  * ya no existe -la marca y el nombre del local se mudaron aquí dentro,
- * ver CardFlip-.
+ * ver CardFlip-. Sin el número grande de sellos en la cabecera -la propia
+ * rejilla de abajo ya enseña el progreso, y ese número era lo que tapaba
+ * el botón de girar en la versión "real"-: el dato que faltaba, "te falta
+ * N cafés", baja al pie junto a la marca, igual que en RealStampCard.
  */
 function DigitalStampPanel({
   shopName,
   stamps,
   goal,
   rewardsPendingCount,
+  flipped,
+  onFlip,
+  light,
   tone,
   labels,
 }: {
@@ -453,32 +514,24 @@ function DigitalStampPanel({
   stamps: number;
   goal: number;
   rewardsPendingCount: number;
+  flipped: boolean;
+  onFlip: () => void;
+  light: boolean;
   tone: Tone;
-  labels: { ofGoal: string; oneToGo: string; nToGo: string; readyHint: string };
+  labels: { oneToGo: string; nToGo: string; readyHint: string; tagline: string; flipLabel: string };
 }) {
   const remaining = goal - stamps;
   return (
-    <div className={cn("card-scope rounded-[22px] border p-[15px] backdrop-blur-[14px]", tone.panel)}>
-      <p className={cn("truncate text-[clamp(10px,1.6vh,11.5px)] font-bold uppercase tracking-[0.08em]", tone.panelMuted)}>
-        {shopName}
-      </p>
-      <div className="mt-1.5 flex items-baseline gap-2.5">
-        <div className="flex flex-none items-baseline gap-[7px]">
-          <b className="numeral text-[clamp(24px,5.4vh,32px)] font-medium leading-none tracking-[-0.05em] text-lime">
-            {stamps}
-          </b>
-          <em className={cn("text-[clamp(11.5px,1.9vh,13.5px)] font-medium not-italic", tone.panelMuted)}>
-            {fill(labels.ofGoal, { goal })}
-          </em>
-        </div>
-        <div className={cn("ml-auto text-right text-[clamp(10.5px,1.75vh,12.5px)] leading-[1.25]", tone.panelMuted)}>
-          {rewardsPendingCount > 0
-            ? labels.readyHint
-            : remaining === 1
-              ? labels.oneToGo
-              : fill(labels.nToGo, { n: remaining })}
-        </div>
+    <div className={cn("card-scope relative rounded-[22px] border p-[15px] backdrop-blur-[14px]", tone.panel)}>
+      <FlipButton onClick={onFlip} pressed={flipped} label={labels.flipLabel} onLight={light} />
+
+      <div className="pr-8">
+        <p className={cn("truncate text-[clamp(10.5px,1.7vh,12px)] font-bold uppercase tracking-[0.08em]", tone.panelMuted)}>
+          {shopName}
+        </p>
+        <p className={cn("truncate text-[clamp(9px,1.4vh,10.5px)]", tone.subtle40)}>{labels.tagline}</p>
       </div>
+
       <div className="mt-[clamp(10px,1.8vh,14px)] grid grid-cols-10 gap-[clamp(4px,1.1vw,7px)]">
         {Array.from({ length: goal }, (_, i) => {
           const filled = i < stamps;
@@ -500,6 +553,17 @@ function DigitalStampPanel({
           );
         })}
       </div>
+
+      <div className="mt-[clamp(10px,1.8vh,14px)] flex items-center justify-between gap-2">
+        <CardMark onLight={light} />
+        <p className={cn("text-right text-[clamp(10.5px,1.75vh,12.5px)] leading-[1.3]", tone.panelMuted)}>
+          {rewardsPendingCount > 0
+            ? labels.readyHint
+            : remaining === 1
+              ? labels.oneToGo
+              : fill(labels.nToGo, { n: remaining })}
+        </p>
+      </div>
     </div>
   );
 }
@@ -510,27 +574,54 @@ function DigitalStampPanel({
  * igual. Mismo criterio de color que el frente -azul marino fijo para
  * "real", tone.panel para "digital"-, para que el giro se sienta como la
  * misma tarjeta, no una pantalla distinta.
+ *
+ * El teléfono se enseña enmascarado por defecto -el hash no se puede
+ * deshacer, pero desde la migración 0003 sí se guarda el E.164 completo en
+ * claro, ver CustomerRow en lib/db/types.ts-: el ojo lo revela a pedido del
+ * propio cliente en vez de imprimirlo siempre. Sin `phone` -clientes de
+ * antes de esa migración- no hay nada que revelar, así que no se muestra
+ * el botón.
  */
 function CardBack({
   isReal,
   tone,
   customerFullName,
+  phone,
   phoneLast4,
+  flipped,
+  onFlip,
+  light,
   labels,
 }: {
   isReal: boolean;
   tone: Tone;
   customerFullName: string;
+  phone: string | null;
   phoneLast4: string;
-  labels: { profileLabel: string; profilePhoneHint: string; consentLink: string };
+  flipped: boolean;
+  onFlip: () => void;
+  light: boolean;
+  labels: {
+    profileLabel: string;
+    profilePhoneHint: string;
+    consentLink: string;
+    flipLabel: string;
+    showPhoneLabel: string;
+    hidePhoneLabel: string;
+  };
 }) {
+  const [revealed, setRevealed] = useState(false);
+  const onLight = isReal ? false : light;
+
   return (
     <div
       className={cn(
-        "card-scope flex size-full flex-col items-center justify-center gap-2 rounded-[20px] border p-5 text-center",
+        "card-scope relative flex size-full flex-col items-center justify-center gap-2 rounded-[20px] border p-5 text-center",
         isReal ? "border-white/15 bg-[#0e1a38] text-white" : tone.panel,
       )}
     >
+      <FlipButton onClick={onFlip} pressed={flipped} label={labels.flipLabel} onLight={onLight} />
+
       <p className={cn("eyebrow", isReal ? "text-white/45" : tone.eyebrow)}>{labels.profileLabel}</p>
       <span
         className={cn(
@@ -543,7 +634,22 @@ function CardBack({
       <h2 className="break-words text-[1.0625rem] font-extrabold leading-[1.2] tracking-[-0.02em]">
         {customerFullName}
       </h2>
-      <p className={cn("numeral text-[0.8125rem]", isReal ? "text-white/60" : tone.subtle60)}>•••• {phoneLast4}</p>
+      <div className="flex items-center justify-center gap-1.5">
+        <p className={cn("numeral text-[0.8125rem]", isReal ? "text-white/60" : tone.subtle60)}>
+          {revealed && phone ? phone : `•••• ${phoneLast4}`}
+        </p>
+        {phone ? (
+          <button
+            type="button"
+            onClick={() => setRevealed((v) => !v)}
+            aria-pressed={revealed}
+            aria-label={revealed ? labels.hidePhoneLabel : labels.showPhoneLabel}
+            className={cn("flex size-[1.0625rem] items-center justify-center", isReal ? "text-white/50" : tone.subtle60)}
+          >
+            {revealed ? <EyeOffIcon className="size-full" /> : <EyeIcon className="size-full" />}
+          </button>
+        ) : null}
+      </div>
       <p className={cn("text-[0.6875rem] leading-[1.45]", isReal ? "text-white/40" : tone.subtle40)}>
         {labels.profilePhoneHint}
       </p>
@@ -569,42 +675,26 @@ function CardBack({
  * toma el alto que el frente ya estableció en vez de imponer el suyo
  * propio y crear un salto al girar.
  *
- * El botón de girar vive fuera del bloque que gira, para quedarse fijo en
- * pantalla en las dos caras en vez de voltearse con la tarjeta.
+ * El botón de girar y la marca OnMe viven DENTRO de cada cara -ver
+ * FlipButton/CardMark en CardFaceBits.tsx, montados por RealStampCard,
+ * DigitalStampPanel y CardBack-, no como overlay de este wrapper: así
+ * ambos giran con la tarjeta -son parte del objeto, no de la pantalla- y
+ * caen en el mismo punto en el frente y en el reverso, en vez de quedarse
+ * fijos en pantalla tapando lo que haya debajo en cada cara.
  * `backface-visibility:hidden` en cada cara evita que su contenido se vea
  * espejado/atravesando la otra mientras gira.
- *
- * Sin marca "OnMe" flotando encima -se probó con un punto en la esquina
- * superior izquierda y chocaba con el propio contenido de la tarjeta en
- * los dos estilos: el logo del local en "real", el nombre del local en
- * "digital"-. Las dos esquinas de arriba ya las ocupa cada tarjeta con
- * algo más importante que una marca de agua.
  */
 function CardFlip({
   front,
   back,
   flipped,
-  onToggle,
-  flipLabel,
 }: {
   front: React.ReactNode;
   back: React.ReactNode;
   flipped: boolean;
-  onToggle: () => void;
-  flipLabel: string;
 }) {
   return (
     <div className="relative mx-4 flex-none" style={{ perspective: "1600px" }}>
-      <button
-        type="button"
-        onClick={onToggle}
-        aria-label={flipLabel}
-        aria-pressed={flipped}
-        className="absolute right-3 top-3 z-20 flex size-7 items-center justify-center rounded-full bg-black/25 text-white backdrop-blur-sm transition-transform active:scale-90"
-      >
-        <FlipIcon className="size-[55%]" />
-      </button>
-
       <div
         className="relative transition-transform duration-700 ease-[cubic-bezier(.4,0,.2,1)] [transform-style:preserve-3d]"
         style={{ transform: flipped ? "rotateY(180deg)" : "rotateY(0deg)" }}
@@ -636,7 +726,7 @@ function CardFlip({
  */
 function TimerBar({ touching, onDone }: { touching: boolean; onDone: () => void }) {
   return (
-    <div className="absolute inset-x-0 bottom-0 h-[3px] bg-white/[.08]">
+    <div className="absolute inset-x-0 bottom-0 h-[3px] bg-ink/10">
       <div
         className="drain h-full bg-lime"
         style={{ ["--drain" as string]: `${AUTO_BACK_MS}ms`, animationPlayState: touching ? "paused" : "running" }}
