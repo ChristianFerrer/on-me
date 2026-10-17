@@ -35,13 +35,15 @@
   --color-slate: #5d6b64;
 
   /* --- acentos -----------------------------------------------------------
-     Paleta "Flat UI Colors 2" (flatuicolors.com/palette/ca), a pedido: los
-     mismos seis roles de siempre -primario, positivo secundario, estado
-     "alta directa", informativo, aviso, error-, valores nuevos. Se
-     excluyen a propósito los tonos oscuros/apagados de esa paleta (gris
-     azulado, púrpura oscuro, gris pizarra, azul casi negro): son acentos,
-     tienen que leerse como plano y vivo sobre `bg-ink`/`bg-surface-2`, no
-     como un tono apagado más. */
+     Paleta "Flat UI Colors 2" (flatuicolors.com/palette/ca), valor por
+     defecto -oscuro-: los seis roles de siempre -primario, positivo
+     secundario, estado "alta directa", informativo, aviso, error-. El
+     claro usa una paleta propia -Material Design-, ver [data-theme="light"]
+     en @layer base: por pedido explícito, no son los mismos valores en los
+     dos temas. Se excluyen a propósito los tonos oscuros/apagados de la de
+     aquí (gris azulado, púrpura oscuro, gris pizarra, azul casi negro): son
+     acentos, tienen que leerse como plano y vivo sobre `bg-ink`/
+     `bg-surface-2`, no como un tono apagado más. */
   --color-lime: #1dd1a1; /* Wild Caribbean Green */
   --color-mint: #00d2d3; /* Jade Dust */
   --color-teal: #0abde3; /* Cyanite */
@@ -156,24 +158,39 @@
       radial-gradient(120% 95% at 50% 108%, rgba(139, 92, 246, 0.12) 0%, transparent 62%),
       linear-gradient(155deg, #fdfcf9 0%, #f4eff9 48%, #eef3f6 100%);
 
-    /* Misma paleta Flat UI de arriba, para los tres estados sin acento
-       compartido: Light Blue Ballerina para los dos mudos -sent/discarded/
-       expired, se distinguen por su borde, no por el relleno- y Megaman
-       para "en ventana", con el billable -Amour- como el único rojo del
-       mapa, para que siga siendo el de más atención de los ocho. */
-    --constelacion-sent: #c8d6e5; /* Light Blue Ballerina */
+    /* Paleta propia del tema claro, a pedido -Material Design, no la Flat
+       UI del oscuro de arriba-. Elegidos por contraste como texto/relleno
+       de tinta encima -`bg-X text-ink`, el patrón de todo botón de acento-,
+       no por nombre: LIME/AMBER son los de mejor contraste con tinta
+       encima (12,5:1/11,5:1), así ganaron esos dos roles por delante de
+       colores con el mismo nombre que el token. */
+    --color-lime: #cedb4f; /* Lime */
+    --color-mint: #25b158; /* Green */
+    --color-teal: #01bfd5; /* Sky */
+    --color-azure: #00abf3; /* Light Blue */
+    --color-amber: #ffbf37; /* Amber */
+    --color-coral: #fb0165; /* Pink */
+
+    /* Misma paleta Material del claro, para los tres estados de la
+       constelación sin acento compartido: Deep Purple para billable -el
+       de más atención de los ocho, antes era el único rojo, ahora el de
+       mejor contraste del lote-, Indigo para "en ventana", Light Green
+       para "enviada". discarded/expired se quedan neutros -gris sobre
+       `--on-surface-rgb», no un color de la paleta: son la ausencia de
+       estado, igual que el negro que usan en oscuro, no un estado más. */
+    --constelacion-sent: #81c357; /* Light Green */
     --constelacion-opened: var(--color-amber);
     --constelacion-claimed: var(--color-mint);
-    --constelacion-window: #48dbfb; /* Megaman */
-    --constelacion-billable: #ee5253; /* Amour */
+    --constelacion-window: #3551b2; /* Indigo */
+    --constelacion-billable: #663db5; /* Deep Purple */
     --constelacion-direct: var(--color-teal);
-    --constelacion-discarded: #c8d6e5; /* Light Blue Ballerina */
-    --constelacion-expired: #c8d6e5; /* Light Blue Ballerina */
+    --constelacion-discarded: rgba(var(--on-surface-rgb), 0.25);
+    --constelacion-expired: rgba(var(--on-surface-rgb), 0.25);
     --constelacion-discarded-stroke: rgba(var(--on-surface-rgb), 0.3);
     --constelacion-ring-urgent: var(--color-coral);
     --constelacion-ring-best: var(--color-amber);
-    --constelacion-highlight-text: #01a3a4; /* Aqua Velvet */
-    --constelacion-highlight-bg: rgba(1, 163, 164, 0.1);
+    --constelacion-highlight-text: #029686; /* Teal */
+    --constelacion-highlight-bg: rgba(2, 150, 134, 0.1);
   }
 
   * {

@@ -60,12 +60,17 @@ const WOBBLE_ANGULAR_AMPLITUDE = 0.05;
 const WOBBLE_RESTLESS_BOOST = 1.8;
 /** Con una cadena tocada -zoom cerrado, muchas esferas cerca unas de otras- el propio bamboleo dificulta tocar la esfera vecina que se quiere ver a continuación: el reloj que alimenta el vaivén avanza a este ritmo, no al real, mientras haya algo seleccionado -1 = normal, más bajo = más lento, nunca 0: sigue siendo un gráfico vivo, solo menos inquieto-. */
 const WOBBLE_FOCUS_SPEED = 0.2;
-/** Fracción de displayRadius que ocupa el núcleo sólido de cada estrella -el resto es puro halo, para que el brillo pese más que el propio cuerpo, como una estrella real. A 2/3 del valor anterior -a petición, para volver de "3 veces el tamaño original" a "2 veces"-. */
-const STAR_CORE_SCALE = (1 / 3);
-/** Tamaño mínimo del núcleo sólido, para que ni siquiera un prospecto de magnitud más baja -sent/opened/descartada, sin apenas consumo- se quede en un punto casi invisible: "cuadriplicar" tiene que notarse en todas, no solo en las de más magnitud. Mismo recorte a 2/3 que STAR_CORE_SCALE. */
-const STAR_CORE_MIN_R = 2;
+/** Fracción de displayRadius que ocupa el círculo plano de cada estrella. Antes
+    era 1/3 -el resto se pintaba como halo, para que el brillo pesara más que
+    el propio cuerpo-; sin aura que lo complete -pedido explícito, ver
+    globals.css-, el círculo tiene que cargar solo todo ese peso visual, así
+    que sube a 0.85: casi todo displayRadius, con un margen mínimo para que
+    dos esferas vecinas no lleguen a tocarse. */
+const STAR_CORE_SCALE = 0.85;
+/** Tamaño mínimo del círculo, para que ni siquiera un prospecto de magnitud más baja -sent/opened/descartada, sin apenas consumo- se quede en un punto casi invisible: "cuadriplicar" tiene que notarse en todas, no solo en las de más magnitud. */
+const STAR_CORE_MIN_R = 3;
 
-/** El propio núcleo sólido -lo único que de verdad se pinta como círculo lleno, el halo es puro brillo difuso alrededor-: la misma fórmula la usa tanto el radio con el que se recortan las cuerdas y se separan las esferas por imán (nodeRadiusById) como el que de verdad se dibuja en el JSX, para que ninguno de los dos se desincronice del otro -si no, la cuerda se corta donde ya no hay esfera que tocar-. */
+/** El propio círculo plano -lo único que de verdad se pinta, ya sin halo alrededor-: la misma fórmula la usa tanto el radio con el que se recortan las cuerdas y se separan las esferas por imán (nodeRadiusById) como el que de verdad se dibuja en el JSX, para que ninguno de los dos se desincronice del otro -si no, la cuerda se corta donde ya no hay esfera que tocar-. */
 function starCoreRadius(displayRadius: number): number {
   return Math.max(displayRadius * STAR_CORE_SCALE, STAR_CORE_MIN_R);
 }
@@ -85,7 +90,11 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 const LIVE_POLL_MS = 20_000;
 /** Un sello, un canje o un alta de verdad -no el paso del reloj- disparan un destello de una sola vez, no el aura constante de siempre: un brillo que sube y se apaga en FLASH_DURATION_MS, solo sobre la propia estrella donde pasó -radio y color de la propia estrella, no genéricos-, nunca sobre el sol ni sobre ninguna otra: si no hay actividad de verdad, ninguna esfera destella. Desaparece solo, sin más estado que un ref por fotograma -mismo patrón que el pulso viajero de las cuerdas-. Duración generosa a propósito -casi el doble de la primera versión-: un parpadeo que se apaga demasiado rápido no da tiempo a notar qué esfera fue. */
 const FLASH_DURATION_MS = 3400;
-const FLASH_MAX_OPACITY = 0.85;
+/* Bajo a propósito -antes 0.85-: ese valor estaba calibrado para un degradado
+   radial, que nunca se ve "sólido" ni en su propio centro; sobre el relleno
+   plano de ahora (ver el <circle> de arriba, sin aura) la misma opacidad se
+   vería como una mancha sólida encima de la esfera, no como un destello. */
+const FLASH_MAX_OPACITY = 0.45;
 /** Ventana de "canje reciente" para disparar el pulso: la misma que usa el negocio para el retorno. */
 const RECENT_REDEMPTION_MS = 30 * DAY_MS;
 
@@ -1918,11 +1927,11 @@ export function ConstelacionSolMap({
   }
 
   // Deliberadamente NO en onPointerLeave: dentro de la constelación cada nodo
-  // apila varios círculos superpuestos (halo, aura, borde, círculo de toque
-  // más grande que el propio punto...), y con tantas capas encima unas de
-  // otras algunos navegadores táctiles disparan pointerleave sin que el
-  // dedo haya salido de verdad del SVG -solo cambió de qué capa interna
-  // está "debajo"-. Enganchado a endPointer, ese leave espurio soltaba el
+  // apila varios círculos superpuestos (anillos, borde, círculo de toque más
+  // grande que el propio punto...), y con tantas capas encima unas de otras
+  // algunos navegadores táctiles disparan pointerleave sin que el dedo haya
+  // salido de verdad del SVG -solo cambió de qué capa interna está
+  // "debajo"-. Enganchado a endPointer, ese leave espurio soltaba el
   // dedo a media cuenta y el pellizco/arrastre se cortaba en seco, pero
   // solo dentro del área densa de nodos -fuera, sobre fondo vacío, no había
   // capas que cruzar y el gesto funcionaba bien. pointercancel y
@@ -2030,15 +2039,13 @@ export function ConstelacionSolMap({
 
       <style>{`
         @keyframes constelacion-alert-pulse { 0%, 100% { transform: scale(1); opacity: 0.12; } 50% { transform: scale(1.2); opacity: 0.4; } }
-        @keyframes constelacion-billable-glow { 0%, 100% { transform: scale(1); opacity: 0.22; } 50% { transform: scale(1.08); opacity: 0.32; } }
         @keyframes constelacion-window-blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.42; } }
         .constelacion-alert-ring { transform-origin: center; transform-box: fill-box; animation: constelacion-alert-pulse 2.6s ease-in-out infinite; }
-        .constelacion-billable-glow { transform-origin: center; transform-box: fill-box; animation: constelacion-billable-glow 5s ease-in-out infinite; }
         .constelacion-window-blink { animation: constelacion-window-blink 3s ease-in-out infinite; }
         @keyframes constelacion-star-twinkle { 0%, 100% { opacity: 1; } 50% { opacity: var(--twinkle-min, 0.55); } }
         .constelacion-star-twinkle { animation: constelacion-star-twinkle var(--twinkle-s, 4s) ease-in-out infinite; animation-delay: var(--twinkle-delay, 0s); }
         @media (prefers-reduced-motion: reduce) {
-          .constelacion-alert-ring, .constelacion-billable-glow, .constelacion-window-blink,
+          .constelacion-alert-ring, .constelacion-window-blink,
           .constelacion-star-twinkle { animation: none; }
         }
       `}</style>
@@ -2280,26 +2287,8 @@ export function ConstelacionSolMap({
             const showLabel = node.claimed && (pan.scale >= labelScale || isSelected || isChainMember);
             // Jerarquía visual: lo bueno pesa más, lo perdido se retira -no
             // compiten por la atención a partes iguales-. Ver el comentario
-            // de CONSTELACION_POSITIVE_STATES/CONSTELACION_MUTED_STATES más arriba.
-            const isPositive = CONSTELACION_POSITIVE_STATES.has(node.state);
+            // de CONSTELACION_MUTED_STATES más arriba.
             const isMuted = CONSTELACION_MUTED_STATES.has(node.state);
-            // Más visitas -sellos en la tarjeta actual, hasta completarla-,
-            // aura más fuerte: un cliente que vuelve mucho se nota en el
-            // mapa aunque su estado no cambie. Solo clientes reales, una
-            // invitación pendiente no tiene visitas que contar.
-            const visitBoost = node.claimed ? clamp(node.stamps / Math.max(1, stampsGoal), 0, 1) : 0;
-            // Mismo criterio que rootFanoutOffset en constelacionLayout.ts -a
-            // partir del segundo invitado directo, hasta un tope de 6-, pero
-            // aquí en intensidad, no en radio: una raíz directa (depth 1) con
-            // mucho fan-out brilla más -su pequeña constelación se nota
-            // también de lejos, no solo por estar más separada del sol-.
-            const fanoutBoost = node.depth === 1 ? clamp((node.childCount - 1) / 5, 0, 1) : 0;
-            const haloFillOpacity = Math.min(0.6, (isPositive ? 0.24 : 0.13) * (1 + visitBoost * 0.9 + fanoutBoost * 0.8));
-            // Mínimo a propósito -antes hasta 2.6x displayRadius-: un halo tan
-            // grande se comía buena parte del mapa con varias esferas cerca.
-            // Mismo tope (Math.min) que haloFillOpacity, para que ni el boost
-            // por visitas ni por fan-out puedan devolverlo a un tamaño grande.
-            const haloScale = Math.min(1.8, (isPositive ? 1.4 : 1.2) * (1 + visitBoost * 0.35 + fanoutBoost * 0.4));
             const restOpacity = isMuted ? 0.55 : 1;
 
             // "En ventana" se encoge y parpadea cada vez más rápido cuantos
@@ -2308,13 +2297,10 @@ export function ConstelacionSolMap({
             const isWindow = node.state === "window" && node.redeemedAt != null;
             const daysElapsed = isWindow ? Math.max(0, (nowMs - new Date(node.redeemedAt as string).getTime()) / DAY_MS) : 0;
             const displayRadius = pt.nodeRadius * (isWindow ? windowSizeMultiplier(daysElapsed) : 1);
-            // Cada cliente es una estrella, no una esfera de color plana: un punto
-            // pequeño y brillante -starCoreR, una fracción de displayRadius- con
-            // un halo grande alrededor -haloScale ya calculado sobre displayRadius
-            // entero, así que al encoger solo el núcleo el halo pesa proporcionalmente
-            // más, justo el aspecto "brillo dominante, cuerpo casi invisible" de una
-            // estrella real-. El resto de la geometría -halo, parpadeo, blanco de
-            // toque- sigue midiéndose sobre displayRadius para no desincronizarse.
+            // Cada cliente es un punto plano -starCoreR, una fracción de
+            // displayRadius-, sin aura alrededor -pedido explícito, ver
+            // globals.css-; el resto de la geometría -anillos, parpadeo,
+            // blanco de toque- sigue midiéndose sobre displayRadius.
             const starCoreR = starCoreRadius(displayRadius);
             const windowBlinkStyle = isWindow
               ? { animationDuration: `${windowBlinkDurationS(returnWindowDays - daysElapsed, returnWindowDays).toFixed(2)}s` }
@@ -2358,18 +2344,17 @@ export function ConstelacionSolMap({
                 ) : null}
                 {isBest ? (
                   <circle
-                    r={displayRadius * 2.1}
-                    fill="url(#constelacion-glow)"
-                    fillOpacity={0.16}
-                    style={{ color: "var(--constelacion-ring-best)" }}
+                    r={displayRadius + 6}
+                    fill="none"
+                    stroke="var(--constelacion-ring-best)"
+                    strokeWidth={1.3}
                     pointerEvents="none"
                   />
                 ) : null}
                 {/* "Estás viendo esta" -toda la constelación (chainMembers, ver más
                     arriba) se resalta igual, sin dimming, y con muchas esferas a la vez
                     a la vista no habría forma de distinguir la tocada del resto sin esto:
-                    un anillo neto, no un halo difuso -eso ya lo usan isBest/isExpiringNode
-                    para otra cosa-, para que se lea como "aquí" y no como otro estado más. */}
+                    un anillo neto, para que se lea como "aquí" y no como otro estado más. */}
                 {isSelected ? (
                   <circle
                     r={displayRadius + 4.5}
@@ -2381,28 +2366,20 @@ export function ConstelacionSolMap({
                   />
                 ) : null}
 
-                <circle
-                  className={isPositive ? "constelacion-billable-glow" : undefined}
-                  r={displayRadius * haloScale}
-                  fill="url(#constelacion-glow)"
-                  fillOpacity={haloFillOpacity}
-                  style={{ color }}
-                  pointerEvents="none"
-                />
                 {/* Destello de "esto acaba de pasar aquí" -sello, canje o alta nueva
                     detectados por el sondeo, ver detectGraphActivity-: sube y baja una
-                    sola vez, no en bucle como el resto de esta lista. Opacidad en 0 en
-                    el marcado, el bucle de rAF la mueve fotograma a fotograma sobre su
-                    propio elemento -mismo patrón que el pulso viajero de las cuerdas. */}
+                    sola vez con el propio relleno plano de la esfera, sin aura -mismo
+                    pedido que el sol, ver globals.css-. Opacidad en 0 en el marcado, el
+                    bucle de rAF la mueve fotograma a fotograma sobre su propio elemento
+                    -mismo patrón que el pulso viajero de las cuerdas. */}
                 <circle
                   ref={(el) => {
                     if (el) flashGlowRefs.current.set(node.id, el);
                     else flashGlowRefs.current.delete(node.id);
                   }}
-                  r={displayRadius * 1.6}
-                  fill="url(#constelacion-glow)"
+                  r={displayRadius * 1.3}
+                  fill={color}
                   fillOpacity={0}
-                  style={{ color }}
                   pointerEvents="none"
                 />
                 {/* El titileo y el parpadeo de "en ventana" son dos animaciones de
@@ -2558,13 +2535,11 @@ export function ConstelacionSolMap({
                   const hasName = event.name !== "";
                   return (
                     <div key={event.id} className="flex items-start gap-2">
-                      {/* Mini estrella -halo difuso + núcleo sólido, mismo
-                          criterio que la propia constelación, no un punto
-                          plano de un solo color- del color exacto de la
+                      {/* Punto plano, mismo criterio que la propia
+                          constelación -sin aura-, del color exacto de la
                           estrella donde pasó. */}
                       <span className="relative mt-[0.1875rem] flex size-3 shrink-0 items-center justify-center">
-                        <span className="absolute size-full rounded-full opacity-50 blur-[3px]" style={{ background: event.color }} />
-                        <span className="relative size-1.5 rounded-full" style={{ background: event.color, boxShadow: `0 0 5px 1px ${event.color}` }} />
+                        <span className="size-2 rounded-full" style={{ background: event.color }} />
                       </span>
                       <div className="min-w-0 flex-1">
                         <p className={cn("text-[0.6875rem] leading-snug", hasName ? "font-semibold text-on-surface/90" : "text-on-surface/55")}>
