@@ -256,7 +256,13 @@ export function CardCarousel({
             tone.panel,
           )}
         >
-          <div className="flex items-baseline gap-2.5">
+          {/* El nombre del local vive solo aquí para la tarjeta digital -la
+              cabecera de app/c/page.tsx ya no lo repite, ver ese archivo-; la
+              tarjeta "real" ya trae el suyo propio dentro de RealStampCard. */}
+          <p className={cn("truncate text-[clamp(10px,1.6vh,11.5px)] font-bold uppercase tracking-[0.08em]", tone.panelMuted)}>
+            {shopName}
+          </p>
+          <div className="mt-1.5 flex items-baseline gap-2.5">
             <div className="flex flex-none items-baseline gap-[7px]">
               <b className="numeral text-[clamp(24px,5.4vh,32px)] font-medium leading-none tracking-[-0.05em] text-lime">
                 {stamps}

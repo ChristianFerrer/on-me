@@ -76,13 +76,15 @@ export default async function CardPage() {
     >
       <OfflineBadge label={t.card.offline} />
 
+      {/* Solo la marca -sin el nombre del local, que ya se repetía más
+          abajo en las cuatro pestañas: la tarjeta grande lo trae (código) o
+          la barra compacta lo trae (las otras tres), ver CardCarousel.tsx-.
+          Píldora más chica -menos padding, menos letra- ahora que no tiene
+          que acomodar una segunda etiqueta larga a la derecha. */}
       <header className="flex-none px-4 pt-[max(0.75rem,env(safe-area-inset-top))]">
-        <div className="glass-dark flex items-center gap-2.5 rounded-full px-[18px] py-[clamp(10px,1.8vh,14px)] text-chalk">
+        <div className="glass-dark flex w-fit items-center gap-2 rounded-full px-[14px] py-[clamp(7px,1.3vh,10px)] text-chalk">
           <Mark className="anim-oracle-pulse size-2" />
-          <span className="text-[clamp(15px,2.6vh,17px)] font-extrabold tracking-[-0.02em]">OnMe</span>
-          <span className="ml-auto truncate text-[clamp(10px,1.7vh,11.5px)] font-semibold uppercase tracking-[0.2em] text-chalk/55">
-            {shop.name}
-          </span>
+          <span className="text-[clamp(13px,2.2vh,14.5px)] font-extrabold tracking-[-0.02em]">OnMe</span>
         </div>
       </header>
 
