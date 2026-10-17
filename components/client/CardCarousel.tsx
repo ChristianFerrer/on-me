@@ -16,8 +16,13 @@ const AUTO_BACK_MS = 150_000;
 const TRACK_GAP_PX = 14;
 /** Duración del desplazamiento programático -tocar una pestaña-: scroll nativo
  * "smooth" no deja fijar cuánto tarda y en móvil suele ir muy lento, de ahí
- * `animateScrollTo` más abajo en vez de `scrollTo({ behavior: "smooth" })`. */
-const SCROLL_MS = 220;
+ * `animateScrollTo` más abajo en vez de `scrollTo({ behavior: "smooth" })`.
+ * Mismo valor que la transición de escala/opacidad de cada tarjeta más abajo
+ * -`duration-[280ms]` en el `data-slide`-, para que las dos terminen juntas:
+ * antes (220ms vs. 150ms) la tarjeta destino llegaba a su tamaño final
+ * bastante antes de terminar de deslizarse, y el salto se sentía "de golpe"
+ * en vez de un solo movimiento continuo. */
+const SCROLL_MS = 280;
 /** Debounce tras un swipe con el dedo antes de fijar la pestaña activa -spec
  * §5-: lo justo para no disparar con cada frame del scroll nativo. */
 const SETTLE_DEBOUNCE_MS = 60;
@@ -401,7 +406,7 @@ export function CardCarousel({
               id={`card-slide-${tab.id}`}
               aria-labelledby={`card-tab-${tab.id}`}
               className={cn(
-                "relative h-full w-full flex-none snap-center overflow-hidden rounded-[clamp(18px,3.3vh,26px)] transition-[transform,opacity] duration-150 ease-out",
+                "relative h-full w-full flex-none snap-center overflow-hidden rounded-[clamp(18px,3.3vh,26px)] transition-[transform,opacity] duration-[280ms] ease-out",
                 idx === i ? "z-10 scale-100 opacity-100" : "z-0 scale-[0.88] opacity-45",
               )}
             >
