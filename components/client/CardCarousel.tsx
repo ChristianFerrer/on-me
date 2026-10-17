@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { CoffeeColdIcon, CoffeeIcon, GiftIcon, QrIcon, UserIcon } from "@/components/ui/Icons";
+import { CoffeeColdIcon, CoffeeIcon, FlipIcon, GiftIcon, QrIcon, UserIcon } from "@/components/ui/Icons";
 import { RealStampCard } from "@/components/client/RealStampCard";
 import { cn } from "@/lib/cn";
 import { fill } from "@/lib/i18n";
@@ -14,7 +14,11 @@ const AUTO_BACK_MS = 150_000;
 /** Mismo valor que el `gap` real del track -spec §5-: hace falta en JS para calcular `step()`. */
 const TRACK_GAP_PX = 14;
 
-const SLIDE_IDS = ["code", "free", "gift", "profile"] as const;
+// "profile" ya no es una pestaña del carrusel: vive en el reverso de la
+// propia tarjeta -ver CardFlip más abajo-, junto con el enlace de
+// privacidad que antes era el pie de app/c/page.tsx. Tres pestañas, no
+// cuatro: código, café gratis, para regalar.
+const SLIDE_IDS = ["code", "free", "gift"] as const;
 type SlideId = (typeof SLIDE_IDS)[number];
 
 type Status = {
@@ -26,11 +30,10 @@ type Status = {
 };
 
 /**
- * Clases por tema: el fondo `.aurora` -un degradado claro y vivo- no
- * cambia con el tema del local, solo las superficies que flotan encima.
- * En oscuro son cristal grafito con texto chalk -el aspecto de siempre-;
- * en claro, cristal blanco con texto ink, mismo material, mismos acentos
- * lima, nada más que el contraste invertido.
+ * Clases por tema: el fondo `.aurora` ya cambia de verdad entre claro y
+ * oscuro -ver [data-theme="light"] .aurora en globals.css-; esto sigue
+ * siendo para las superficies que flotan encima, mismo material en los
+ * dos temas -cristal, mismos acentos lima-, solo el contraste invertido.
  */
 function surfaceTone(light: boolean) {
   return light
@@ -61,6 +64,8 @@ function surfaceTone(light: boolean) {
         subtle40: "text-white/40",
       };
 }
+
+type Tone = ReturnType<typeof surfaceTone>;
 
 export function CardCarousel({
   customerFullName,
@@ -110,11 +115,16 @@ export function CardCarousel({
     profileLabel: string;
     profilePhoneHint: string;
     eyebrow: string;
+    /** Enlace de privacidad -antes el pie de app/c/page.tsx-, ahora en el reverso de la tarjeta. */
+    consentLink: string;
+    /** Texto accesible del botón que voltea la tarjeta. */
+    flipLabel: string;
   };
 }) {
   const [status, setStatus] = useState<Status>(initial);
   const [idx, setIdx] = useState(0);
   const [touching, setTouching] = useState(false);
+  const [flipped, setFlipped] = useState(false);
 
   const trackRef = useRef<HTMLDivElement>(null);
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
@@ -149,7 +159,6 @@ export function CardCarousel({
   }, []);
 
   const { stamps, rewardsPendingCount, inviteCount, returnedGuests } = status;
-  const remaining = goal - stamps;
   const tone = surfaceTone(light);
 
   function step(): number {
@@ -196,7 +205,7 @@ export function CardCarousel({
 
   const inviteHref = "/c/invitar";
 
-  // Los cuatro iconos siempre se pueden tocar -son los que enseñan el
+  // Los tres iconos siempre se pueden tocar -son los que enseñan el
   // detalle de cada tarjeta, incluida la que está en 0-: lo que se
   // desactiva es la acción de dentro de cada tarjeta que no tiene nada que
   // hacer todavía (mostrar código, elegir a quién), no el acceso a verla.
@@ -220,126 +229,45 @@ export function CardCarousel({
       label: labels.giftLabel,
       badge: inviteCount,
     },
-    {
-      id: "profile",
-      icon: <UserIcon className="size-[62%]" />,
-      label: labels.profileLabel,
-    },
   ];
-
-  // Sellos a la vista solo en la pestaña del código -la tarjeta completa
-  // repetida, idéntica, en las otras tres no añadía nada a "cuánto te
-  // falta para el próximo regalo", "cuántos cafés gratis tenés para
-  // regalar" ni "tu perfil"; y en pantallas de poca altura empujaba el
-  // botón de esas tarjetas fuera del viewport. Una barra compacta -mismo
-  // logo, mismo número, un toque para volver al código- ocupa una
-  // fracción de la altura y sigue dejando ver de un vistazo cuántos
-  // sellos llevás sin salir de la pestaña en la que estás.
-  const showFullCard = idx === 0;
 
   return (
     <>
-      {showFullCard ? (
-        cardStyle === "real" ? (
-          <RealStampCard
-            shopName={shopName}
-            logoUrl={logoUrl}
-            stamps={stamps}
-            goal={goal}
-            rewardsPendingCount={rewardsPendingCount}
+      <CardFlip
+        flipped={flipped}
+        onToggle={() => setFlipped((v) => !v)}
+        flipLabel={labels.flipLabel}
+        front={
+          cardStyle === "real" ? (
+            <RealStampCard
+              shopName={shopName}
+              logoUrl={logoUrl}
+              stamps={stamps}
+              goal={goal}
+              rewardsPendingCount={rewardsPendingCount}
+              labels={labels}
+            />
+          ) : (
+            <DigitalStampPanel
+              shopName={shopName}
+              stamps={stamps}
+              goal={goal}
+              rewardsPendingCount={rewardsPendingCount}
+              tone={tone}
+              labels={labels}
+            />
+          )
+        }
+        back={
+          <CardBack
+            isReal={cardStyle === "real"}
+            tone={tone}
+            customerFullName={customerFullName}
+            phoneLast4={phoneLast4}
             labels={labels}
           />
-        ) : (
-        <div
-          className={cn(
-            "card-scope mx-4 flex-none rounded-[22px] border p-[15px] backdrop-blur-[14px]",
-            tone.panel,
-          )}
-        >
-          {/* El nombre del local vive solo aquí para la tarjeta digital -la
-              cabecera de app/c/page.tsx ya no lo repite, ver ese archivo-; la
-              tarjeta "real" ya trae el suyo propio dentro de RealStampCard. */}
-          <p className={cn("truncate text-[clamp(10px,1.6vh,11.5px)] font-bold uppercase tracking-[0.08em]", tone.panelMuted)}>
-            {shopName}
-          </p>
-          <div className="mt-1.5 flex items-baseline gap-2.5">
-            <div className="flex flex-none items-baseline gap-[7px]">
-              <b className="numeral text-[clamp(24px,5.4vh,32px)] font-medium leading-none tracking-[-0.05em] text-lime">
-                {stamps}
-              </b>
-              <em className={cn("text-[clamp(11.5px,1.9vh,13.5px)] font-medium not-italic", tone.panelMuted)}>
-                {fill(labels.ofGoal, { goal })}
-              </em>
-            </div>
-            <div
-              className={cn(
-                "ml-auto text-right text-[clamp(10.5px,1.75vh,12.5px)] leading-[1.25]",
-                tone.panelMuted,
-              )}
-            >
-              {rewardsPendingCount > 0
-                ? labels.readyHint
-                : remaining === 1
-                  ? labels.oneToGo
-                  : fill(labels.nToGo, { n: remaining })}
-            </div>
-          </div>
-          <div className="mt-[clamp(10px,1.8vh,14px)] grid grid-cols-10 gap-[clamp(4px,1.1vw,7px)]">
-            {Array.from({ length: goal }, (_, i) => {
-              const filled = i < stamps;
-              const next = i === stamps;
-              return (
-                <span
-                  key={i}
-                  className={cn(
-                    "flex aspect-square items-center justify-center rounded-[8px] border transition-colors duration-300",
-                    filled
-                      ? "border-lime bg-lime text-ink shadow-[0_0_12px_rgba(210,251,79,0.3)]"
-                      : next
-                        ? "anim-dot-pulse border-lime/60 text-lime"
-                        : tone.dotEmpty,
-                  )}
-                >
-                  {filled ? <CoffeeIcon className="size-[56%]" /> : <CoffeeColdIcon className="size-[56%]" />}
-                </span>
-              );
-            })}
-          </div>
-        </div>
-        )
-      ) : (
-        <button
-          type="button"
-          onClick={() => goTo(0)}
-          className={cn(
-            "card-scope mx-4 flex flex-none items-center gap-2.5 rounded-full border px-4 py-2.5 text-left transition-[filter] active:scale-[0.98]",
-            cardStyle === "real"
-              ? "border-white/15 bg-[#0e1a38] text-white hover:brightness-110"
-              : cn(tone.panel, "hover:brightness-95"),
-          )}
-        >
-          <span
-            className={cn(
-              "flex size-7 shrink-0 items-center justify-center overflow-hidden rounded-full border",
-              cardStyle === "real" ? "border-white/30 bg-white/5" : tone.dotEmpty,
-            )}
-          >
-            {logoUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={logoUrl} alt="" className="size-full object-cover" />
-            ) : (
-              <CoffeeIcon className="size-[60%]" />
-            )}
-          </span>
-          <span className="min-w-0 flex-1 truncate text-[0.8125rem] font-bold uppercase tracking-[0.03em]">
-            {shopName}
-          </span>
-          <span className="numeral shrink-0 text-[1.0625rem] font-extrabold leading-none">
-            {stamps}
-            <span className="opacity-45">/{goal}</span>
-          </span>
-        </button>
-      )}
+        }
+      />
 
       <div
         role="tablist"
@@ -499,33 +427,202 @@ export function CardCarousel({
                   {idx === i ? <TimerBar touching={touching} onDone={() => goTo(0)} /> : null}
                 </div>
               ) : null}
-
-              {tab.id === "profile" ? (
-                <div
-                  className={cn(
-                    "card-scope flex size-full flex-col items-center justify-center gap-[clamp(7px,1.4vh,12px)] rounded-[clamp(18px,3.3vh,26px)] border p-[clamp(17px,3vh,26px)] text-center backdrop-blur-[18px]",
-                    tone.slide,
-                  )}
-                >
-                  <p className={cn("eyebrow", tone.eyebrow)}>{tab.label}</p>
-                  <span className="flex size-[clamp(52px,9vh,68px)] items-center justify-center rounded-full border border-lime/30 bg-lime/[.13] text-lime">
-                    <UserIcon className="size-[52%]" />
-                  </span>
-                  <h2 className="break-words text-[clamp(18px,3.4vh,24px)] font-extrabold leading-[1.16] tracking-[-0.025em]">
-                    {customerFullName}
-                  </h2>
-                  <p className={cn("numeral text-[clamp(13px,2.2vh,15px)]", tone.subtle60)}>•••• {phoneLast4}</p>
-                  <p className={cn("mt-1 text-[clamp(10.5px,1.75vh,12.5px)] leading-[1.45]", tone.subtle40)}>
-                    {labels.profilePhoneHint}
-                  </p>
-                  {idx === i ? <TimerBar touching={touching} onDone={() => goTo(0)} /> : null}
-                </div>
-              ) : null}
             </div>
           ))}
         </div>
       </div>
     </>
+  );
+}
+
+/**
+ * Tarjeta digital -alternativa a RealStampCard-, con el nombre del local
+ * como etiqueta propia: antes vivía en la cabecera de app/c/page.tsx, que
+ * ya no existe -la marca y el nombre del local se mudaron aquí dentro,
+ * ver CardFlip-.
+ */
+function DigitalStampPanel({
+  shopName,
+  stamps,
+  goal,
+  rewardsPendingCount,
+  tone,
+  labels,
+}: {
+  shopName: string;
+  stamps: number;
+  goal: number;
+  rewardsPendingCount: number;
+  tone: Tone;
+  labels: { ofGoal: string; oneToGo: string; nToGo: string; readyHint: string };
+}) {
+  const remaining = goal - stamps;
+  return (
+    <div className={cn("card-scope rounded-[22px] border p-[15px] backdrop-blur-[14px]", tone.panel)}>
+      <p className={cn("truncate text-[clamp(10px,1.6vh,11.5px)] font-bold uppercase tracking-[0.08em]", tone.panelMuted)}>
+        {shopName}
+      </p>
+      <div className="mt-1.5 flex items-baseline gap-2.5">
+        <div className="flex flex-none items-baseline gap-[7px]">
+          <b className="numeral text-[clamp(24px,5.4vh,32px)] font-medium leading-none tracking-[-0.05em] text-lime">
+            {stamps}
+          </b>
+          <em className={cn("text-[clamp(11.5px,1.9vh,13.5px)] font-medium not-italic", tone.panelMuted)}>
+            {fill(labels.ofGoal, { goal })}
+          </em>
+        </div>
+        <div className={cn("ml-auto text-right text-[clamp(10.5px,1.75vh,12.5px)] leading-[1.25]", tone.panelMuted)}>
+          {rewardsPendingCount > 0
+            ? labels.readyHint
+            : remaining === 1
+              ? labels.oneToGo
+              : fill(labels.nToGo, { n: remaining })}
+        </div>
+      </div>
+      <div className="mt-[clamp(10px,1.8vh,14px)] grid grid-cols-10 gap-[clamp(4px,1.1vw,7px)]">
+        {Array.from({ length: goal }, (_, i) => {
+          const filled = i < stamps;
+          const next = i === stamps;
+          return (
+            <span
+              key={i}
+              className={cn(
+                "flex aspect-square items-center justify-center rounded-[8px] border transition-colors duration-300",
+                filled
+                  ? "border-lime bg-lime text-ink shadow-[0_0_12px_rgba(210,251,79,0.3)]"
+                  : next
+                    ? "anim-dot-pulse border-lime/60 text-lime"
+                    : tone.dotEmpty,
+              )}
+            >
+              {filled ? <CoffeeIcon className="size-[56%]" /> : <CoffeeColdIcon className="size-[56%]" />}
+            </span>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Reverso de la tarjeta: perfil del cliente + el enlace de privacidad que
+ * antes era el pie fijo de app/c/page.tsx en las cuatro pestañas por
+ * igual. Mismo criterio de color que el frente -azul marino fijo para
+ * "real", tone.panel para "digital"-, para que el giro se sienta como la
+ * misma tarjeta, no una pantalla distinta.
+ */
+function CardBack({
+  isReal,
+  tone,
+  customerFullName,
+  phoneLast4,
+  labels,
+}: {
+  isReal: boolean;
+  tone: Tone;
+  customerFullName: string;
+  phoneLast4: string;
+  labels: { profileLabel: string; profilePhoneHint: string; consentLink: string };
+}) {
+  return (
+    <div
+      className={cn(
+        "card-scope flex size-full flex-col items-center justify-center gap-2 rounded-[20px] border p-5 text-center",
+        isReal ? "border-white/15 bg-[#0e1a38] text-white" : tone.panel,
+      )}
+    >
+      <p className={cn("eyebrow", isReal ? "text-white/45" : tone.eyebrow)}>{labels.profileLabel}</p>
+      <span
+        className={cn(
+          "flex size-11 items-center justify-center rounded-full border",
+          isReal ? "border-white/30 bg-white/5 text-white" : "border-lime/30 bg-lime/[.13] text-lime",
+        )}
+      >
+        <UserIcon className="size-[52%]" />
+      </span>
+      <h2 className="break-words text-[1.0625rem] font-extrabold leading-[1.2] tracking-[-0.02em]">
+        {customerFullName}
+      </h2>
+      <p className={cn("numeral text-[0.8125rem]", isReal ? "text-white/60" : tone.subtle60)}>•••• {phoneLast4}</p>
+      <p className={cn("text-[0.6875rem] leading-[1.45]", isReal ? "text-white/40" : tone.subtle40)}>
+        {labels.profilePhoneHint}
+      </p>
+      <Link
+        href="/privacidad"
+        className={cn(
+          "mt-1.5 text-[0.625rem] font-semibold uppercase tracking-[0.12em] underline underline-offset-2",
+          isReal ? "text-white/45" : tone.subtle40,
+        )}
+      >
+        {labels.consentLink}
+      </Link>
+    </div>
+  );
+}
+
+/**
+ * Giro 3D de la tarjeta -perspective + rotateY-, no un cambio de pestaña:
+ * el frente (sellos) y el reverso (perfil, privacidad) son la misma
+ * tarjeta física, no dos pantallas distintas, así que el gesto tiene que
+ * sentirse como voltear un objeto, no como navegar. El reverso se posiciona
+ * `absolute inset-0` sobre el frente -mismo bloque, dos caras-, así que
+ * toma el alto que el frente ya estableció en vez de imponer el suyo
+ * propio y crear un salto al girar.
+ *
+ * El botón de girar vive fuera del bloque que gira, para quedarse fijo en
+ * pantalla en las dos caras en vez de voltearse con la tarjeta.
+ * `backface-visibility:hidden` en cada cara evita que su contenido se vea
+ * espejado/atravesando la otra mientras gira.
+ *
+ * Sin marca "OnMe" flotando encima -se probó con un punto en la esquina
+ * superior izquierda y chocaba con el propio contenido de la tarjeta en
+ * los dos estilos: el logo del local en "real", el nombre del local en
+ * "digital"-. Las dos esquinas de arriba ya las ocupa cada tarjeta con
+ * algo más importante que una marca de agua.
+ */
+function CardFlip({
+  front,
+  back,
+  flipped,
+  onToggle,
+  flipLabel,
+}: {
+  front: React.ReactNode;
+  back: React.ReactNode;
+  flipped: boolean;
+  onToggle: () => void;
+  flipLabel: string;
+}) {
+  return (
+    <div className="relative mx-4 flex-none" style={{ perspective: "1600px" }}>
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-label={flipLabel}
+        aria-pressed={flipped}
+        className="absolute right-3 top-3 z-20 flex size-7 items-center justify-center rounded-full bg-black/25 text-white backdrop-blur-sm transition-transform active:scale-90"
+      >
+        <FlipIcon className="size-[55%]" />
+      </button>
+
+      <div
+        className="relative transition-transform duration-700 ease-[cubic-bezier(.4,0,.2,1)] [transform-style:preserve-3d]"
+        style={{ transform: flipped ? "rotateY(180deg)" : "rotateY(0deg)" }}
+      >
+        <div aria-hidden={flipped} className={cn("[backface-visibility:hidden]", flipped && "pointer-events-none")}>
+          {front}
+        </div>
+        <div
+          aria-hidden={!flipped}
+          className={cn(
+            "absolute inset-0 [backface-visibility:hidden] [transform:rotateY(180deg)]",
+            !flipped && "pointer-events-none",
+          )}
+        >
+          {back}
+        </div>
+      </div>
+    </div>
   );
 }
 

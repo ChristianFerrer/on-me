@@ -250,6 +250,21 @@
       linear-gradient(155deg, #c9f45a 0%, #57df8c 48%, #33b9d8 100%);
   }
 
+  /* Tema claro de /c -ver shops.theme en /admin/ajustes-: mismos tres
+     focos de color -lima, turquesa, azul-, pero como lavados pastel sobre
+     una base casi blanca en vez de un degradado saturado de punta a
+     punta. Un fondo "alegre" en claro no es el mismo oscuro invertido
+     -eso se ve apagado-, es luminoso con el color metido en manchas
+     suaves, no en toda la superficie. */
+  [data-theme="light"] .aurora {
+    background-color: #fbfcf4;
+    background-image:
+      radial-gradient(115% 85% at 2% 0%, rgba(233, 255, 114, 0.55) 0%, transparent 52%),
+      radial-gradient(100% 75% at 98% 8%, rgba(53, 214, 196, 0.35) 0%, transparent 58%),
+      radial-gradient(120% 95% at 50% 108%, rgba(79, 179, 240, 0.3) 0%, transparent 62%),
+      linear-gradient(155deg, #fdfdf6 0%, #f3fbe9 48%, #eaf6fa 100%);
+  }
+
   /* Variante apagada, para pantallas donde el contenido manda. */
   .aurora-quiet {
     background-color: #eef3ee;

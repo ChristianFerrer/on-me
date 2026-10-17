@@ -357,3 +357,15 @@ export function LogOutIcon(props: IconProps) {
     </svg>
   );
 }
+
+/** Girar -dos flechas curvas en bucle-, para el botón que voltea la tarjeta del cliente (/c) y enseña su reverso. */
+export function FlipIcon(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M7 7h7.5A3.5 3.5 0 0 1 18 10.5V12" />
+      <path d="m15 4 3 3-3 3" />
+      <path d="M17 17H9.5A3.5 3.5 0 0 1 6 13.5V12" />
+      <path d="m9 20-3-3 3-3" />
+    </svg>
+  );
+}

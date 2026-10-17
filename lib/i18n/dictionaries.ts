@@ -84,6 +84,7 @@ export const es = {
     giftNotNow: "ahora no",
     giftChoose: "elegir a quién",
     profileLabel: "perfil",
+    flipLabel: "ver perfil y privacidad",
   },
 
   invite: {
@@ -791,6 +792,7 @@ export const en: Dict = {
     giftNotNow: "not now",
     giftChoose: "choose who",
     profileLabel: "profile",
+    flipLabel: "view profile and privacy",
   },
 
   invite: {
@@ -1491,6 +1493,7 @@ export const fr: Dict = {
     giftNotNow: "pas maintenant",
     giftChoose: "choisir qui",
     profileLabel: "profil",
+    flipLabel: "voir le profil et la confidentialité",
   },
 
   invite: {
@@ -2191,6 +2194,7 @@ export const de: Dict = {
     giftNotNow: "jetzt nicht",
     giftChoose: "wen wählen",
     profileLabel: "profil",
+    flipLabel: "profil und datenschutz ansehen",
   },
 
   invite: {

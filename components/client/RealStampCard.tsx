@@ -32,7 +32,7 @@ export function RealStampCard({
   const remaining = goal - stamps;
 
   return (
-    <div className="card-scope mx-4 flex-none rounded-[20px] border border-white/15 bg-[#0e1a38] p-5 text-white shadow-[0_18px_40px_rgba(2,6,23,0.45)]">
+    <div className="card-scope rounded-[20px] border border-white/15 bg-[#0e1a38] p-5 text-white shadow-[0_18px_40px_rgba(2,6,23,0.45)]">
       <div className="flex items-center gap-3">
         <span className="flex size-11 shrink-0 items-center justify-center overflow-hidden rounded-full border border-white/30 bg-white/5">
           {logoUrl ? (

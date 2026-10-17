@@ -1,8 +1,6 @@
 import { IBM_Plex_Mono, Outfit } from "next/font/google";
-import Link from "next/link";
 import { CardCarousel } from "@/components/client/CardCarousel";
 import { OfflineBadge } from "@/components/client/OfflineBadge";
-import { Mark } from "@/components/ui/Logo";
 import { ButtonLink } from "@/components/ui/Button";
 import { QrCode } from "@/components/ui/QrCode";
 import { Screen, Slab } from "@/components/ui/Screen";
@@ -60,13 +58,20 @@ export default async function CardPage() {
     // `flex:1` absorba justo el espacio sobrante, no crecer sin límite.
     // Fondo verde -`aurora`, el mismo degradado que usaba esta pantalla
     // antes del carrusel-, no el morado oscuro de la spec original: es la
-    // identidad de color de /c en el resto de la app. `text-ink`, a juego
-    // -convención de Screen.tsx-, para lo poco que queda directamente sobre
-    // el degradado -el enlace de privacidad, aquí abajo-; las superficies
-    // oscuras (tarjeta de progreso, iconos, tarjetas del carrusel) fijan su
-    // propio `text-chalk`, igual que ya hace `.slab` en el resto de la app,
-    // así que no dependen de este valor para leerse bien.
+    // identidad de color de /c en el resto de la app; con `data-theme`
+    // ahora sí cambia de verdad entre los dos temas del local -ver
+    // [data-theme="light"] .aurora en globals.css-, no solo las
+    // superficies que flotan encima. `text-ink`, a juego -convención de
+    // Screen.tsx-, para lo poco que queda directamente sobre el
+    // degradado; las superficies oscuras (tarjeta, iconos) fijan su
+    // propio `text-chalk`, igual que ya hace `.slab` en el resto de la
+    // app, así que no dependen de este valor para leerse bien. Sin
+    // cabecera ni pie propios -la marca y el enlace de privacidad viven
+    // ahora dentro de la propia tarjeta, en su reverso, ver
+    // CardCarousel.tsx-: la tarjeta pasa a ocupar ella sola todo el
+    // bloque superior, sin ceder una fila entera solo para un logo chico.
     <div
+      data-theme={shop.theme}
       className={cn(
         "card-scope aurora flex h-svh w-full flex-col text-ink",
         outfit.variable,
@@ -76,19 +81,7 @@ export default async function CardPage() {
     >
       <OfflineBadge label={t.card.offline} />
 
-      {/* Solo la marca -sin el nombre del local, que ya se repetía más
-          abajo en las cuatro pestañas: la tarjeta grande lo trae (código) o
-          la barra compacta lo trae (las otras tres), ver CardCarousel.tsx-.
-          Píldora más chica -menos padding, menos letra- ahora que no tiene
-          que acomodar una segunda etiqueta larga a la derecha. */}
-      <header className="flex-none px-4 pt-[max(0.75rem,env(safe-area-inset-top))]">
-        <div className="glass-dark flex w-fit items-center gap-2 rounded-full px-[14px] py-[clamp(7px,1.3vh,10px)] text-chalk">
-          <Mark className="anim-oracle-pulse size-2" />
-          <span className="text-[clamp(13px,2.2vh,14.5px)] font-extrabold tracking-[-0.02em]">OnMe</span>
-        </div>
-      </header>
-
-      <main className="flex min-h-0 flex-1 flex-col gap-[clamp(8px,1.8vh,14px)] py-[clamp(8px,1.8vh,14px)] pb-3">
+      <main className="flex min-h-0 flex-1 flex-col gap-[clamp(8px,1.8vh,14px)] py-[clamp(10px,2.2vh,16px)] pb-3">
         <CardCarousel
           customerFullName={card.customer.name}
           phoneLast4={card.customer.phone_last4}
@@ -133,18 +126,11 @@ export default async function CardPage() {
             profileLabel: t.card.profileLabel,
             profilePhoneHint: t.join.phoneHint,
             eyebrow: t.card.eyebrow,
+            consentLink: t.join.consentLink,
+            flipLabel: t.card.flipLabel,
           }}
         />
       </main>
-
-      <footer className="flex-none px-4 pb-[max(0.5rem,env(safe-area-inset-bottom))] text-right">
-        <Link
-          href="/privacidad"
-          className="eyebrow text-[0.5625rem] text-ink/45 underline underline-offset-2"
-        >
-          {t.join.consentLink}
-        </Link>
-      </footer>
     </div>
   );
 }
