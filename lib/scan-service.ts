@@ -72,7 +72,11 @@ export async function runScan(
     // lleva el premio de los 2 que la completan y los 2 que sobran arrancan
     // la tarjeta siguiente, en la misma pasada -nadie vuelve a la barra
     // solo para que le sigan sellando lo que ya pagó-.
-    const requested = Math.max(1, Math.floor(options.quantity ?? 1));
+    // `Math.max(0, …)`, no `Math.max(1, …)`: la taza del selector manda
+    // `quantity: 0` a propósito -escanear sin sumar ningún sello-, y
+    // `applyStampBatch` ya lo resuelve solo -su `while` no entra ninguna
+    // vez-, sin tocar nada del pase.
+    const requested = Math.max(0, Math.floor(options.quantity ?? 1));
     const batch = applyStampBatch(
       {
         stamps: pass.stamps,

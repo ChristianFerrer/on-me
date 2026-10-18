@@ -133,12 +133,25 @@ export function Scanner({
             <p className="eyebrow mt-0.5 truncate text-on-surface/45">{deviceName}</p>
           </div>
           <div className="flex items-center gap-2">
+            {/* "Buscar" primero -a la izquierda-, el menú después -a la
+                derecha-: es el que se usa a cada cliente, el menú una vez
+                por turno. */}
+            {/* Icono solo, no la pastilla con texto que tenía -"buscar"-: le
+                quitaba tanto ancho a la fila que la pastilla del local, a la
+                izquierda, se quedaba sin espacio y se cortaba a "The …". */}
+            <Link
+              href="/s/buscar"
+              prefetch={false}
+              aria-label={t.search}
+              className="btn glass-dark size-11 rounded-full text-on-surface"
+            >
+              <SearchIcon className="size-5" />
+            </Link>
             {/* Inicio, código de alta y cambiar de modo vivían sueltos acá,
-                tres iconos más los de abajo: entre eso y la pastilla del
+                tres iconos más el de buscar: entre eso y la pastilla del
                 local no entraban todos sin recortarse. Se agrupan en un
                 menú -mismo patrón que el botón de configuración de
-                BottomNav.tsx-, dejando "buscar" como único icono aparte,
-                que es el que se usa a cada cliente, no una vez por turno. */}
+                BottomNav.tsx-. */}
             <div ref={menuRef} className="relative">
               <button
                 type="button"
@@ -199,36 +212,42 @@ export function Scanner({
                 </div>
               ) : null}
             </div>
-            {/* Icono solo, no la pastilla con texto que tenía -"buscar"-: le
-                quitaba tanto ancho a la fila que la pastilla del local, a la
-                izquierda, se quedaba sin espacio y se cortaba a "The …". */}
-            <Link
-              href="/s/buscar"
-              prefetch={false}
-              aria-label={t.search}
-              className="btn glass-dark size-11 rounded-full text-on-surface"
-            >
-              <SearchIcon className="size-5" />
-            </Link>
           </div>
         </header>
 
-        {phase.step === "idle" ? (
-          <div className="flex justify-center px-4 pt-2">
+        {/* El selector vivía pegado a la cabecera, lejos de la caja que
+            describe -el mensaje, o el visor una vez elegida cantidad-, con
+            un hueco vacío entre los dos. Los dos se agrupan en el mismo
+            bloque centrado, el selector justo encima de la caja, no sueltos
+            en zonas distintas de la pantalla. */}
+        <div className="flex flex-1 flex-col items-center justify-center gap-3 px-6">
+          {phase.step === "idle" ? (
             <div
               role="group"
               aria-label={t.quantityLabel}
               className="glass-dark flex items-center gap-0.5 rounded-full p-1.5 text-on-surface"
             >
-              <span
-                aria-hidden
+              {/* La taza ya no es solo la pista decorativa de "todavía no
+                  elegiste" -antes un <span aria-hidden>-: pasa a ser una
+                  opción más, "0 cafés", para cuando el barista escanea sin
+                  querer sumar ningún sello -solo canjear algo pendiente, o
+                  dejar pasar a alguien sin cobrarle un café-. */}
+              <button
+                type="button"
+                onClick={() => setQuantity(0)}
+                aria-pressed={quantity === 0}
+                aria-label={t.quantityNone}
                 className={cn(
                   "flex size-8 shrink-0 items-center justify-center rounded-full transition-colors",
-                  quantityChosen ? "text-on-surface/45" : "anim-dot-pulse bg-lime text-ink",
+                  quantity === 0
+                    ? "bg-lime text-ink"
+                    : quantityChosen
+                      ? "text-on-surface/55 hover:text-on-surface"
+                      : "anim-dot-pulse bg-lime text-ink",
                 )}
               >
                 <CoffeeIcon className="size-4" />
-              </span>
+              </button>
               {QUANTITIES.map((n) => (
                 <button
                   key={n}
@@ -245,21 +264,21 @@ export function Scanner({
                 </button>
               ))}
             </div>
-          </div>
-        ) : null}
+          ) : null}
 
-        <div className="flex flex-1 items-center justify-center px-10">
-          {phase.step === "idle" && !blocked && !quantityChosen ? (
-            // `glass-dark` -mismo material que la pastilla del local y la del
-            // selector de arriba-, no texto suelto encima de la cámara: sin
-            // nada detrás se perdía contra lo que estuviera enfocando en ese
-            // momento, de ahí que se viera "casi transparente".
-            <p className="glass-dark display-tight hyphens-auto break-words rounded-[2rem] px-8 py-7 text-center text-[clamp(1.5rem,7vw,2.75rem)] leading-[1.15] text-on-surface">
-              {t.quantityPrompt}
-            </p>
-          ) : (
-            <Target active={phase.step === "idle" && !blocked && quantityChosen} />
-          )}
+          <div className="flex w-full justify-center px-4">
+            {phase.step === "idle" && !blocked && !quantityChosen ? (
+              // `glass-dark` -mismo material que la pastilla del local y la del
+              // selector de arriba-, no texto suelto encima de la cámara: sin
+              // nada detrás se perdía contra lo que estuviera enfocando en ese
+              // momento, de ahí que se viera "casi transparente".
+              <p className="glass-dark display-tight hyphens-auto break-words rounded-[2rem] px-8 py-7 text-center text-[clamp(1.5rem,7vw,2.75rem)] leading-[1.15] text-on-surface">
+                {t.quantityPrompt}
+              </p>
+            ) : (
+              <Target active={phase.step === "idle" && !blocked && quantityChosen} />
+            )}
+          </div>
         </div>
 
         <ArrivalsTray t={t} hidden={phase.step !== "idle"} />

@@ -141,7 +141,11 @@ export type StampBatchOutcome = {
  * lo que ya pagó-.
  */
 export function applyStampBatch(pass: PassState, goal: number, quantity: number): StampBatchOutcome {
-  const requested = Math.max(1, Math.floor(quantity));
+  // `Math.max(0, …)`, no `Math.max(1, …)`: 0 es una cantidad válida -la
+  // taza del selector en Scanner.tsx, para escanear sin sumar ningún
+  // sello-, no solo un valor a corregir hacia arriba. Con 0 el `while` de
+  // abajo no entra ninguna vez: el pase vuelve sin tocar.
+  const requested = Math.max(0, Math.floor(quantity));
 
   let current = pass;
   let rewardsEarned = 0;

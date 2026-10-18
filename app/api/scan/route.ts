@@ -10,8 +10,13 @@ const Body = z.object({
   pin: z.string().regex(/^\d{4}$/).optional(),
   /** De apertura de cámara a resultado. Es el presupuesto de tiempo del piloto. */
   durationMs: z.number().int().min(0).max(120_000).optional(),
-  /** Cafés a sellar de una vez, del selector de cantidad en Scanner.tsx. */
-  quantity: z.number().int().min(1).max(10).optional(),
+  /**
+   * Cafés a sellar de una vez, del selector de cantidad en Scanner.tsx.
+   * `min(0)`, no `min(1)`: la taza del selector deja escanear sin sumar
+   * ningún sello -canjear algo pendiente, o dejar pasar a alguien sin
+   * cobrarle un café-, no solo elegir cuántos.
+   */
+  quantity: z.number().int().min(0).max(10).optional(),
 });
 
 export async function POST(request: Request) {

@@ -106,6 +106,13 @@ describe("applyStampBatch", () => {
     expect(batch.pass.stamps).toBe(1);
     expect(batch.pass.rewardsPending).toBe(2);
   });
+
+  it("con 0 cafés pedidos -la taza del selector- no toca el pase", () => {
+    const batch = applyStampBatch({ ...empty, stamps: 4 }, 10, 0);
+    expect(batch.applied).toBe(0);
+    expect(batch.rewardsEarned).toBe(0);
+    expect(batch.pass).toEqual({ ...empty, stamps: 4 });
+  });
 });
 
 describe("bonus del padrino", () => {
