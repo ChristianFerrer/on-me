@@ -369,3 +369,14 @@ export function FlipIcon(props: IconProps) {
     </svg>
   );
 }
+
+/** Menú -tres rayas-, para el botón que agrupa inicio/código de alta/cambiar de modo en Scanner.tsx. */
+export function MenuIcon(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M4 6.5h16" />
+      <path d="M4 12h16" />
+      <path d="M4 17.5h16" />
+    </svg>
+  );
+}

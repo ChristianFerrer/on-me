@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { CoffeeIcon, HomeIcon, QrIcon, SearchIcon, UserIcon } from "@/components/ui/Icons";
+import { CoffeeIcon, HomeIcon, MenuIcon, QrIcon, SearchIcon, UserIcon } from "@/components/ui/Icons";
 import { cn } from "@/lib/cn";
 import { fill, type Dict } from "@/lib/i18n";
 import { PinPad } from "./PinPad";
@@ -36,6 +36,27 @@ export function Scanner({
   onSwitchMode?: () => void;
 }) {
   const [online, setOnline] = useState(true);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  // Cerrar al tocar fuera o con Escape -mismo patrón que el menú de
+  // configuración de BottomNav.tsx, el único otro menú flotante de la app-.
+  useEffect(() => {
+    if (!menuOpen) return;
+    function onPointerDown(event: PointerEvent) {
+      if (menuRef.current?.contains(event.target as Node)) return;
+      setMenuOpen(false);
+    }
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") setMenuOpen(false);
+    }
+    document.addEventListener("pointerdown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [menuOpen]);
 
   /**
    * Cafés a sellar en el próximo escaneo. Empieza sin elegir -`null`, la
@@ -111,24 +132,72 @@ export function Scanner({
             <p className="eyebrow mt-0.5 truncate text-on-surface/45">{deviceName}</p>
           </div>
           <div className="flex items-center gap-2">
-            <Link
-              href="/inicio"
-              prefetch={false}
-              aria-label={t.home}
-              className="btn glass-dark size-11 rounded-full text-on-surface"
-            >
-              <HomeIcon className="size-5" />
-            </Link>
-            {/* Para dar de alta a alguien sin escanear su móvil directamente:
-                el barista enseña este código en la pantalla del dispositivo. */}
-            <Link
-              href={`/j/${shopSlug}/qr?from=/s`}
-              prefetch={false}
-              aria-label={t.signupQr}
-              className="btn glass-dark size-11 rounded-full text-on-surface"
-            >
-              <QrIcon className="size-5" />
-            </Link>
+            {/* Inicio, código de alta y cambiar de modo vivían sueltos acá,
+                tres iconos más los de abajo: entre eso y la pastilla del
+                local no entraban todos sin recortarse. Se agrupan en un
+                menú -mismo patrón que el botón de configuración de
+                BottomNav.tsx-, dejando "buscar" como único icono aparte,
+                que es el que se usa a cada cliente, no una vez por turno. */}
+            <div ref={menuRef} className="relative">
+              <button
+                type="button"
+                onClick={() => setMenuOpen((v) => !v)}
+                aria-expanded={menuOpen}
+                aria-haspopup="menu"
+                aria-label={t.menu}
+                className="btn glass-dark size-11 rounded-full text-on-surface"
+              >
+                <MenuIcon className="size-5" />
+              </button>
+              {menuOpen ? (
+                // `right-0`, no `left-0`: este botón vive cerca del borde
+                // derecho de la cabecera -a la izquierda de "buscar"-, así
+                // que anclar por la izquierda hacía que el menú se saliera
+                // de la pantalla en vez de colgar hacia donde sí hay sitio.
+                <div
+                  role="menu"
+                  className="glass-dark absolute right-0 top-full z-10 mt-2 flex w-56 flex-col gap-0.5 rounded-2xl p-1.5 shadow-[0_1rem_3rem_rgba(0,0,0,0.35)]"
+                >
+                  <Link
+                    href="/inicio"
+                    prefetch={false}
+                    role="menuitem"
+                    onClick={() => setMenuOpen(false)}
+                    className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-[0.8125rem] font-medium text-on-surface/80 transition-colors hover:bg-[rgba(var(--on-surface-rgb),.08)] hover:text-on-surface"
+                  >
+                    <HomeIcon className="size-4.5" />
+                    {t.home}
+                  </Link>
+                  {/* Para dar de alta a alguien sin escanear su móvil
+                      directamente: el barista enseña este código en la
+                      pantalla del dispositivo. */}
+                  <Link
+                    href={`/j/${shopSlug}/qr?from=/s`}
+                    prefetch={false}
+                    role="menuitem"
+                    onClick={() => setMenuOpen(false)}
+                    className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-[0.8125rem] font-medium text-on-surface/80 transition-colors hover:bg-[rgba(var(--on-surface-rgb),.08)] hover:text-on-surface"
+                  >
+                    <QrIcon className="size-4.5" />
+                    {t.signupQr}
+                  </Link>
+                  {onSwitchMode ? (
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={() => {
+                        setMenuOpen(false);
+                        onSwitchMode();
+                      }}
+                      className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-left text-[0.8125rem] font-medium text-on-surface/80 transition-colors hover:bg-[rgba(var(--on-surface-rgb),.08)] hover:text-on-surface"
+                    >
+                      <UserIcon className="size-4.5" />
+                      {t.switchToIdentifyMode}
+                    </button>
+                  ) : null}
+                </div>
+              ) : null}
+            </div>
             {/* Icono solo, no la pastilla con texto que tenía -"buscar"-: le
                 quitaba tanto ancho a la fila que la pastilla del local, a la
                 izquierda, se quedaba sin espacio y se cortaba a "The …". */}
@@ -140,17 +209,6 @@ export function Scanner({
             >
               <SearchIcon className="size-5" />
             </Link>
-            {onSwitchMode ? (
-              <button
-                type="button"
-                onClick={onSwitchMode}
-                aria-label={t.switchToIdentifyMode}
-                title={t.switchToIdentifyMode}
-                className="btn glass-dark size-11 rounded-full text-on-surface"
-              >
-                <UserIcon className="size-5" />
-              </button>
-            ) : null}
           </div>
         </header>
 
