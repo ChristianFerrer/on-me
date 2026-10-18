@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { HomeIcon, QrIcon, ScanIcon, SearchIcon } from "@/components/ui/Icons";
 import { cn } from "@/lib/cn";
 import type { Dict, Locale } from "@/lib/i18n";
+import { ArrivalsTray } from "./ArrivalsTray";
 import { CustomerProfilePanel } from "./CustomerProfilePanel";
 import { IdentifyResult } from "./IdentifyResult";
 import { PinPad } from "./PinPad";
@@ -118,6 +119,8 @@ export function IdentifyScanner({
           <Target active={phase.step === "scanning" && !blocked} />
         </div>
 
+        <ArrivalsTray t={t} hidden={phase.step !== "scanning"} />
+
         <footer className="px-5 pb-[max(1.75rem,env(safe-area-inset-bottom))]">
           {blocked ? (
             <div className="glass-dark px-5 py-4 text-center">
@@ -156,7 +159,9 @@ export function IdentifyScanner({
           profile={phase.profile}
           busy={phase.step === "applying"}
           onCancel={reset}
-          onConfirm={(addStamps, redeemCount) => apply(phase.profile, addStamps, redeemCount)}
+          onConfirm={(addStamps, redeemCount, redeemInvitation) =>
+            apply(phase.profile, addStamps, redeemCount, redeemInvitation)
+          }
           onUpdateProfile={(name, phone) => updateProfile(phase.profile.customerId, name, phone)}
         />
       ) : null}

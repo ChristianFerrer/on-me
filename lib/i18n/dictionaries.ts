@@ -56,6 +56,21 @@ export const es = {
     urlHint: "o entra en",
   },
 
+  checkin: {
+    eyebrow: "estás en barra",
+    title: "avisado, {name}",
+    body: "el barista ya te ve en su lista. dile tu nombre al pagar y te sella.",
+    sending: "avisando a barra…",
+    doneTitle: "¡sellado!",
+    expiredTitle: "el aviso ha caducado",
+    expiredBody: "si sigues en la cola, vuelve a avisar.",
+    retry: "avisar otra vez",
+    seeCard: "ver mi tarjeta",
+    notMe: "no soy {name}",
+    error: "no ha salido. inténtalo otra vez.",
+    rate: "demasiados avisos. espera un minuto.",
+  },
+
   card: {
     eyebrow: "tu tarjeta",
     stampsOf: "{n} de {goal}",
@@ -215,6 +230,16 @@ export const es = {
     identifyConsumptionMonth: "{n} este mes",
     identifyConsumptionTotal: "{n} totales",
     identifyClosingAutoCloseHint: "cierra la pantalla sola en 15 segundos, o pulsa cerrar.",
+    arrivalsTitle: "en barra",
+    arrivalsAttend: "atender a {name}",
+    arrivalsNew: "nuevo",
+    arrivalsInvited: "invitado",
+    arrivalsFreeCoffee: "café gratis",
+    arrivalsSeconds: "hace {n} s",
+    arrivalsMinutes: "hace {n} min",
+    identifyInvitationTitle: "invitado por {padrino}",
+    identifyInvitationBody: "su café de bienvenida. cuenta como primer sello de su tarjeta.",
+    identifyClosingInvitationRedeemed: "invitación de {padrino} canjeada",
     results: {
       stampTitle: "sello {n} de {goal}",
       stampFor: "para {name}",
@@ -620,6 +645,8 @@ export const es = {
     barStreak: "racha de días con canje",
     barTotalScans: "sellos registrados",
     barExpired: "invitaciones caducadas",
+    barArrivals: "avisos en barra",
+    barArrivalsUnattended: "avisos sin atender",
   },
 
   home: {
@@ -772,6 +799,21 @@ export const en: Dict = {
     eyebrow: "scan to join",
     hint: "point your phone's camera at the code",
     urlHint: "or go to",
+  },
+
+  checkin: {
+    eyebrow: "you're at the counter",
+    title: "done, {name}",
+    body: "the barista can see you on their list. say your name when you pay and they'll stamp your card.",
+    sending: "letting the counter know…",
+    doneTitle: "stamped!",
+    expiredTitle: "this check-in has expired",
+    expiredBody: "if you're still in the queue, check in again.",
+    retry: "check in again",
+    seeCard: "see my card",
+    notMe: "i'm not {name}",
+    error: "that didn't work. try again.",
+    rate: "too many check-ins. wait a minute.",
   },
 
   card: {
@@ -933,6 +975,16 @@ export const en: Dict = {
     identifyConsumptionMonth: "{n} this month",
     identifyConsumptionTotal: "{n} total",
     identifyClosingAutoCloseHint: "closes on its own in 15 seconds, or tap close.",
+    arrivalsTitle: "at the counter",
+    arrivalsAttend: "serve {name}",
+    arrivalsNew: "new",
+    arrivalsInvited: "invited",
+    arrivalsFreeCoffee: "free coffee",
+    arrivalsSeconds: "{n}s ago",
+    arrivalsMinutes: "{n} min ago",
+    identifyInvitationTitle: "invited by {padrino}",
+    identifyInvitationBody: "their welcome coffee. it counts as the first stamp on their card.",
+    identifyClosingInvitationRedeemed: "{padrino}'s invite redeemed",
     results: {
       stampTitle: "stamp {n} of {goal}",
       stampFor: "for {name}",
@@ -1338,6 +1390,8 @@ export const en: Dict = {
     barStreak: "consecutive days with a redemption",
     barTotalScans: "stamps logged",
     barExpired: "expired invites",
+    barArrivals: "counter check-ins",
+    barArrivalsUnattended: "unattended check-ins",
   },
 
   home: {
@@ -1483,6 +1537,21 @@ export const fr: Dict = {
     eyebrow: "scanne pour t'inscrire",
     hint: "pointe l'appareil photo de ton mobile vers le code",
     urlHint: "ou va sur",
+  },
+
+  checkin: {
+    eyebrow: "vous êtes au comptoir",
+    title: "c'est noté, {name}",
+    body: "le barista vous voit dans sa liste. dites votre prénom en payant et il tamponne votre carte.",
+    sending: "on prévient le comptoir…",
+    doneTitle: "tamponné !",
+    expiredTitle: "le signalement a expiré",
+    expiredBody: "si vous êtes encore dans la file, signalez-vous à nouveau.",
+    retry: "me signaler à nouveau",
+    seeCard: "voir ma carte",
+    notMe: "je ne suis pas {name}",
+    error: "ça n'a pas marché. réessayez.",
+    rate: "trop de signalements. attendez une minute.",
   },
 
   card: {
@@ -1644,6 +1713,16 @@ export const fr: Dict = {
     identifyConsumptionMonth: "{n} ce mois-ci",
     identifyConsumptionTotal: "{n} au total",
     identifyClosingAutoCloseHint: "se ferme seul dans 15 secondes, ou touche fermer.",
+    arrivalsTitle: "au comptoir",
+    arrivalsAttend: "servir {name}",
+    arrivalsNew: "nouveau",
+    arrivalsInvited: "invité",
+    arrivalsFreeCoffee: "café offert",
+    arrivalsSeconds: "il y a {n} s",
+    arrivalsMinutes: "il y a {n} min",
+    identifyInvitationTitle: "invité par {padrino}",
+    identifyInvitationBody: "son café de bienvenue. il compte comme premier tampon de sa carte.",
+    identifyClosingInvitationRedeemed: "invitation de {padrino} échangée",
     results: {
       stampTitle: "tampon {n} sur {goal}",
       stampFor: "pour {name}",
@@ -2049,6 +2128,8 @@ export const fr: Dict = {
     barStreak: "jours consécutifs avec un échange",
     barTotalScans: "tampons enregistrés",
     barExpired: "invitations expirées",
+    barArrivals: "signalements au comptoir",
+    barArrivalsUnattended: "signalements non traités",
   },
 
   home: {
@@ -2194,6 +2275,21 @@ export const de: Dict = {
     eyebrow: "scannen zum Mitmachen",
     hint: "richte die Kamera deines Handys auf den Code",
     urlHint: "oder geh auf",
+  },
+
+  checkin: {
+    eyebrow: "du bist an der theke",
+    title: "erledigt, {name}",
+    body: "der barista sieht dich in seiner liste. sag beim bezahlen deinen namen und er stempelt deine karte.",
+    sending: "theke wird benachrichtigt…",
+    doneTitle: "gestempelt!",
+    expiredTitle: "die anmeldung ist abgelaufen",
+    expiredBody: "wenn du noch in der schlange stehst, melde dich erneut an.",
+    retry: "erneut anmelden",
+    seeCard: "meine karte ansehen",
+    notMe: "ich bin nicht {name}",
+    error: "das hat nicht geklappt. versuch es noch einmal.",
+    rate: "zu viele anmeldungen. warte eine minute.",
   },
 
   card: {
@@ -2355,6 +2451,16 @@ export const de: Dict = {
     identifyConsumptionMonth: "{n} diesen Monat",
     identifyConsumptionTotal: "{n} insgesamt",
     identifyClosingAutoCloseHint: "schließt sich in 15 Sekunden von selbst, oder tippe auf schließen.",
+    arrivalsTitle: "an der theke",
+    arrivalsAttend: "{name} bedienen",
+    arrivalsNew: "neu",
+    arrivalsInvited: "eingeladen",
+    arrivalsFreeCoffee: "gratis-kaffee",
+    arrivalsSeconds: "vor {n} s",
+    arrivalsMinutes: "vor {n} min",
+    identifyInvitationTitle: "eingeladen von {padrino}",
+    identifyInvitationBody: "sein Willkommenskaffee. zählt als erster Stempel auf der Karte.",
+    identifyClosingInvitationRedeemed: "Einladung von {padrino} eingelöst",
     results: {
       stampTitle: "Stempel {n} von {goal}",
       stampFor: "für {name}",
@@ -2760,6 +2866,8 @@ export const de: Dict = {
     barStreak: "aufeinanderfolgende Tage mit Einlösung",
     barTotalScans: "erfasste Stempel",
     barExpired: "abgelaufene Einladungen",
+    barArrivals: "Anmeldungen an der Theke",
+    barArrivalsUnattended: "unbeachtete Anmeldungen",
   },
 
   home: {

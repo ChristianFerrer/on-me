@@ -10,6 +10,7 @@ const Body = z.object({
   // solo el techo absoluto del propio input, igual que redeemCount.
   addStamps: z.number().int().min(0).max(20),
   redeemCount: z.number().int().min(0).max(20),
+  redeemInvitation: z.boolean().optional(),
   pin: z.string().regex(/^\d{4}$/).optional(),
 });
 
@@ -24,8 +25,13 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "bad_request" }, { status: 400 });
   }
 
-  const { customerId, addStamps, redeemCount, pin } = parsed.data;
-  const outcome = await applyIdentifiedVisit(ctx, customerId, { addStamps, redeemCount, pin });
+  const { customerId, addStamps, redeemCount, redeemInvitation, pin } = parsed.data;
+  const outcome = await applyIdentifiedVisit(ctx, customerId, {
+    addStamps,
+    redeemCount,
+    redeemInvitation,
+    pin,
+  });
 
   void touchDeviceSession(ctx.sessionId);
 

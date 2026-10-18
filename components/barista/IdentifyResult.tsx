@@ -3,7 +3,7 @@
 import { cn } from "@/lib/cn";
 import { fill, formatMonthYear, formatRelativeTime, plural, type Dict, type Locale } from "@/lib/i18n";
 import type { IdentifyApplyResult } from "@/lib/identify-service";
-import { XIcon } from "@/components/ui/Icons";
+import { GiftIcon, XIcon } from "@/components/ui/Icons";
 import { TierBadge } from "./TierBadge";
 
 type BaristaDict = Dict["barista"];
@@ -96,6 +96,13 @@ function Applied({
         <p className="text-[0.8125rem] text-on-surface/45">{memberSince}</p>
         <p className="text-[0.8125rem] text-on-surface/45">{lastVisit}</p>
       </div>
+
+      {result.invitationRedeemed ? (
+        <p className="flex items-center gap-2 self-start rounded-full bg-azure px-4 py-2 text-[0.875rem] font-bold text-ink">
+          <GiftIcon className="size-4" />
+          {fill(t.identifyClosingInvitationRedeemed, { padrino: result.invitationRedeemed.padrino })}
+        </p>
+      ) : null}
 
       <section className="glass-dark p-5">
         <p className="eyebrow text-center text-on-surface/45">{t.identifyLoyaltySectionTitle}</p>

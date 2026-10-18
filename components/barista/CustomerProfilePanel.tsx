@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { EditIcon, XIcon } from "@/components/ui/Icons";
+import { EditIcon, GiftIcon, XIcon } from "@/components/ui/Icons";
 import { fill, formatMonthYear, formatRelativeTime, plural, type Dict, type Locale } from "@/lib/i18n";
 import { TierBadge } from "./TierBadge";
 import type { IdentifyProfile } from "./useIdentifyFlow";
@@ -30,7 +30,8 @@ export function CustomerProfilePanel({
   profile: IdentifyProfile;
   busy: boolean;
   onCancel: () => void;
-  onConfirm: (addStamps: number, redeemCount: number) => void;
+  /** `redeemInvitation`: canjear además la invitación pendiente de un invitado. */
+  onConfirm: (addStamps: number, redeemCount: number, redeemInvitation?: boolean) => void;
   onUpdateProfile: (name: string, phone: string) => Promise<{ ok: true } | { ok: false; error: string }>;
 }) {
   const [addStamps, setAddStamps] = useState(Math.min(1, profile.maxStamps));
@@ -164,6 +165,30 @@ export function CustomerProfilePanel({
             </div>
           </div>
         )}
+
+        {/* ------------------------------------------- invitación pendiente
+            Va primero y a lo ancho: un invitado viene a por esto, y es
+            lo que decide la puerta P2. Su café cuenta como primer sello,
+            así que los sellos de abajo, si compra más, suman encima. */}
+        {profile.pendingInvitation ? (
+          <section className="flex flex-col gap-3 rounded-[var(--radius-card)] bg-azure p-5 text-ink">
+            <div className="flex items-center gap-2">
+              <GiftIcon className="size-5" />
+              <p className="text-[1.0625rem] font-bold">
+                {fill(t.identifyInvitationTitle, { padrino: profile.pendingInvitation.padrino })}
+              </p>
+            </div>
+            <p className="text-[0.875rem] text-ink/70">{t.identifyInvitationBody}</p>
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => onConfirm(0, 0, true)}
+              className="btn w-full bg-ink px-4 py-3.5 text-[1rem] font-bold text-chalk disabled:opacity-40"
+            >
+              {busy ? t.checking : t.stampActionInvite}
+            </button>
+          </section>
+        ) : null}
 
         <div className="grid grid-cols-2 gap-3">
           {/* ------------------------------------------------- sellos */}
