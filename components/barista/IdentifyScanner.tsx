@@ -5,7 +5,6 @@ import { useEffect, useState } from "react";
 import { HomeIcon, QrIcon, ScanIcon, SearchIcon } from "@/components/ui/Icons";
 import { cn } from "@/lib/cn";
 import type { Dict, Locale } from "@/lib/i18n";
-import { ArrivalsTray } from "./ArrivalsTray";
 import { CustomerProfilePanel } from "./CustomerProfilePanel";
 import { IdentifyResult } from "./IdentifyResult";
 import { PinPad } from "./PinPad";
@@ -118,8 +117,6 @@ export function IdentifyScanner({
         <div className="flex flex-1 items-center justify-center px-10">
           <Target active={phase.step === "scanning" && !blocked} />
         </div>
-
-        <ArrivalsTray t={t} pinRequired={pinRequired} hidden={phase.step !== "scanning"} />
 
         <footer className="px-5 pb-[max(1.75rem,env(safe-area-inset-bottom))]">
           {blocked ? (

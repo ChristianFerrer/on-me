@@ -1,4 +1,3 @@
-import { resolveArrivals } from "@/lib/arrivals";
 import { db } from "@/lib/db/client";
 import type { DeviceContext } from "@/lib/auth/device";
 import { checkPin } from "@/lib/auth/device";
@@ -295,10 +294,6 @@ export async function applyIdentifiedVisit(
   for (let i = 0; i < batch.rewardsEarned; i++) {
     await createInvitation({ shop, padrinoId: customer.id, locale: customer.locale });
   }
-
-  // Solo si de verdad se aplicó algo: abrir la ficha y confirmar con 0
-  // sellos y 0 canjes no es atender, y el aviso debe seguir en la lista.
-  if (batch.applied > 0 || redeemed > 0) await resolveArrivals(shop.id, customer.id);
 
   // Perfil recalculado entero -no un parche a mano sobre `after`-: así el
   // resumen de cierre lee el mismo dato que vería un segundo escaneo
