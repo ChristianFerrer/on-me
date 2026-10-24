@@ -1,4 +1,3 @@
-import { summarizeArrivals } from "@/lib/arrivals";
 import type { Gate } from "@/lib/attribution";
 import { evaluateGate, GATE_CONFIG } from "@/lib/attribution";
 import { assertNoQueryError, db } from "@/lib/db/client";
@@ -169,10 +168,6 @@ export type MetricsPageData = {
     redeemStreakDays: number;
     totalScans: number;
     expiredInvites: number;
-    /** Check-ins con el QR fijo de barra, ver lib/arrivals.ts. */
-    arrivals: number;
-    /** Avisos caducados sin atender, sobre los ya resueltos -atendidos más caducados-. */
-    arrivalsUnattended: Ratio;
   };
 };
 
@@ -190,7 +185,6 @@ export async function loadMetricsPage(
     { data: invitationsData, error: invErr },
     { data: attributionsData, error: attrErr },
     { data: scansData, error: scanErr },
-    { data: arrivalsData, error: arrivalsErr },
   ] = await Promise.all([
     db().from("customers").select("*").eq("shop_id", shopId),
     db()
@@ -201,14 +195,12 @@ export async function loadMetricsPage(
     db().from("invitations").select("*").eq("shop_id", shopId),
     db().from("attributions").select("*").eq("shop_id", shopId),
     db().from("scans").select("*").eq("shop_id", shopId),
-    db().from("arrivals").select("created_at, expires_at, handled_at").eq("shop_id", shopId),
   ]);
   assertNoQueryError(custErr, `customers.shop_id=${shopId}`);
   assertNoQueryError(passErr, `passes.shop_id=${shopId}`);
   assertNoQueryError(invErr, `invitations.shop_id=${shopId}`);
   assertNoQueryError(attrErr, `attributions.shop_id=${shopId}`);
   assertNoQueryError(scanErr, `scans.shop_id=${shopId}`);
-  assertNoQueryError(arrivalsErr, `arrivals.shop_id=${shopId}`);
 
   const allCustomers = customersData ?? [];
   const allPasses = passesData ?? [];
@@ -686,12 +678,6 @@ export async function loadMetricsPage(
     }
   }
 
-  const arrivalSummary = summarizeArrivals(
-    (arrivalsData ?? []).filter((a) => inRange(a.created_at)),
-    now,
-  );
-  const resolvedArrivals = arrivalSummary.handled + arrivalSummary.unattended;
-
   const barSignals = {
     hourHistogram,
     avgScanMs,
@@ -700,9 +686,6 @@ export async function loadMetricsPage(
     redeemStreakDays,
     totalScans: stampScans.length,
     expiredInvites: invitations.filter((i) => i.state === "expired").length,
-    arrivals: arrivalSummary.total,
-    // Con `ratio`, como todo el panel: sin muestra mínima no hay porcentaje.
-    arrivalsUnattended: ratio(arrivalSummary.unattended, resolvedArrivals),
   };
 
   return {

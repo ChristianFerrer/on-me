@@ -5,7 +5,6 @@ import { checkPin } from "@/lib/auth/device";
 import { normalizePhone } from "@/lib/crypto";
 import type { CustomerRow } from "@/lib/db/types";
 import {
-  claimedInvitationFor,
   countActiveInvitations,
   countClaimedFromInvites,
   countSentInvitations,
@@ -13,15 +12,7 @@ import {
 } from "@/lib/invitations";
 import { type CustomerTier, getCustomerRanking } from "@/lib/ranking";
 import { applyRewardRedeem, applyStampBatch, type InvalidReason, type PassState } from "@/lib/scan";
-import {
-  ensurePass,
-  findCustomer,
-  firstName,
-  getVisitStats,
-  logScan,
-  padrinoName,
-  redeemInvitation,
-} from "@/lib/scan-service";
+import { ensurePass, findCustomer, firstName, getVisitStats, logScan } from "@/lib/scan-service";
 
 /**
  * Flujo identificador: escanear resuelve quién es el cliente -y solo eso-,
@@ -72,8 +63,6 @@ export type IdentifyResult =
       phone: string | null;
       /** Tope de sellos que el selector de esta pantalla deja pedir de una vez, ver /admin/ajustes. */
       maxStamps: number;
-      /** Viene invitado y aún no ha canjeado su café de bienvenida: quién le invitó. */
-      pendingInvitation: { padrino: string } | null;
     }
   | { kind: "invalid"; reason: InvalidReason };
 
@@ -83,7 +72,7 @@ async function buildProfile(
   customer: CustomerRow,
 ): Promise<Extract<IdentifyResult, { kind: "profile" }>> {
   const { shop } = ctx;
-  const [pass, newCustomersFromInvites, invitesAvailable, invitesSent, visitStats, ranking, invitation] =
+  const [pass, newCustomersFromInvites, invitesAvailable, invitesSent, visitStats, ranking] =
     await Promise.all([
       ensurePass(customer.id),
       countClaimedFromInvites(customer.id),
@@ -91,7 +80,6 @@ async function buildProfile(
       countSentInvitations(customer.id),
       getVisitStats(customer.id),
       getCustomerRanking(shop.id, customer.id),
-      claimedInvitationFor(customer.id),
     ]);
 
   return {
@@ -117,7 +105,6 @@ async function buildProfile(
     phoneLast4: customer.phone_last4,
     phone: customer.phone,
     maxStamps: shop.max_stamps_per_scan,
-    pendingInvitation: invitation ? { padrino: await padrinoName(invitation.padrino_id) } : null,
   };
 }
 
@@ -220,8 +207,6 @@ export type IdentifyApplyOptions = {
   addStamps: number;
   /** Cafés gratis a canjear ahora, de los que ya tenía acumulados -puede ser 0-. */
   redeemCount: number;
-  /** Canjear también su invitación pendiente -el café de bienvenida de un invitado-. */
-  redeemInvitation?: boolean;
   pin?: string;
 };
 
@@ -233,8 +218,6 @@ export type IdentifyApplyResult =
       added: number;
       rewardsEarned: number;
       redeemed: number;
-      /** Invitación canjeada en esta visita, o `null` si no se canjeó ninguna. */
-      invitationRedeemed: { padrino: string } | null;
     }
   | { kind: "invalid"; reason: InvalidReason };
 
@@ -268,24 +251,16 @@ export async function applyIdentifiedVisit(
     return { status: "ok", result: { kind: "invalid", reason: "other_shop" } };
   }
 
-  // Canjear una invitación también regala producto: mismo PIN que el café gratis.
-  if ((redeemRequested > 0 || options.redeemInvitation) && !checkPin(device, options.pin)) {
+  if (redeemRequested > 0 && !checkPin(device, options.pin)) {
     return { status: options.pin ? "pin_wrong" : "pin_required" };
   }
 
   const pass = await ensurePass(customer.id);
-  let before: PassState = {
+  const before: PassState = {
     stamps: pass.stamps,
     cardsCompleted: pass.cards_completed,
     rewardsPending: pass.reward_pending_count,
   };
-
-  // Primero la invitación, igual que en decideScan: su café es el primer
-  // sello de la tarjeta, y los cafés que pague además suman encima. Si ya
-  // no está pendiente -la canjeó otro dispositivo mientras tanto-, no pasa
-  // nada: se sigue con lo demás.
-  const invitation = options.redeemInvitation ? await claimedInvitationFor(customer.id) : null;
-  if (invitation) before = await redeemInvitation(ctx, customer.id, invitation, before);
 
   const batch =
     addStamps > 0
@@ -323,7 +298,7 @@ export async function applyIdentifiedVisit(
 
   // Solo si de verdad se aplicó algo: abrir la ficha y confirmar con 0
   // sellos y 0 canjes no es atender, y el aviso debe seguir en la lista.
-  if (batch.applied > 0 || redeemed > 0 || invitation) await resolveArrivals(shop.id, customer.id);
+  if (batch.applied > 0 || redeemed > 0) await resolveArrivals(shop.id, customer.id);
 
   // Perfil recalculado entero -no un parche a mano sobre `after`-: así el
   // resumen de cierre lee el mismo dato que vería un segundo escaneo
@@ -338,7 +313,6 @@ export async function applyIdentifiedVisit(
       added: batch.applied,
       rewardsEarned: batch.rewardsEarned,
       redeemed,
-      invitationRedeemed: invitation ? { padrino: await padrinoName(invitation.padrino_id) } : null,
     },
   };
 }
