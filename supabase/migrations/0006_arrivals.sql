@@ -1,5 +1,5 @@
 -- ============================================================================
--- OnMe · 0008 — llegadas: check-in del cliente con el QR fijo de barra
+-- OnMe · 0006 — llegadas: check-in del cliente con el QR fijo de barra
 --
 -- El cliente escanea el mismo QR estático del alta (/j/<shop>) con su móvil.
 -- Si ya tiene tarjeta, en vez del formulario se registra una "llegada" y la
