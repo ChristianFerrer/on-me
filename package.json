@@ -8,7 +8,11 @@
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "test:e2e": "playwright test",
+    "test:e2e:seed": "node tests/e2e/support/seed.mjs seed",
+    "test:e2e:teardown": "node tests/e2e/support/seed.mjs teardown",
+    "test:e2e:report": "node tests/e2e/support/report.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.112.3",
@@ -21,6 +25,7 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@playwright/test": "^1.62.1",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/qrcode": "^1.5.6",
