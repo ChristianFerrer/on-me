@@ -10,6 +10,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
+    "test:e2e:local": "E2E_BASE_URL=http://localhost:3000 playwright test",
     "test:e2e:seed": "node tests/e2e/support/seed.mjs seed",
     "test:e2e:teardown": "node tests/e2e/support/seed.mjs teardown",
     "test:e2e:report": "node tests/e2e/support/report.mjs"
